@@ -100,7 +100,7 @@ fn print_prelude() {
     println!("use kube::CustomResource;");
     println!("use serde::{{Serialize, Deserialize}};");
     println!("use std::collections::BTreeMap;");
-    println!("");
+    println!();
 }
 
 #[derive(Default, Debug)]
@@ -118,6 +118,7 @@ struct OutputMember {
 
 const IGNORED_KEYS: [&str; 3] = ["metadata", "apiVersion", "kind"];
 
+// recursive entry point to analyze a schema and generate a struct for if object type
 fn analyze(
     schema: JSONSchemaProps,
     kind: &str,
@@ -131,15 +132,12 @@ fn analyze(
     let root_type = schema.type_.unwrap_or_default();
     if root_type == "object" {
         if let Some(additional) = schema.additional_properties {
-            match additional {
-                JSONSchemaPropsOrBool::Schema(s) => {
-                    let dict_type = s.type_.unwrap_or_default();
-                    if !dict_type.is_empty() {
-                        warn!("not generating type {} - using map String->{}", root, dict_type);
-                        return Ok(()); // no members here - it'll be inlined
-                    }
+            if let JSONSchemaPropsOrBool::Schema(s) = additional {
+                let dict_type = s.type_.unwrap_or_default();
+                if !dict_type.is_empty() {
+                    warn!("not generating type {} - using map String->{}", root, dict_type);
+                    return Ok(()); // no members here - it'll be inlined
                 }
-                _ => {}
             }
         }
         let mut members = vec![];
@@ -154,30 +152,27 @@ fn analyze(
                     let mut dict_key = None;
                     if let Some(additional) = &value.additional_properties {
                         debug!("got additional: {}", serde_json::to_string(&additional)?);
-                        match additional {
-                            JSONSchemaPropsOrBool::Schema(s) => {
-                                let dict_type = s.type_.clone().unwrap_or_default();
-                                dict_key = match dict_type.as_ref() {
-                                    "string" => Some("String".into()),
-                                    "" => {
-                                        if s.x_kubernetes_int_or_string.is_some() {
-                                            warn!("coercing presumed IntOrString {} to String", key);
-                                            Some("String".into())
-                                        } else {
-                                            bail!("unknown empty dict type for {}", key)
-                                        }
+                        if let JSONSchemaPropsOrBool::Schema(s) = additional {
+                            let dict_type = s.type_.clone().unwrap_or_default();
+                            dict_key = match dict_type.as_ref() {
+                                "string" => Some("String".into()),
+                                "" => {
+                                    if s.x_kubernetes_int_or_string.is_some() {
+                                        warn!("coercing presumed IntOrString {} to String", key);
+                                        Some("String".into())
+                                    } else {
+                                        bail!("unknown empty dict type for {}", key)
                                     }
-                                    // think the type we get is the value type
-                                    x => Some(uppercase_first_letter(x)), // best guess
-                                };
-                            }
-                            _ => {}
+                                }
+                                // think the type we get is the value type
+                                x => Some(uppercase_first_letter(x)), // best guess
+                            };
                         }
                     }
                     if let Some(dict) = dict_key {
                         format!("BTreeMap<String, {}>", dict)
                     } else {
-                        let structsuffix = uppercase_first_letter(&key);
+                        let structsuffix = uppercase_first_letter(key);
                         // need to find the deterministic name for the struct
                         format!("{}{}", kind, structsuffix)
                     }
@@ -201,7 +196,7 @@ fn analyze(
                 }
                 "array" => {
                     // recurse through repeated arrays until we find a concrete type (keep track of how deep we went)
-                    let (array_type, recurse_level) = array_recurse_for_type(&value, kind, key, 1)?;
+                    let (array_type, recurse_level) = array_recurse_for_type(value, kind, key, 1)?;
                     debug!(
                         "got array type {} for {} in level {}",
                         array_type, key, recurse_level
@@ -259,7 +254,7 @@ fn analyze(
         // Finalize struct with given members
         results.push(OutputStruct {
             name: format!("{}{}", kind, root),
-            members: members,
+            members,
             level,
         });
     }
@@ -328,7 +323,7 @@ fn array_recurse_for_type(value: &JSONSchemaProps, kind: &str, key: &str, level:
                 let inner_array_type = s.type_.clone().unwrap_or_default();
                 return match inner_array_type.as_ref() {
                     "object" => {
-                        let structsuffix = uppercase_first_letter(&key);
+                        let structsuffix = uppercase_first_letter(key);
                         Ok((format!("Vec<{}{}>", kind, structsuffix), level))
                     }
                     "string" => Ok(("Vec<String>".into(), level)),
@@ -349,7 +344,7 @@ fn array_recurse_for_type(value: &JSONSchemaProps, kind: &str, key: &str, level:
                         };
                         Ok((format!("Vec<{}>", int_type), level))
                     }
-                    "array" => Ok(array_recurse_for_type(&s, kind, key, level + 1)?),
+                    "array" => Ok(array_recurse_for_type(s, kind, key, level + 1)?),
                     x => {
                         bail!("unsupported recursive array type {} for {}", x, key)
                     }
