@@ -48,6 +48,7 @@ async fn main() -> Result<()> {
         }
     }
     let kind = crd.spec.names.kind;
+    let plural = crd.spec.names.plural;
     let group = crd.spec.group;
     let version = picked_version.expect("need one version in the crd");
     let scope = crd.spec.scope;
@@ -66,8 +67,8 @@ async fn main() -> Result<()> {
                 if s.level == 1 && s.name.ends_with("Spec") {
                     println!("#[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]");
                     println!(
-                        r#"#[kube(group = "{}", version = "{}", kind = "{}")]"#,
-                        group, version, kind
+                        r#"#[kube(group = "{}", version = "{}", kind = "{}", plural = "{}")]"#,
+                        group, version, kind, plural
                     );
                     if scope == "Namespaced" {
                         println!(r#"#[kube(Namespaced)]"#);

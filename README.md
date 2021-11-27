@@ -5,6 +5,8 @@ A **k**ubernetes **op**enap**i** **u**n**m**angler.
 Creates rust structs from a named crd by converting the live openapi schema.
 
 
+** ⚠️ WARNING: ALPHA SOFTWARE ⚠️ **
+
 ## Installation
 
 ```sh
@@ -25,7 +27,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
-#[kube(group = "monitoring.coreos.com", version = "v1", kind = "PrometheusRule")]
+#[kube(group = "monitoring.coreos.com", version = "v1", kind = "PrometheusRule", plural = "prometheusrules")]
 #[kube(Namespaced)]
 #[kube(schema = "disabled")]
 pub struct PrometheusRuleSpec {
