@@ -1,0 +1,102 @@
+name: Release
+
+on:
+  pull_request:
+  #push:
+  #  tags:
+  #    - 'v[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+        - x86_64-unknown-linux-musl
+        - x86_64-apple-darwin
+        include:
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build Linux
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          docker run --rm -t \
+            -v $HOME/.cargo/registry/:/root/.cargo/registry \
+            -v "$(pwd)":/volume \
+            clux/muslrust:stable \
+            cargo build --release --target ${{ matrix.target }}
+      - name: Prepare macOS
+        if: matrix.os == 'macos-latest'
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          target: ${{ matrix.target }}
+          override: true
+      - name: Build macOS
+        if: matrix.os == 'macos-latest'
+        uses: actions-rs/cargo@v1
+        with:
+          toolchain: stable
+          command: build
+          args: --release --target ${{ matrix.target }}
+      - name: Upload
+        uses: actions/upload-artifact@v2
+        with:
+          name: kopium-${{ matrix.os }}-amd64
+          path: target/${{ matrix.target }}/release/kopium
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download
+        uses: actions/download-artifact@v2
+      - name: Layout
+        run: |
+          mv kopium-ubuntu-latest-amd64/kopium ./kopium-linux-amd64
+          mv kopium-macos-latest-amd64/kopium ./kopium-darwin-amd64
+          rm -rf kopium-ubuntu-latest-amd64 kopium-macos-latest-amd64
+      - name: Checksum
+        run: make SHA256SUMS
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+      - name: Release SHA256SUMS
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: SHA256SUMS
+          asset_name: SHA256SUMS
+          asset_content_type: text/plain
+      - name: Release kopium-linux-amd64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_name: kopium-linux-amd64
+          asset_path: kopium-linux-amd64
+          asset_content_type: application/octet-stream
+      - name: Release kopium-macos-amd64
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: kopium-darwin-amd64
+          asset_name: kopium-darwin-amd64
+          asset_content_type: application/octet-stream

@@ -17,6 +17,7 @@ cargo install kopium
 
 ```sh
 kopium prometheusrules.monitoring.coreos.com > prometheusrule.rs
+rustfmt +nightly --edition 2021 prometheusrule.rs
 ```
 
 ## Output
@@ -27,8 +28,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
-#[kube(group = "monitoring.coreos.com", version = "v1", kind = "PrometheusRule", plural = "prometheusrules")]
-#[kube(Namespaced)]
+#[kube(
+    group = "monitoring.coreos.com",
+    version = "v1",
+    kind = "PrometheusRule",
+    plural = "prometheusrules"
+)]
+#[kube(namespaced)]
 #[kube(schema = "disabled")]
 pub struct PrometheusRuleSpec {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -52,4 +58,5 @@ pub struct PrometheusRuleRules {
     pub labels: BTreeMap<String, String>,
     pub record: Option<String>,
 }
+
 ```

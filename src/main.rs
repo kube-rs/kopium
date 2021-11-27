@@ -71,7 +71,7 @@ async fn main() -> Result<()> {
                         group, version, kind, plural
                     );
                     if scope == "Namespaced" {
-                        println!(r#"#[kube(Namespaced)]"#);
+                        println!(r#"#[kube(namespaced)]"#);
                     }
                     // don't support grabbing original schema atm so disable schemas:
                     // (we coerce IntToString to String anyway so it wont match anyway)

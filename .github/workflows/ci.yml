@@ -1,0 +1,46 @@
+name: CI
+on:
+  pull_request:
+
+jobs:
+  cargo-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          override: true
+          toolchain: stable
+          profile: minimal
+      - uses: Swatinem/rust-cache@v1
+      - uses: nolar/setup-k3d-k3s@v1
+        with:
+          version: v1.21
+          k3d-name: kube
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: kubectl apply --force-conflicts --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.52.0/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml
+      - run: cargo build --all
+      - run: cargo run --bin kopium -- prometheusrules.monitoring.coreos.com > gen.rs
+      - run: echo "pub type CR = PrometheusRule;" >> gen.rs
+      - run: kubectl apply -f test.yaml
+      - run: cargo run --bin tester -- PrometheusRule
+
+
+  rustfmt:
+    name: Run rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1.0.7
+        with:
+          profile: minimal
+          toolchain: nightly
+          components: rustfmt
+          override: true
+      - name: Run rustfmt
+        id: rustfmt
+        run: rustfmt +nightly --edition 2018 --check $(find . -type f -iname *.rs)
