@@ -1,13 +1,10 @@
 #[macro_use] extern crate log;
-use kube::{Api, Client};
-use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
-    CustomResourceDefinition,
-    JSONSchemaProps,
-    JSONSchemaPropsOrArray,
-    JSONSchemaPropsOrBool,
-};
-use clap::{Arg, App};
 use anyhow::{bail, Result};
+use clap::{App, Arg};
+use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
+    CustomResourceDefinition, JSONSchemaProps, JSONSchemaPropsOrArray, JSONSchemaPropsOrBool,
+};
+use kube::{Api, Client};
 use std::collections::HashMap;
 
 #[tokio::main]
@@ -16,15 +13,19 @@ async fn main() -> Result<()> {
         .version(clap::crate_version!())
         .author("Eirik A <sszynrae@gmail.com>")
         .about("Kubernetes OPenapI UnMangler")
-        .arg(Arg::new("crd")
-            .about("Give the name of the input CRD to use e.g. prometheusrules.monitoring.coreos.com")
-            .required(true)
-            .index(1))
-        .arg(Arg::new("v")
-            .short('v')
-            .multiple_occurrences(true)
-            .takes_value(true)
-            .about("Sets the level of verbosity"))
+        .arg(
+            Arg::new("crd")
+                .about("Give the name of the input CRD to use e.g. prometheusrules.monitoring.coreos.com")
+                .required(true)
+                .index(1),
+        )
+        .arg(
+            Arg::new("v")
+                .short('v')
+                .multiple_occurrences(true)
+                .takes_value(true)
+                .about("Sets the level of verbosity"),
+        )
         .get_matches();
     env_logger::init();
 
@@ -65,7 +66,10 @@ async fn main() -> Result<()> {
             } else {
                 if s.level == 1 && s.name.ends_with("Spec") {
                     println!("#[derive(CustomResource, Serialize, Deserialize, Clone, Debug)");
-                    println!(r#"#[kube(group = "{}", version = "{}", kind = "{}")"#, group, version, kind);
+                    println!(
+                        r#"#[kube(group = "{}", version = "{}", kind = "{}")"#,
+                        group, version, kind
+                    );
                     if scope == "Namespaced" {
                         println!(r#"#[kube(Namespaced)]"#);
                     }
@@ -114,7 +118,13 @@ struct OutputMember {
 
 const IGNORED_KEYS: [&str; 3] = ["metadata", "apiVersion", "kind"];
 
-fn analyze(schema: JSONSchemaProps, kind: &str, root: &str, level: u8, results: &mut Vec<OutputStruct>) -> Result<()> {
+fn analyze(
+    schema: JSONSchemaProps,
+    kind: &str,
+    root: &str,
+    level: u8,
+    results: &mut Vec<OutputStruct>,
+) -> Result<()> {
     let props = schema.properties.unwrap_or_default();
     let mut array_recurse_level: HashMap<String, u8> = Default::default();
     // first generate the object if it is one
@@ -125,11 +135,11 @@ fn analyze(schema: JSONSchemaProps, kind: &str, root: &str, level: u8, results: 
                 JSONSchemaPropsOrBool::Schema(s) => {
                     let dict_type = s.type_.unwrap_or_default();
                     if !dict_type.is_empty() {
-                        warn!("not generating type for {} - presumed dict of type <String, {}>", root, dict_type);
-                        return Ok(()) // no members here - it'll be inlined
+                        warn!("not generating type {} - using map String->{}", root, dict_type);
+                        return Ok(()); // no members here - it'll be inlined
                     }
-                },
-                _ => {},
+                }
+                _ => {}
             }
         }
         let mut members = vec![];
@@ -156,12 +166,12 @@ fn analyze(schema: JSONSchemaProps, kind: &str, root: &str, level: u8, results: 
                                         } else {
                                             bail!("unknown empty dict type for {}", key)
                                         }
-                                    },
+                                    }
                                     // think the type we get is the value type
                                     x => Some(uppercase_first_letter(x)), // best guess
                                 };
                             }
-                            _ => {},
+                            _ => {}
                         }
                     }
                     if let Some(dict) = dict_key {
@@ -171,7 +181,7 @@ fn analyze(schema: JSONSchemaProps, kind: &str, root: &str, level: u8, results: 
                         // need to find the deterministic name for the struct
                         format!("{}{}", kind, structsuffix)
                     }
-                },
+                }
                 "string" => "String".to_string(),
                 "boolean" => "bool".to_string(),
                 "integer" => {
@@ -183,16 +193,19 @@ fn analyze(schema: JSONSchemaProps, kind: &str, root: &str, level: u8, results: 
                             x => {
                                 error!("unknown integer {}", x);
                                 "usize".to_string()
-                            },
+                            }
                         }
                     } else {
                         "usize".to_string()
                     }
-                },
+                }
                 "array" => {
                     // recurse through repeated arrays until we find a concrete type (keep track of how deep we went)
                     let (array_type, recurse_level) = array_recurse_for_type(&value, kind, key, 1)?;
-                    debug!("got array type {} for {} in level {}", array_type, key, recurse_level);
+                    debug!(
+                        "got array type {} for {} in level {}",
+                        array_type, key, recurse_level
+                    );
                     array_recurse_level.insert(key.clone(), recurse_level);
                     array_type
                 }
@@ -203,7 +216,7 @@ fn analyze(schema: JSONSchemaProps, kind: &str, root: &str, level: u8, results: 
                     } else {
                         bail!("unknown empty dict type for {}", key)
                     }
-                },
+                }
                 x => bail!("unknown type {}", x),
             };
 
@@ -215,20 +228,24 @@ fn analyze(schema: JSONSchemaProps, kind: &str, root: &str, level: u8, results: 
                     name: key.to_string(),
                     field_annot: None,
                 })
-            } else { // option wrapping possibly needed if not required
+            } else {
+                // option wrapping possibly needed if not required
                 debug!("with optional member {} of type {}", key, rust_type);
                 if rust_type.starts_with("BTreeMap") {
                     members.push(OutputMember {
                         type_: rust_type,
                         name: key.to_string(),
-                        field_annot: Some(r#"#[serde(default, skip_serializing_if = "BTreeMap::is_empty")]"#.into())
-
+                        field_annot: Some(
+                            r#"#[serde(default, skip_serializing_if = "BTreeMap::is_empty")]"#.into(),
+                        ),
                     })
                 } else if rust_type.starts_with("Vec") {
                     members.push(OutputMember {
                         type_: rust_type,
                         name: key.to_string(),
-                        field_annot: Some(r#"#[serde(default, skip_serializing_if = "Vec::is_empty")]"#.into())
+                        field_annot: Some(
+                            r#"#[serde(default, skip_serializing_if = "Vec::is_empty")]"#.into(),
+                        ),
                     })
                 } else {
                     members.push(OutputMember {
@@ -243,7 +260,7 @@ fn analyze(schema: JSONSchemaProps, kind: &str, root: &str, level: u8, results: 
         results.push(OutputStruct {
             name: format!("{}{}", kind, root),
             members: members,
-            level
+            level,
         });
     }
 
@@ -255,10 +272,11 @@ fn analyze(schema: JSONSchemaProps, kind: &str, root: &str, level: u8, results: 
         }
         let value_type = value.type_.clone().unwrap_or_default();
         match value_type.as_ref() {
-            "object" => { // recurse
+            "object" => {
+                // recurse
                 let structsuffix = uppercase_first_letter(&key);
                 analyze(value, kind, &structsuffix, level + 1, results)?;
-            },
+            }
             "array" => {
                 if let Some(recurse) = array_recurse_level.get(&key).cloned() {
                     let structsuffix = uppercase_first_letter(&key);
@@ -270,7 +288,7 @@ fn analyze(schema: JSONSchemaProps, kind: &str, root: &str, level: u8, results: 
                                 JSONSchemaPropsOrArray::Schema(s) => {
                                     //info!("got inner: {}", serde_json::to_string_pretty(&s)?);
                                     inner = *s.clone();
-                                },
+                                }
                                 _ => bail!("only handling single type in arrays"),
                             }
                         } else {
@@ -280,7 +298,7 @@ fn analyze(schema: JSONSchemaProps, kind: &str, root: &str, level: u8, results: 
 
                     analyze(inner, kind, &structsuffix, level + 1, results)?;
                 }
-            },
+            }
             "" => {
                 if value.x_kubernetes_int_or_string.is_some() {
                     debug!("not recursing into IntOrString {}", key)
@@ -288,7 +306,7 @@ fn analyze(schema: JSONSchemaProps, kind: &str, root: &str, level: u8, results: 
                     debug!("not recursing into unknown empty type {}", key)
                 }
             }
-            x => debug!("not recursing into {} (not a container - {})", key, x)
+            x => debug!("not recursing into {} (not a container - {})", key, x),
         }
     }
     Ok(())
@@ -312,13 +330,9 @@ fn array_recurse_for_type(value: &JSONSchemaProps, kind: &str, key: &str, level:
                     "object" => {
                         let structsuffix = uppercase_first_letter(&key);
                         Ok((format!("Vec<{}{}>", kind, structsuffix), level))
-                    },
-                    "string" => {
-                        Ok(("Vec<String>".into(), level))
-                    },
-                    "boolean" => {
-                        Ok(("Vec<bool>".into(), level))
-                    },
+                    }
+                    "string" => Ok(("Vec<String>".into(), level)),
+                    "boolean" => Ok(("Vec<bool>".into(), level)),
                     "integer" => {
                         // need to look at the format here:
                         let int_type = if let Some(f) = &s.format {
@@ -328,21 +342,19 @@ fn array_recurse_for_type(value: &JSONSchemaProps, kind: &str, key: &str, level:
                                 x => {
                                     error!("unknown integer {}", x);
                                     "usize".to_string()
-                                },
+                                }
                             }
                         } else {
                             "usize".to_string()
                         };
                         Ok((format!("Vec<{}>", int_type), level))
-                    },
-                    "array" => {
-                        Ok(array_recurse_for_type(&s, kind, key, level + 1)?)
-                    },
+                    }
+                    "array" => Ok(array_recurse_for_type(&s, kind, key, level + 1)?),
                     x => {
                         bail!("unsupported recursive array type {} for {}", x, key)
                     }
-                }
-            },
+                };
+            }
             // maybe fallback to serde_json::Value
             _ => bail!("only support single schema in array {}", key),
         }
