@@ -29,7 +29,7 @@ jobs:
             -v $HOME/.cargo/registry/:/root/.cargo/registry \
             -v "$(pwd)":/volume \
             clux/muslrust:stable \
-            cargo build --release --target ${{ matrix.target }}
+            cargo build --release --bin kopium --target ${{ matrix.target }}
       - name: Prepare macOS
         if: matrix.os == 'macos-latest'
         uses: actions-rs/toolchain@v1
@@ -43,7 +43,7 @@ jobs:
         with:
           toolchain: stable
           command: build
-          args: --release --target ${{ matrix.target }}
+          args: --release --bin kopium --target ${{ matrix.target }}
       - name: Upload
         uses: actions/upload-artifact@v2
         with:
