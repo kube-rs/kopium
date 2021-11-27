@@ -11,7 +11,7 @@ use std::collections::HashMap;
 async fn main() -> Result<()> {
     let matches = App::new("kopium")
         .version(clap::crate_version!())
-        .author("Eirik A <sszynrae@gmail.com>")
+        .author("clux <sszynrae@gmail.com>")
         .about("Kubernetes OPenapI UnMangler")
         .arg(
             Arg::new("crd")
@@ -65,9 +65,9 @@ async fn main() -> Result<()> {
                 continue; // ignoring root struct
             } else {
                 if s.level == 1 && s.name.ends_with("Spec") {
-                    println!("#[derive(CustomResource, Serialize, Deserialize, Clone, Debug)");
+                    println!("#[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]");
                     println!(
-                        r#"#[kube(group = "{}", version = "{}", kind = "{}")"#,
+                        r#"#[kube(group = "{}", version = "{}", kind = "{}")]"#,
                         group, version, kind
                     );
                     if scope == "Namespaced" {
@@ -77,7 +77,7 @@ async fn main() -> Result<()> {
                     // (we coerce IntToString to String anyway so it wont match anyway)
                     println!(r#"#[kube(schema = "disabled")]"#);
                 } else {
-                    println!("#[derive(Serialize, Deserialize, Clone, Debug)");
+                    println!("#[derive(Serialize, Deserialize, Clone, Debug)]");
                 }
                 println!("pub struct {} {{", s.name);
                 for m in s.members {
