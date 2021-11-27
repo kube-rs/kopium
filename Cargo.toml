@@ -1,5 +1,6 @@
 [package]
 name = "kopium"
+description = "kubernetes openapi unmangler"
 version = "0.1.0"
 edition = "2021"
 authors = [
@@ -7,6 +8,9 @@ authors = [
 ]
 license = "Apache-2.0"
 readme = "./README.md"
+repository = "https://github.com/kube-rs/kopium"
+keywords = ["kubernetes", "openapi"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 kube = "0.64.0"
