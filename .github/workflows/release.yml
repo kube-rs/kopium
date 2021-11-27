@@ -63,8 +63,6 @@ jobs:
           mv kopium-ubuntu-latest-amd64/kopium ./kopium-linux-amd64
           mv kopium-macos-latest-amd64/kopium ./kopium-darwin-amd64
           rm -rf kopium-ubuntu-latest-amd64 kopium-macos-latest-amd64
-      - name: Checksum
-        run: make SHA256SUMS
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -73,15 +71,6 @@ jobs:
         with:
           tag_name: ${{ github.ref }}
           release_name: Release ${{ github.ref }}
-      - name: Release SHA256SUMS
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: SHA256SUMS
-          asset_name: SHA256SUMS
-          asset_content_type: text/plain
       - name: Release kopium-linux-amd64
         uses: actions/upload-release-asset@v1
         env:
