@@ -1,5 +1,9 @@
 # kopium
 
+[![CI](https://github.com/kube-rs/kopium/actions/workflows/release.yml/badge.svg)](https://github.com/kube-rs/kopium/actions/workflows/release.yml)
+[![Crates.io](https://img.shields.io/crates/v/kopium.svg)](https://crates.io/crates/kopium)
+
+
 A **k**ubernetes **op**enap**i** **u**n**m**angler.
 
 Creates rust structs from a named crd by converting the live openapi schema.
@@ -59,4 +63,15 @@ pub struct PrometheusRuleRules {
     pub record: Option<String>,
 }
 
+```
+
+## Testing
+
+Generate a CRD, tell the test runner to try to use it.
+
+```sh
+cargo run --bin kopium -- prometheusrules.monitoring.coreos.com > tests/gen.rs
+echo "pub type CR = PrometheusRule;" >> tests/gen.rs
+kubectl apply -f tests/pr.yaml # needs to contain a CR with name "gen"
+cargo test --test runner -- --nocapture
 ```

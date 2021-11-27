@@ -17,11 +17,6 @@ doc = false
 name = "kopium"
 path = "src/main.rs"
 
-[[bin]]
-doc = false
-name = "tester"
-path = "test.rs"
-
 [dependencies]
 kube = { version = "0.64.0", features = ["derive"] }
 k8s-openapi = { version = "0.13.1", features = ["v1_22"] }
