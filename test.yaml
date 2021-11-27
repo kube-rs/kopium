@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: gen
+spec:
+  groups:
+    - name: ./pr.rules
+      rules:
+        - alert: PRFakeAlert
+          labels:
+            severity: info
+          expr: "0"
+          for: 10m
+          annotations:
+            summary: "Parsing this"
