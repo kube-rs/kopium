@@ -488,6 +488,7 @@ dependencies = [
  "k8s-openapi",
  "kube",
  "log",
+ "quote",
  "serde_json",
  "tokio",
 ]

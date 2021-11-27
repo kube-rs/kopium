@@ -45,7 +45,7 @@ pub struct PrometheusRuleRules {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub annotations: BTreeMap<String, String>,
     pub expr: String,
-    pub for: Option<String>,
+    pub r#for: Option<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub labels: BTreeMap<String, String>,
     pub record: Option<String>,

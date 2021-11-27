@@ -5,7 +5,13 @@ use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, JSONSchemaProps, JSONSchemaPropsOrArray, JSONSchemaPropsOrBool,
 };
 use kube::{Api, Client};
+use quote::format_ident;
 use std::collections::HashMap;
+
+const KEYWORDS: [&str; 23] = [
+    "for", "impl", "continue", "enum", "const", "break", "as", "move", "mut", "mod", "pub", "ref", "self",
+    "static", "struct", "super", "true", "trait", "type", "unsafe", "use", "where", "while",
+];
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -84,7 +90,12 @@ async fn main() -> Result<()> {
                     if let Some(annot) = m.field_annot {
                         println!("    {}", annot);
                     }
-                    println!("    pub {}: {},", m.name, m.type_);
+                    let safe_name = if KEYWORDS.contains(&m.name.as_ref()) {
+                        format_ident!("r#{}", m.name)
+                    } else {
+                        format_ident!("{}", m.name)
+                    };
+                    println!("    pub {}: {},", safe_name, m.type_);
                 }
                 println!("}}")
             }
