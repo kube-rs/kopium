@@ -62,7 +62,6 @@ pub struct PrometheusRuleRules {
     pub labels: BTreeMap<String, String>,
     pub record: Option<String>,
 }
-
 ```
 
 ## Testing
@@ -75,3 +74,5 @@ echo "pub type CR = PrometheusRule;" >> tests/gen.rs
 kubectl apply -f tests/pr.yaml # needs to contain a CR with name "gen"
 cargo test --test runner -- --nocapture
 ```
+
+Requires kubernetes access to write customresourcedefinitions.
