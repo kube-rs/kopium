@@ -13,6 +13,8 @@ Creates rust structs from a named crd by converting the live openapi schema.
 
 ## Installation
 
+Grab a prebuilt musl/darwin binary from the [latest release](https://github.com/kube-rs/kopium/releases), or install from [crates.io](https://crates.io/crates/kopium):
+
 ```sh
 cargo install kopium
 ```
