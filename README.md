@@ -21,7 +21,7 @@ kopium prometheusrules.monitoring.coreos.com > prometheusrule.rs
 
 ```rust
 use kube::CustomResource;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]

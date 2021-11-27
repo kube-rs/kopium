@@ -25,13 +25,6 @@ async fn main() -> Result<()> {
                 .required(true)
                 .index(1),
         )
-        .arg(
-            Arg::new("v")
-                .short('v')
-                .multiple_occurrences(true)
-                .takes_value(true)
-                .about("Sets the level of verbosity"),
-        )
         .get_matches();
     env_logger::init();
 
