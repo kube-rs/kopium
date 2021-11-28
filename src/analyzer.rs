@@ -1,3 +1,4 @@
+//! Deals entirely with schema analysis for the purpose of creating output structs + members
 use crate::{OutputMember, OutputStruct};
 use anyhow::{bail, Result};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
@@ -10,16 +11,14 @@ const IGNORED_KEYS: [&str; 3] = ["metadata", "apiVersion", "kind"];
 /// Scan a schema for structs and members, and recurse to find all structs
 ///
 /// schema: root schema / sub schema
-/// kind: crd kind name
-/// current: current key name (or empty string for first call)
-/// stackname: stacked concat of kind + current_{n-1} + ... + current (used to create dedup_name)
+/// current: current key name (or empty string for first call) - must capitalize first letter
+/// stack: stacked concat of kind + current_{n-1} + ... + current (used to create dedup names/types)
 /// level: recursion level (start at 0)
 /// results: multable list of generated structs (not deduplicated)
 pub fn analyze(
     schema: JSONSchemaProps,
-    kind: &str,
     current: &str,
-    stackname: &str,
+    stack: &str,
     level: u8,
     results: &mut Vec<OutputStruct>,
 ) -> Result<()> {
@@ -36,7 +35,7 @@ pub fn analyze(
             }
         }
         let mut members = vec![];
-        debug!("Generating struct for {} (under {})", current, stackname);
+        debug!("Generating struct for {} (under {})", current, stack);
 
         let reqs = schema.required.unwrap_or_default();
         // initial analysis of properties (we do not recurse here, we need to find members first)
@@ -67,9 +66,7 @@ pub fn analyze(
                     if let Some(dict) = dict_key {
                         format!("BTreeMap<String, {}>", dict)
                     } else {
-                        let structsuffix = uppercase_first_letter(key);
-                        // need to find the deterministic name for the struct
-                        format!("{}{}", kind, structsuffix)
+                        stack.to_string()
                     }
                 }
                 "string" => "String".to_string(),
@@ -79,7 +76,7 @@ pub fn analyze(
                 "integer" => extract_integer_type(value)?,
                 "array" => {
                     // recurse through repeated arrays until we find a concrete type (keep track of how deep we went)
-                    let (array_type, recurse_level) = array_recurse_for_type(value, kind, key, 1)?;
+                    let (array_type, recurse_level) = array_recurse_for_type(value, stack, key, 1)?;
                     debug!(
                         "got array type {} for {} in level {}",
                         array_type, key, recurse_level
@@ -136,8 +133,7 @@ pub fn analyze(
         }
         // Finalize struct with given members
         results.push(OutputStruct {
-            name: format!("{}{}", kind, current),
-            dedup_name: format!("{}{}", stackname, current),
+            name: stack.to_string(),
             members,
             level,
         });
@@ -149,12 +145,12 @@ pub fn analyze(
             debug!("not recursing into ignored {}", key); // handled elsewhere
             continue;
         }
-        let next_current = uppercase_first_letter(&key);
-        let stackname = format!("{}{}", kind, current);
+        let next_key = uppercase_first_letter(&key);
+        let next_stack = format!("{}{}", stack, next_key);
         let value_type = value.type_.clone().unwrap_or_default();
         match value_type.as_ref() {
             "object" => {
-                analyze(value, kind, &next_current, &stackname, level + 1, results)?;
+                analyze(value, &next_key, &next_stack, level + 1, results)?;
             }
             "array" => {
                 if let Some(recurse) = array_recurse_level.get(&key).cloned() {
@@ -173,7 +169,7 @@ pub fn analyze(
                             bail!("could not recurse into vec");
                         }
                     }
-                    analyze(inner, kind, &next_current, &stackname, level + 1, results)?;
+                    analyze(inner, &next_key, &next_stack, level + 1, results)?;
                 }
             }
             "" => {
@@ -191,7 +187,12 @@ pub fn analyze(
 
 // recurse into an array type to find its nested type
 // this recursion is intialised and ended within a single step of the outer recursion
-fn array_recurse_for_type(value: &JSONSchemaProps, kind: &str, key: &str, level: u8) -> Result<(String, u8)> {
+fn array_recurse_for_type(
+    value: &JSONSchemaProps,
+    stack: &str,
+    key: &str,
+    level: u8,
+) -> Result<(String, u8)> {
     if let Some(items) = &value.items {
         match items {
             JSONSchemaPropsOrArray::Schema(s) => {
@@ -199,14 +200,14 @@ fn array_recurse_for_type(value: &JSONSchemaProps, kind: &str, key: &str, level:
                 return match inner_array_type.as_ref() {
                     "object" => {
                         let structsuffix = uppercase_first_letter(key);
-                        Ok((format!("Vec<{}{}>", kind, structsuffix), level))
+                        Ok((format!("Vec<{}{}>", stack, structsuffix), level))
                     }
                     "string" => Ok(("Vec<String>".into(), level)),
                     "boolean" => Ok(("Vec<bool>".into(), level)),
                     "date" => Ok((format!("Vec<{}>", extract_date_type(value)?), level)),
                     "number" => Ok((format!("Vec<{}>", extract_number_type(value)?), level)),
                     "integer" => Ok((format!("Vec<{}>", extract_integer_type(value)?), level)),
-                    "array" => Ok(array_recurse_for_type(s, kind, key, level + 1)?),
+                    "array" => Ok(array_recurse_for_type(s, stack, key, level + 1)?),
                     x => {
                         bail!("unsupported recursive array type {} for {}", x, key)
                     }

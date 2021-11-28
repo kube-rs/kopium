@@ -3,13 +3,16 @@
 [![CI](https://github.com/kube-rs/kopium/actions/workflows/release.yml/badge.svg)](https://github.com/kube-rs/kopium/actions/workflows/release.yml)
 [![Crates.io](https://img.shields.io/crates/v/kopium.svg)](https://crates.io/crates/kopium)
 
+**K**ubernetes **op**enap**i** **u**n**m**angler.
 
-A **k**ubernetes **op**enap**i** **u**n**m**angler.
+Generates rust structs from `customresourcedefinitions` in your kubernetes cluster follwing the spec/status model, by using their embedded openapi schema.
 
-Creates rust structs from a named crd by converting the live openapi schema.
+**⚠️ WARNING: [ALPHA SOFTWARE](https://github.com/kube-rs/kopium/issues) ⚠️**
 
+Requirements:
 
-**⚠️ WARNING: ALPHA SOFTWARE ⚠️**
+- stable `customresourcedefinition` ([v1beta1 was removed in v1.22](https://kubernetes.io/blog/2021/07/14/upcoming-changes-in-kubernetes-1-22/))
+- crd with spec/status
 
 ## Installation
 
@@ -51,10 +54,10 @@ pub struct PrometheusRuleGroups {
     pub interval: Option<String>,
     pub name: String,
     pub partial_response_strategy: Option<String>,
-    pub rules: Vec<PrometheusRuleRules>,
+    pub rules: Vec<PrometheusRuleGroupsRules>,
 }
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct PrometheusRuleRules {
+pub struct PrometheusRuleGroupsRules {
     pub alert: Option<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub annotations: BTreeMap<String, String>,
