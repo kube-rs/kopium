@@ -42,19 +42,19 @@ use std::collections::BTreeMap;
 )]
 #[kube(namespaced)]
 #[kube(schema = "disabled")]
-pub struct PrometheusRuleSpecSpec {
+pub struct PrometheusRuleSpec {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub groups: Vec<PrometheusRuleSpecGroups>,
 }
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct PrometheusRuleSpecGroupsGroups {
+pub struct PrometheusRuleSpecGroups {
     pub interval: Option<String>,
     pub name: String,
     pub partial_response_strategy: Option<String>,
     pub rules: Vec<PrometheusRuleSpecGroupsRules>,
 }
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct PrometheusRuleSpecGroupsRulesRules {
+pub struct PrometheusRuleSpecGroupsRules {
     pub alert: Option<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub annotations: BTreeMap<String, String>,
