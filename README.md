@@ -28,6 +28,7 @@ rustfmt +nightly --edition 2021 prometheusrule.rs
 
 ## Output
 
+```rust
 use kube::CustomResource;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

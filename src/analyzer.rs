@@ -66,9 +66,7 @@ pub fn analyze(
                     if let Some(dict) = dict_key {
                         format!("BTreeMap<String, {}>", dict)
                     } else {
-                        // need to find the deterministic name for the struct
-                        let structsuffix = uppercase_first_letter(key);
-                        format!("{}{}", stack, structsuffix)
+                        stack.to_string()
                     }
                 }
                 "string" => "String".to_string(),
