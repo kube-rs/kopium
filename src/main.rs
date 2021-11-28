@@ -344,10 +344,11 @@ fn array_recurse_for_type(value: &JSONSchemaProps, kind: &str, key: &str, level:
 
 fn extract_date_type(value: &JSONSchemaProps) -> Result<String> {
     Ok(if let Some(f) = &value.format {
+        // NB: these need chrono feature on serde
         match f.as_ref() {
-            // TODO: what type?
-            "date" => "String".to_string(),
-            // NB: needs chrono feature on serde
+            // Not sure if the first actually works properly..
+            // might need a Date<Utc> but chrono docs advocated for NaiveDate
+            "date" => "NaiveDate".to_string(),
             "date-time" => "DateTime<Utc>".to_string(),
             x => {
                 bail!("unknown date {}", x);
