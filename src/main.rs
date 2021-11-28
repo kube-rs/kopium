@@ -193,50 +193,9 @@ fn analyze(
                 }
                 "string" => "String".to_string(),
                 "boolean" => "bool".to_string(),
-                "date" => {
-                    if let Some(f) = &value.format {
-                        match f.as_ref() {
-                            // TODO: what type?
-                            "date" => "String".to_string(),
-                            // NB: needs chrono feature on serde
-                            "date-time" => "DateTime<Utc>".to_string(),
-                            x => {
-                                bail!("unknown date {}", x);
-                            }
-                        }
-                    } else {
-                        "String".to_string()
-                    }
-                }
-                "number" => {
-                    if let Some(f) = &value.format {
-                        match f.as_ref() {
-                            "float" => "f32".to_string(),
-                            "double" => "f64".to_string(),
-                            x => {
-                                bail!("unknown number {}", x);
-                            }
-                        }
-                    } else {
-                        "f64".to_string()
-                    }
-                }
-                "integer" => {
-                    // Think go types just do signed ints, but set a minimum to zero..
-                    // TODO: look for minimum zero and use to set u32/u64
-                    if let Some(f) = &value.format {
-                        match f.as_ref() {
-                            "int32" => "i32".to_string(),
-                            "int64" => "i64".to_string(),
-                            // TODO: byte / password here?
-                            x => {
-                                bail!("unknown integer {}", x);
-                            }
-                        }
-                    } else {
-                        "int64".to_string()
-                    }
-                }
+                "date" => extract_date_type(value)?,
+                "number" => extract_number_type(value)?,
+                "integer" => extract_integer_type(value)?,
                 "array" => {
                     // recurse through repeated arrays until we find a concrete type (keep track of how deep we went)
                     let (array_type, recurse_level) = array_recurse_for_type(value, kind, key, 1)?;
@@ -349,15 +308,8 @@ fn analyze(
     Ok(())
 }
 
-
-fn uppercase_first_letter(s: &str) -> String {
-    let mut c = s.chars();
-    match c.next() {
-        None => String::new(),
-        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-    }
-}
-
+// recurse into an array type to find its nested type
+// this recursion is intialised and ended within a single step of the outer recursion
 fn array_recurse_for_type(value: &JSONSchemaProps, kind: &str, key: &str, level: u8) -> Result<(String, u8)> {
     if let Some(items) = &value.items {
         match items {
@@ -370,51 +322,9 @@ fn array_recurse_for_type(value: &JSONSchemaProps, kind: &str, key: &str, level:
                     }
                     "string" => Ok(("Vec<String>".into(), level)),
                     "boolean" => Ok(("Vec<bool>".into(), level)),
-                    "date" => {
-                        let date_type = if let Some(f) = &s.format {
-                            match f.as_ref() {
-                                "date" => "String".to_string(),             // TODO: what type?
-                                "date-time" => "DateTime<Utc>".to_string(), // need chrono feature on serde
-                                x => {
-                                    bail!("unknown date {}", x);
-                                }
-                            }
-                        } else {
-                            "String".to_string()
-                        };
-                        Ok((format!("Vec<{}>", date_type), level))
-                    }
-                    "number" => {
-                        let num_type = if let Some(f) = &s.format {
-                            match f.as_ref() {
-                                "float" => "f32".to_string(),
-                                "double" => "f64".to_string(),
-                                x => {
-                                    bail!("unknown number {}", x);
-                                }
-                            }
-                        } else {
-                            "f64".to_string()
-                        };
-                        Ok((format!("Vec<{}>", num_type), level))
-                    }
-                    "integer" => {
-                        let int_type = if let Some(f) = &s.format {
-                            // Think go types just do signed ints, but set a minimum to zero..
-                            // TODO: look for minimum zero and use to set u32/u64
-                            match f.as_ref() {
-                                "int32" => "i32".to_string(),
-                                "int64" => "i64".to_string(),
-                                // TODO: byte / password here?
-                                x => {
-                                    bail!("unknown integer {}", x);
-                                }
-                            }
-                        } else {
-                            "int64".to_string()
-                        };
-                        Ok((format!("Vec<{}>", int_type), level))
-                    }
+                    "date" => Ok((format!("Vec<{}>", extract_date_type(value)?), level)),
+                    "number" => Ok((format!("Vec<{}>", extract_number_type(value)?), level)),
+                    "integer" => Ok((format!("Vec<{}>", extract_integer_type(value)?), level)),
                     "array" => Ok(array_recurse_for_type(s, kind, key, level + 1)?),
                     x => {
                         bail!("unsupported recursive array type {} for {}", x, key)
@@ -426,5 +336,63 @@ fn array_recurse_for_type(value: &JSONSchemaProps, kind: &str, key: &str, level:
         }
     } else {
         bail!("missing items in array type")
+    }
+}
+
+// ----------------------------------------------------------------------------
+// helpers
+
+fn extract_date_type(value: &JSONSchemaProps) -> Result<String> {
+    Ok(if let Some(f) = &value.format {
+        match f.as_ref() {
+            // TODO: what type?
+            "date" => "String".to_string(),
+            // NB: needs chrono feature on serde
+            "date-time" => "DateTime<Utc>".to_string(),
+            x => {
+                bail!("unknown date {}", x);
+            }
+        }
+    } else {
+        "String".to_string()
+    })
+}
+
+fn extract_number_type(value: &JSONSchemaProps) -> Result<String> {
+    Ok(if let Some(f) = &value.format {
+        match f.as_ref() {
+            "float" => "f32".to_string(),
+            "double" => "f64".to_string(),
+            x => {
+                bail!("unknown number {}", x);
+            }
+        }
+    } else {
+        "f64".to_string()
+    })
+}
+
+fn extract_integer_type(value: &JSONSchemaProps) -> Result<String> {
+    // Think go types just do signed ints, but set a minimum to zero..
+    // TODO: look for minimum zero and use to set u32/u64
+    Ok(if let Some(f) = &value.format {
+        match f.as_ref() {
+            "int32" => "i32".to_string(),
+            "int64" => "i64".to_string(),
+            // TODO: byte / password here?
+            x => {
+                bail!("unknown integer {}", x);
+            }
+        }
+    } else {
+        "i64".to_string()
+    })
+}
+
+fn uppercase_first_letter(s: &str) -> String {
+    let mut c = s.chars();
+    match c.next() {
+        None => String::new(),
+        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
     }
 }
