@@ -57,7 +57,7 @@ async fn main() -> Result<()> {
     if let Some(schema) = data {
         let mut results = vec![];
         debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
-        analyze(schema, &kind, "", 0, &mut results)?;
+        analyze(schema, &kind, "", "", 0, &mut results)?;
 
         print_prelude();
         for s in results {
@@ -110,7 +110,10 @@ fn print_prelude() {
 
 #[derive(Default, Debug)]
 struct OutputStruct {
+    // The short name of the struct (kind + capitalized suffix)
     name: String,
+    // The full (deduplicated) name of the struct (kind + recursive capitalized suffixes) - unused atm
+    dedup_name: String,
     level: u8,
     members: Vec<OutputMember>,
 }
@@ -123,30 +126,36 @@ struct OutputMember {
 
 const IGNORED_KEYS: [&str; 3] = ["metadata", "apiVersion", "kind"];
 
-// recursive entry point to analyze a schema and generate a struct for if object type
+/// Scan a schema for structs and members, and recurse to find all structs
+///
+/// schema: root schema / sub schema
+/// kind: crd kind name
+/// current: current key name (or empty string for first call)
+/// stackname: stacked concat of kind + current_{n-1} + ... + current (used to create dedup_name)
+/// level: recursion level (start at 0)
+/// results: multable list of generated structs (not deduplicated)
 fn analyze(
     schema: JSONSchemaProps,
     kind: &str,
-    root: &str,
+    current: &str,
+    stackname: &str,
     level: u8,
     results: &mut Vec<OutputStruct>,
 ) -> Result<()> {
     let props = schema.properties.unwrap_or_default();
     let mut array_recurse_level: HashMap<String, u8> = Default::default();
     // first generate the object if it is one
-    let root_type = schema.type_.unwrap_or_default();
-    if root_type == "object" {
-        if let Some(additional) = schema.additional_properties {
-            if let JSONSchemaPropsOrBool::Schema(s) = additional {
-                let dict_type = s.type_.unwrap_or_default();
-                if !dict_type.is_empty() {
-                    warn!("not generating type {} - using map String->{}", root, dict_type);
-                    return Ok(()); // no members here - it'll be inlined
-                }
+    let current_type = schema.type_.unwrap_or_default();
+    if current_type == "object" {
+        if let Some(JSONSchemaPropsOrBool::Schema(s)) = schema.additional_properties {
+            let dict_type = s.type_.unwrap_or_default();
+            if !dict_type.is_empty() {
+                warn!("not generating type {} - using {} map", current, dict_type);
+                return Ok(()); // no members here - it'll be inlined
             }
         }
         let mut members = vec![];
-        debug!("Generating struct {}{}", kind, root);
+        debug!("Generating struct for {} (under {})", current, stackname);
 
         let reqs = schema.required.unwrap_or_default();
         // initial analysis of properties (we do not recurse here, we need to find members first)
@@ -184,21 +193,9 @@ fn analyze(
                 }
                 "string" => "String".to_string(),
                 "boolean" => "bool".to_string(),
-                "integer" => {
-                    // need to look at the format here:
-                    if let Some(f) = &value.format {
-                        match f.as_ref() {
-                            "int32" => "i32".to_string(),
-                            "int64" => "i64".to_string(),
-                            x => {
-                                error!("unknown integer {}", x);
-                                "usize".to_string()
-                            }
-                        }
-                    } else {
-                        "usize".to_string()
-                    }
-                }
+                "date" => extract_date_type(value)?,
+                "number" => extract_number_type(value)?,
+                "integer" => extract_integer_type(value)?,
                 "array" => {
                     // recurse through repeated arrays until we find a concrete type (keep track of how deep we went)
                     let (array_type, recurse_level) = array_recurse_for_type(value, kind, key, 1)?;
@@ -258,7 +255,8 @@ fn analyze(
         }
         // Finalize struct with given members
         results.push(OutputStruct {
-            name: format!("{}{}", kind, root),
+            name: format!("{}{}", kind, current),
+            dedup_name: format!("{}{}", stackname, current),
             members,
             level,
         });
@@ -270,16 +268,15 @@ fn analyze(
             debug!("not recursing into ignored {}", key); // handled elsewhere
             continue;
         }
+        let next_current = uppercase_first_letter(&key);
+        let stackname = format!("{}{}", kind, current);
         let value_type = value.type_.clone().unwrap_or_default();
         match value_type.as_ref() {
             "object" => {
-                // recurse
-                let structsuffix = uppercase_first_letter(&key);
-                analyze(value, kind, &structsuffix, level + 1, results)?;
+                analyze(value, kind, &next_current, &stackname, level + 1, results)?;
             }
             "array" => {
                 if let Some(recurse) = array_recurse_level.get(&key).cloned() {
-                    let structsuffix = uppercase_first_letter(&key);
                     let mut inner = value.clone();
                     for _i in 0..recurse {
                         debug!("recursing into props for {}", key);
@@ -295,8 +292,7 @@ fn analyze(
                             bail!("could not recurse into vec");
                         }
                     }
-
-                    analyze(inner, kind, &structsuffix, level + 1, results)?;
+                    analyze(inner, kind, &next_current, &stackname, level + 1, results)?;
                 }
             }
             "" => {
@@ -312,15 +308,8 @@ fn analyze(
     Ok(())
 }
 
-
-fn uppercase_first_letter(s: &str) -> String {
-    let mut c = s.chars();
-    match c.next() {
-        None => String::new(),
-        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-    }
-}
-
+// recurse into an array type to find its nested type
+// this recursion is intialised and ended within a single step of the outer recursion
 fn array_recurse_for_type(value: &JSONSchemaProps, kind: &str, key: &str, level: u8) -> Result<(String, u8)> {
     if let Some(items) = &value.items {
         match items {
@@ -333,22 +322,9 @@ fn array_recurse_for_type(value: &JSONSchemaProps, kind: &str, key: &str, level:
                     }
                     "string" => Ok(("Vec<String>".into(), level)),
                     "boolean" => Ok(("Vec<bool>".into(), level)),
-                    "integer" => {
-                        // need to look at the format here:
-                        let int_type = if let Some(f) = &s.format {
-                            match f.as_ref() {
-                                "int32" => "i32".to_string(),
-                                "int64" => "i64".to_string(),
-                                x => {
-                                    error!("unknown integer {}", x);
-                                    "usize".to_string()
-                                }
-                            }
-                        } else {
-                            "usize".to_string()
-                        };
-                        Ok((format!("Vec<{}>", int_type), level))
-                    }
+                    "date" => Ok((format!("Vec<{}>", extract_date_type(value)?), level)),
+                    "number" => Ok((format!("Vec<{}>", extract_number_type(value)?), level)),
+                    "integer" => Ok((format!("Vec<{}>", extract_integer_type(value)?), level)),
                     "array" => Ok(array_recurse_for_type(s, kind, key, level + 1)?),
                     x => {
                         bail!("unsupported recursive array type {} for {}", x, key)
@@ -360,5 +336,72 @@ fn array_recurse_for_type(value: &JSONSchemaProps, kind: &str, key: &str, level:
         }
     } else {
         bail!("missing items in array type")
+    }
+}
+
+// ----------------------------------------------------------------------------
+// helpers
+
+fn extract_date_type(value: &JSONSchemaProps) -> Result<String> {
+    Ok(if let Some(f) = &value.format {
+        // NB: these need chrono feature on serde
+        match f.as_ref() {
+            // Not sure if the first actually works properly..
+            // might need a Date<Utc> but chrono docs advocated for NaiveDate
+            "date" => "NaiveDate".to_string(),
+            "date-time" => "DateTime<Utc>".to_string(),
+            x => {
+                bail!("unknown date {}", x);
+            }
+        }
+    } else {
+        "String".to_string()
+    })
+}
+
+fn extract_number_type(value: &JSONSchemaProps) -> Result<String> {
+    // TODO: byte / password here?
+    Ok(if let Some(f) = &value.format {
+        match f.as_ref() {
+            "float" => "f32".to_string(),
+            "double" => "f64".to_string(),
+            x => {
+                bail!("unknown number {}", x);
+            }
+        }
+    } else {
+        "f64".to_string()
+    })
+}
+
+fn extract_integer_type(value: &JSONSchemaProps) -> Result<String> {
+    // Think kubernetes go types just do signed ints, but set a minimum to zero..
+    // rust will set uint, so emitting that when possbile
+    Ok(if let Some(f) = &value.format {
+        match f.as_ref() {
+            "int8" => "i8".to_string(),
+            "int16" => "i16".to_string(),
+            "int32" => "i32".to_string(),
+            "int64" => "i64".to_string(),
+            "int128" => "i128".to_string(),
+            "uint8" => "u8".to_string(),
+            "uint16" => "u16".to_string(),
+            "uint32" => "u32".to_string(),
+            "uint64" => "u64".to_string(),
+            "uint128" => "u128".to_string(),
+            x => {
+                bail!("unknown integer {}", x);
+            }
+        }
+    } else {
+        "i64".to_string()
+    })
+}
+
+fn uppercase_first_letter(s: &str) -> String {
+    let mut c = s.chars();
+    match c.next() {
+        None => String::new(),
+        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
     }
 }
