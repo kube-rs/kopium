@@ -1,6 +1,5 @@
 use std::str;
 
-#[macro_use] extern crate log;
 use anyhow::Result;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion,
@@ -53,7 +52,7 @@ async fn main() -> Result<()> {
 
     if let Some(schema) = data {
         let mut results = vec![];
-        debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
+        log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
         analyze(schema, "", &kind, 0, &mut results)?;
 
         print_prelude(&results);
@@ -95,7 +94,7 @@ async fn main() -> Result<()> {
             }
         }
     } else {
-        error!("no schema found for crd {}", kopium.crd);
+        log::error!("no schema found for crd {}", kopium.crd);
     }
 
     Ok(())
