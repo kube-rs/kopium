@@ -26,6 +26,8 @@ struct Kopium {
     crd: String,
     #[structopt(about = "Use this CRD version if multiple versions are present", long)]
     api_version: Option<String>,
+    #[structopt(about = "Do not emit prelude", long)]
+    hide_prelude: bool,
 }
 
 #[tokio::main]
@@ -55,7 +57,10 @@ async fn main() -> Result<()> {
         log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
         analyze(schema, "", &kind, 0, &mut results)?;
 
-        print_prelude(&results);
+        if !kopium.hide_prelude {
+            print_prelude(&results);
+        }
+
         for s in results {
             if s.level == 0 {
                 continue; // ignoring root struct
