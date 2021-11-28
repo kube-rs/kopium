@@ -375,11 +375,13 @@ fn extract_number_type(value: &JSONSchemaProps) -> Result<String> {
 
 fn extract_integer_type(value: &JSONSchemaProps) -> Result<String> {
     // Think go types just do signed ints, but set a minimum to zero..
-    // TODO: look for minimum zero and use to set u32/u64
+    // rust will set uint though so emitting that when possbile
     Ok(if let Some(f) = &value.format {
         match f.as_ref() {
             "int32" => "i32".to_string(),
             "int64" => "i64".to_string(),
+            "uint32" => "u32".to_string(),
+            "uint64" => "u64".to_string(),
             // TODO: byte / password here?
             x => {
                 bail!("unknown integer {}", x);
