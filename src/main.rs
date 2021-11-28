@@ -360,6 +360,7 @@ fn extract_date_type(value: &JSONSchemaProps) -> Result<String> {
 }
 
 fn extract_number_type(value: &JSONSchemaProps) -> Result<String> {
+    // TODO: byte / password here?
     Ok(if let Some(f) = &value.format {
         match f.as_ref() {
             "float" => "f32".to_string(),
@@ -374,15 +375,20 @@ fn extract_number_type(value: &JSONSchemaProps) -> Result<String> {
 }
 
 fn extract_integer_type(value: &JSONSchemaProps) -> Result<String> {
-    // Think go types just do signed ints, but set a minimum to zero..
-    // rust will set uint though so emitting that when possbile
+    // Think kubernetes go types just do signed ints, but set a minimum to zero..
+    // rust will set uint, so emitting that when possbile
     Ok(if let Some(f) = &value.format {
         match f.as_ref() {
+            "int8" => "i8".to_string(),
+            "int16" => "i16".to_string(),
             "int32" => "i32".to_string(),
             "int64" => "i64".to_string(),
+            "int128" => "i128".to_string(),
+            "uint8" => "u8".to_string(),
+            "uint16" => "u16".to_string(),
             "uint32" => "u32".to_string(),
             "uint64" => "u64".to_string(),
-            // TODO: byte / password here?
+            "uint128" => "u128".to_string(),
             x => {
                 bail!("unknown integer {}", x);
             }
