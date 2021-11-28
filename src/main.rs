@@ -89,7 +89,8 @@ async fn main() -> Result<()> {
                     } else {
                         format_ident!("{}", m.name)
                     };
-                    println!("    pub {}: {},", safe_name, m.type_);
+                    let spec_trimmed_type = m.type_.as_str().replace(&format!("{}Spec", kind), &kind);
+                    println!("    pub {}: {},", safe_name, spec_trimmed_type);
                 }
                 println!("}}")
             }
