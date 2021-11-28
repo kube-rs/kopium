@@ -1,54 +1,53 @@
+use std::str;
+
 #[macro_use] extern crate log;
 use anyhow::Result;
-use clap::{App, Arg};
-use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
+use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
+    CustomResourceDefinition, CustomResourceDefinitionVersion,
+};
 use kopium::{analyze, OutputStruct};
-use kube::{Api, Client};
+use kube::{Api, Client, ResourceExt};
 use quote::format_ident;
+use structopt::StructOpt;
 
 const KEYWORDS: [&str; 23] = [
     "for", "impl", "continue", "enum", "const", "break", "as", "move", "mut", "mod", "pub", "ref", "self",
     "static", "struct", "super", "true", "trait", "type", "unsafe", "use", "where", "while",
 ];
 
+
+#[derive(StructOpt, Debug)]
+#[structopt(
+    version = clap::crate_version!(),
+    author = "clux <sszynrae@gmail.com>",
+    about = "Kubernetes OPenapI UnMangler",
+)]
+struct Kopium {
+    #[structopt(about = "Give the name of the input CRD to use e.g. prometheusrules.monitoring.coreos.com")]
+    crd: String,
+    #[structopt(about = "Use this CRD version if multiple versions are present", long)]
+    api_version: Option<String>,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
-    let matches = App::new("kopium")
-        .version(clap::crate_version!())
-        .author("clux <sszynrae@gmail.com>")
-        .about("Kubernetes OPenapI UnMangler")
-        .arg(
-            Arg::new("crd")
-                .about("Give the name of the input CRD to use e.g. prometheusrules.monitoring.coreos.com")
-                .required(true)
-                .index(1),
-        )
-        .get_matches();
     env_logger::init();
 
+    let kopium = Kopium::from_args();
     let client = Client::try_default().await?;
     let api: Api<CustomResourceDefinition> = Api::all(client);
-    let crd_name = matches.value_of("crd").unwrap();
-    let crd = api.get(crd_name).await?;
+    let crd = api.get(&kopium.crd).await?;
 
+    let version = find_crd_version(&crd, kopium.api_version.as_deref())?;
+    let data = version
+        .schema
+        .as_ref()
+        .and_then(|schema| schema.open_api_v3_schema.clone());
+    let version = version.name.clone();
 
-    let mut data = None;
-    let mut picked_version = None;
-
-    // TODO: pick most suitable version or take arg for it
-    let versions = crd.spec.versions;
-    if let Some(v) = versions.first() {
-        picked_version = Some(v.name.clone());
-        if let Some(s) = &v.schema {
-            if let Some(schema) = &s.open_api_v3_schema {
-                data = Some(schema.clone())
-            }
-        }
-    }
     let kind = crd.spec.names.kind;
     let plural = crd.spec.names.plural;
     let group = crd.spec.group;
-    let version = picked_version.expect("need one version in the crd");
     let scope = crd.spec.scope;
 
 
@@ -96,7 +95,7 @@ async fn main() -> Result<()> {
             }
         }
     } else {
-        error!("no schema found for crd {}", crd_name);
+        error!("no schema found for crd {}", kopium.crd);
     }
 
     Ok(())
@@ -115,4 +114,38 @@ fn print_prelude(results: &[OutputStruct]) {
         println!("use chrono::naive::NaiveDate;");
     }
     println!();
+}
+
+fn find_crd_version<'a>(
+    crd: &'a CustomResourceDefinition,
+    version: Option<&str>,
+) -> Result<&'a CustomResourceDefinitionVersion> {
+    if let Some(version) = version {
+        crd.spec
+            .versions
+            .iter()
+            .find(|v| v.name == version)
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Version '{}' not found in CRD '{}'\navailable versions are '{}'",
+                    version,
+                    crd.name(),
+                    all_versions(crd)
+                )
+            })
+    } else {
+        crd.spec
+            .versions
+            .first()
+            .ok_or_else(|| anyhow::anyhow!("CRD '{}' has no versions", crd.name()))
+    }
+}
+
+fn all_versions(crd: &CustomResourceDefinition) -> String {
+    crd.spec
+        .versions
+        .iter()
+        .map(|v| v.name.as_str())
+        .collect::<Vec<_>>()
+        .join(", ")
 }
