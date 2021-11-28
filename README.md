@@ -28,7 +28,6 @@ rustfmt +nightly --edition 2021 prometheusrule.rs
 
 ## Output
 
-```rust
 use kube::CustomResource;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -42,19 +41,19 @@ use std::collections::BTreeMap;
 )]
 #[kube(namespaced)]
 #[kube(schema = "disabled")]
-pub struct PrometheusRuleSpec {
+pub struct PrometheusRuleSpecSpec {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub groups: Vec<PrometheusRuleGroups>,
+    pub groups: Vec<PrometheusRuleSpecGroups>,
 }
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct PrometheusRuleGroups {
+pub struct PrometheusRuleSpecGroupsGroups {
     pub interval: Option<String>,
     pub name: String,
     pub partial_response_strategy: Option<String>,
-    pub rules: Vec<PrometheusRuleRules>,
+    pub rules: Vec<PrometheusRuleSpecGroupsRules>,
 }
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct PrometheusRuleRules {
+pub struct PrometheusRuleSpecGroupsRulesRules {
     pub alert: Option<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub annotations: BTreeMap<String, String>,
