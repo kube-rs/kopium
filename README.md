@@ -11,8 +11,8 @@ Generates rust structs from `customresourcedefinitions` in your kubernetes clust
 
 Requirements:
 
-- stable `customresourcedefinition` ([v1beta1 was removed in v1.22](https://kubernetes.io/blog/2021/07/14/upcoming-changes-in-kubernetes-1-22/))
-- crd with spec/status
+- [stable](https://kubernetes.io/blog/2019/09/18/kubernetes-1-16-release-announcement/#custom-resources-reach-general-availability) `customresourcedefinition` with schema
+- crd following standard [spec/status model](https://kubernetes.io/docs/concepts/overview/working-with-objects/kubernetes-objects/#object-spec-and-status)
 
 ## Installation
 
@@ -80,4 +80,6 @@ kubectl apply -f tests/pr.yaml # needs to contain a CR with name "gen"
 cargo test --test runner -- --nocapture
 ```
 
-Requires kubernetes access to write customresourcedefinitions.
+## License
+
+Apache 2.0 licensed. See LICENSE for details.
