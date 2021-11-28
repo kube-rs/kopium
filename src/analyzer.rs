@@ -146,11 +146,6 @@ pub fn analyze(
             continue;
         }
         let next_key = uppercase_first_letter(&key);
-        //let next_stack = if level == 0 && next_key == "Spec" {
-        //    stack.to_string() // leave Spec out of other structs
-        //} else {
-        //    format!("{}{}", stack, next_key)
-        //};
         let next_stack = format!("{}{}", stack, next_key);
         let value_type = value.type_.clone().unwrap_or_default();
         match value_type.as_ref() {

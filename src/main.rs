@@ -74,10 +74,12 @@ async fn main() -> Result<()> {
                     // don't support grabbing original schema atm so disable schemas:
                     // (we coerce IntToString to String anyway so it wont match anyway)
                     println!(r#"#[kube(schema = "disabled")]"#);
+                    println!("pub struct {} {{", s.name);
                 } else {
                     println!("#[derive(Serialize, Deserialize, Clone, Debug)]");
+                    let spec_trimmed_name = s.name.as_str().replace(&format!("{}Spec", kind), &kind);
+                    println!("pub struct {} {{", spec_trimmed_name);
                 }
-                println!("pub struct {} {{", s.name);
                 for m in s.members {
                     if let Some(annot) = m.field_annot {
                         println!("    {}", annot);
