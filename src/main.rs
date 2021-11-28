@@ -2,7 +2,7 @@
 use anyhow::Result;
 use clap::{App, Arg};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
-use kopium::analyzer::analyze;
+use kopium::{analyze, OutputStruct};
 use kube::{Api, Client};
 use quote::format_ident;
 
@@ -55,9 +55,9 @@ async fn main() -> Result<()> {
     if let Some(schema) = data {
         let mut results = vec![];
         debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
-        analyze(schema, &kind, "", "", 0, &mut results)?;
+        analyze(schema, "", &kind, 0, &mut results)?;
 
-        print_prelude();
+        print_prelude(&results);
         for s in results {
             if s.level == 0 {
                 continue; // ignoring root struct
@@ -99,9 +99,17 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn print_prelude() {
+fn print_prelude(results: &[OutputStruct]) {
     println!("use kube::CustomResource;");
     println!("use serde::{{Serialize, Deserialize}};");
-    println!("use std::collections::BTreeMap;");
+    if results.iter().any(|o| o.uses_btreemaps()) {
+        println!("use std::collections::BTreeMap;");
+    }
+    if results.iter().any(|o| o.uses_datetime()) {
+        println!("use chrono::{{DateTime, Utc}};");
+    }
+    if results.iter().any(|o| o.uses_date()) {
+        println!("use chrono::naive::NaiveDate;");
+    }
     println!();
 }

@@ -5,8 +5,6 @@
 pub struct OutputStruct {
     // The short name of the struct (kind + capitalized suffix)
     pub name: String,
-    // The full (deduplicated) name of the struct (kind + recursive capitalized suffixes) - unused atm
-    pub dedup_name: String,
     pub level: u8,
     pub members: Vec<OutputMember>,
 }
@@ -16,8 +14,22 @@ pub struct OutputStruct {
 pub struct OutputMember {
     pub name: String,
     pub type_: String,
-    //pub dedup_type: String,
     pub field_annot: Option<String>,
 }
 
-pub mod analyzer;
+impl OutputStruct {
+    pub fn uses_btreemaps(&self) -> bool {
+        self.members.iter().any(|m| m.type_.contains("BTreeMap"))
+    }
+
+    pub fn uses_datetime(&self) -> bool {
+        self.members.iter().any(|m| m.type_.contains("DateTime"))
+    }
+
+    pub fn uses_date(&self) -> bool {
+        self.members.iter().any(|m| m.type_.contains("NaiveDate"))
+    }
+}
+
+mod analyzer;
+pub use analyzer::analyze;
