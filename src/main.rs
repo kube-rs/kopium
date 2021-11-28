@@ -57,7 +57,7 @@ async fn main() -> Result<()> {
     if let Some(schema) = data {
         let mut results = vec![];
         debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
-        analyze(schema, &kind, "", 0, &mut results)?;
+        analyze(schema, &kind, "", "", 0, &mut results)?;
 
         print_prelude();
         for s in results {
@@ -110,7 +110,10 @@ fn print_prelude() {
 
 #[derive(Default, Debug)]
 struct OutputStruct {
+    // The short name of the struct (kind + capitalized suffix)
     name: String,
+    // The full (deduplicated) name of the struct (kind + recursive capitalized suffixes) - unused atm
+    dedup_name: String,
     level: u8,
     members: Vec<OutputMember>,
 }
@@ -123,30 +126,36 @@ struct OutputMember {
 
 const IGNORED_KEYS: [&str; 3] = ["metadata", "apiVersion", "kind"];
 
-// recursive entry point to analyze a schema and generate a struct for if object type
+/// Scan a schema for structs and members, and recurse to find all structs
+///
+/// schema: root schema / sub schema
+/// kind: crd kind name
+/// current: current key name (or empty string for first call)
+/// stackname: stacked concat of kind + current_{n-1} + ... + current (used to create dedup_name)
+/// level: recursion level (start at 0)
+/// results: multable list of generated structs (not deduplicated)
 fn analyze(
     schema: JSONSchemaProps,
     kind: &str,
-    root: &str,
+    current: &str,
+    stackname: &str,
     level: u8,
     results: &mut Vec<OutputStruct>,
 ) -> Result<()> {
     let props = schema.properties.unwrap_or_default();
     let mut array_recurse_level: HashMap<String, u8> = Default::default();
     // first generate the object if it is one
-    let root_type = schema.type_.unwrap_or_default();
-    if root_type == "object" {
-        if let Some(additional) = schema.additional_properties {
-            if let JSONSchemaPropsOrBool::Schema(s) = additional {
-                let dict_type = s.type_.unwrap_or_default();
-                if !dict_type.is_empty() {
-                    warn!("not generating type {} - using map String->{}", root, dict_type);
-                    return Ok(()); // no members here - it'll be inlined
-                }
+    let current_type = schema.type_.unwrap_or_default();
+    if current_type == "object" {
+        if let Some(JSONSchemaPropsOrBool::Schema(s)) = schema.additional_properties {
+            let dict_type = s.type_.unwrap_or_default();
+            if !dict_type.is_empty() {
+                warn!("not generating type {} - using {} map", current, dict_type);
+                return Ok(()); // no members here - it'll be inlined
             }
         }
         let mut members = vec![];
-        debug!("Generating struct {}{}", kind, root);
+        debug!("Generating struct for {} (under {})", current, stackname);
 
         let reqs = schema.required.unwrap_or_default();
         // initial analysis of properties (we do not recurse here, we need to find members first)
@@ -184,19 +193,48 @@ fn analyze(
                 }
                 "string" => "String".to_string(),
                 "boolean" => "bool".to_string(),
+                "date" => {
+                    if let Some(f) = &value.format {
+                        match f.as_ref() {
+                            // TODO: what type?
+                            "date" => "String".to_string(),
+                            // NB: needs chrono feature on serde
+                            "date-time" => "DateTime<Utc>".to_string(),
+                            x => {
+                                bail!("unknown date {}", x);
+                            }
+                        }
+                    } else {
+                        "String".to_string()
+                    }
+                }
+                "number" => {
+                    if let Some(f) = &value.format {
+                        match f.as_ref() {
+                            "float" => "f32".to_string(),
+                            "double" => "f64".to_string(),
+                            x => {
+                                bail!("unknown number {}", x);
+                            }
+                        }
+                    } else {
+                        "f64".to_string()
+                    }
+                }
                 "integer" => {
-                    // need to look at the format here:
+                    // Think go types just do signed ints, but set a minimum to zero..
+                    // TODO: look for minimum zero and use to set u32/u64
                     if let Some(f) = &value.format {
                         match f.as_ref() {
                             "int32" => "i32".to_string(),
                             "int64" => "i64".to_string(),
+                            // TODO: byte / password here?
                             x => {
-                                error!("unknown integer {}", x);
-                                "usize".to_string()
+                                bail!("unknown integer {}", x);
                             }
                         }
                     } else {
-                        "usize".to_string()
+                        "int64".to_string()
                     }
                 }
                 "array" => {
@@ -258,7 +296,8 @@ fn analyze(
         }
         // Finalize struct with given members
         results.push(OutputStruct {
-            name: format!("{}{}", kind, root),
+            name: format!("{}{}", kind, current),
+            dedup_name: format!("{}{}", stackname, current),
             members,
             level,
         });
@@ -270,16 +309,15 @@ fn analyze(
             debug!("not recursing into ignored {}", key); // handled elsewhere
             continue;
         }
+        let next_current = uppercase_first_letter(&key);
+        let stackname = format!("{}{}", kind, current);
         let value_type = value.type_.clone().unwrap_or_default();
         match value_type.as_ref() {
             "object" => {
-                // recurse
-                let structsuffix = uppercase_first_letter(&key);
-                analyze(value, kind, &structsuffix, level + 1, results)?;
+                analyze(value, kind, &next_current, &stackname, level + 1, results)?;
             }
             "array" => {
                 if let Some(recurse) = array_recurse_level.get(&key).cloned() {
-                    let structsuffix = uppercase_first_letter(&key);
                     let mut inner = value.clone();
                     for _i in 0..recurse {
                         debug!("recursing into props for {}", key);
@@ -295,8 +333,7 @@ fn analyze(
                             bail!("could not recurse into vec");
                         }
                     }
-
-                    analyze(inner, kind, &structsuffix, level + 1, results)?;
+                    analyze(inner, kind, &next_current, &stackname, level + 1, results)?;
                 }
             }
             "" => {
@@ -333,19 +370,48 @@ fn array_recurse_for_type(value: &JSONSchemaProps, kind: &str, key: &str, level:
                     }
                     "string" => Ok(("Vec<String>".into(), level)),
                     "boolean" => Ok(("Vec<bool>".into(), level)),
-                    "integer" => {
-                        // need to look at the format here:
-                        let int_type = if let Some(f) = &s.format {
+                    "date" => {
+                        let date_type = if let Some(f) = &s.format {
                             match f.as_ref() {
-                                "int32" => "i32".to_string(),
-                                "int64" => "i64".to_string(),
+                                "date" => "String".to_string(),             // TODO: what type?
+                                "date-time" => "DateTime<Utc>".to_string(), // need chrono feature on serde
                                 x => {
-                                    error!("unknown integer {}", x);
-                                    "usize".to_string()
+                                    bail!("unknown date {}", x);
                                 }
                             }
                         } else {
-                            "usize".to_string()
+                            "String".to_string()
+                        };
+                        Ok((format!("Vec<{}>", date_type), level))
+                    }
+                    "number" => {
+                        let num_type = if let Some(f) = &s.format {
+                            match f.as_ref() {
+                                "float" => "f32".to_string(),
+                                "double" => "f64".to_string(),
+                                x => {
+                                    bail!("unknown number {}", x);
+                                }
+                            }
+                        } else {
+                            "f64".to_string()
+                        };
+                        Ok((format!("Vec<{}>", num_type), level))
+                    }
+                    "integer" => {
+                        let int_type = if let Some(f) = &s.format {
+                            // Think go types just do signed ints, but set a minimum to zero..
+                            // TODO: look for minimum zero and use to set u32/u64
+                            match f.as_ref() {
+                                "int32" => "i32".to_string(),
+                                "int64" => "i64".to_string(),
+                                // TODO: byte / password here?
+                                x => {
+                                    bail!("unknown integer {}", x);
+                                }
+                            }
+                        } else {
+                            "int64".to_string()
                         };
                         Ok((format!("Vec<{}>", int_type), level))
                     }
