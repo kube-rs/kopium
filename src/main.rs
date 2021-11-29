@@ -1,6 +1,4 @@
-use std::str;
-
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion,
 };
@@ -13,7 +11,6 @@ const KEYWORDS: [&str; 23] = [
     "for", "impl", "continue", "enum", "const", "break", "as", "move", "mut", "mod", "pub", "ref", "self",
     "static", "struct", "super", "true", "trait", "type", "unsafe", "use", "where", "while",
 ];
-
 
 #[derive(StructOpt, Debug)]
 #[structopt(
@@ -125,7 +122,7 @@ fn find_crd_version<'a>(
             .iter()
             .find(|v| v.name == version)
             .ok_or_else(|| {
-                anyhow::anyhow!(
+                anyhow!(
                     "Version '{}' not found in CRD '{}'\navailable versions are '{}'",
                     version,
                     crd.name(),
@@ -136,7 +133,7 @@ fn find_crd_version<'a>(
         crd.spec
             .versions
             .first()
-            .ok_or_else(|| anyhow::anyhow!("CRD '{}' has no versions", crd.name()))
+            .ok_or_else(|| anyhow!("CRD '{}' has no versions", crd.name()))
     }
 }
 
