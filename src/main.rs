@@ -28,6 +28,12 @@ struct Kopium {
     api_version: Option<String>,
     #[structopt(about = "Do not emit prelude", long)]
     hide_prelude: bool,
+    #[structopt(
+        about = "Derive these extra traits on generated structs",
+        long,
+        possible_values = &["Copy", "Default", "PartialEq", "Eq", "PartialOrd", "Ord", "Hash"],
+    )]
+    derive: Vec<String>,
 }
 
 #[tokio::main]
@@ -66,7 +72,7 @@ async fn main() -> Result<()> {
                 continue; // ignoring root struct
             } else {
                 if s.level == 1 && s.name.ends_with("Spec") {
-                    println!("#[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]");
+                    print_derives(&kopium.derive);
                     println!(
                         r#"#[kube(group = "{}", version = "{}", kind = "{}", plural = "{}")]"#,
                         group, version, kind, plural
@@ -118,6 +124,17 @@ fn print_prelude(results: &[OutputStruct]) {
         println!("use chrono::naive::NaiveDate;");
     }
     println!();
+}
+
+fn print_derives(derives: &[String]) {
+    if derives.is_empty() {
+        println!("#[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]");
+    } else {
+        println!(
+            "#[derive(CustomResource, Serialize, Deserialize, Clone, Debug, {})]",
+            derives.join(", ")
+        );
+    }
 }
 
 fn find_crd_version<'a>(
