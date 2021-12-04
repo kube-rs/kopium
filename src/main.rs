@@ -25,7 +25,7 @@ struct Kopium {
     api_version: Option<String>,
     #[structopt(about = "Do not emit prelude", long)]
     hide_prelude: bool,
-    #[structopt(about = "Emit docstrings from descriptions", long)]
+    #[structopt(about = "Emit doc comments from descriptions", long)]
     docs: bool,
     #[structopt(
         about = "Derive these extra traits on generated structs",
@@ -69,7 +69,7 @@ async fn main() -> Result<()> {
             if s.level == 0 {
                 continue; // ignoring root struct
             } else {
-                print_docstr(&kopium, s.docstr, "");
+                print_docstr(&kopium, s.docs, "");
                 if s.level == 1 && s.name.ends_with("Spec") {
                     print_derives(&kopium.derive);
                     println!(
@@ -89,7 +89,7 @@ async fn main() -> Result<()> {
                     println!("pub struct {} {{", spec_trimmed_name);
                 }
                 for m in s.members {
-                    print_docstr(&kopium, m.docstr, "    ");
+                    print_docstr(&kopium, m.docs, "    ");
                     if let Some(annot) = m.field_annot {
                         println!("    {}", annot);
                     }

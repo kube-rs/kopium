@@ -7,7 +7,7 @@ pub struct OutputStruct {
     pub name: String,
     pub level: u8,
     pub members: Vec<OutputMember>,
-    pub docstr: Option<String>,
+    pub docs: Option<String>,
 }
 
 /// Output member belonging to an OutputStruct
@@ -16,7 +16,7 @@ pub struct OutputMember {
     pub name: String,
     pub type_: String,
     pub field_annot: Option<String>,
-    pub docstr: Option<String>,
+    pub docs: Option<String>,
 }
 
 impl OutputStruct {

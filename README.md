@@ -16,9 +16,9 @@ Requirements:
 
 ## Features
 
-- **Instantly Queryable**: generated type uses [`kube-derive`](https://docs.rs/kube/latest/kube/derive.CustomResource.html) to provide api integration with `kube`
-- **Ergonomic Rust Types**: no unnecessary `Option` wrapping when `#[serde(default)]` on `Vec`/`BTreeMap` will suffice
-- **Rust doc strings**: optionally extracted from `description` values in schema (`--docs`)
+- **Instantly queryable**: generated type uses [`kube-derive`](https://docs.rs/kube/latest/kube/derive.CustomResource.html) to provide api integration with `kube`
+- **Ergonomic Rust types**: no unnecessary `Option` wrapping when `#[serde(default)]` on `Vec`/`BTreeMap` will suffice
+- **[Rust doc comments](https://doc.rust-lang.org/rust-by-example/meta/doc.html#doc-comments)**: optionally extracted from `description` values in schema (`--docs`)
 
 ## Installation
 

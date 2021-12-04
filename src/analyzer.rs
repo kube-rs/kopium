@@ -103,7 +103,7 @@ pub fn analyze(
                     type_: rust_type,
                     name: key.to_string(),
                     field_annot: None,
-                    docstr: member_doc,
+                    docs: member_doc,
                 })
             } else {
                 // option wrapping possibly needed if not required
@@ -115,7 +115,7 @@ pub fn analyze(
                         field_annot: Some(
                             r#"#[serde(default, skip_serializing_if = "BTreeMap::is_empty")]"#.into(),
                         ),
-                        docstr: member_doc,
+                        docs: member_doc,
                     })
                 } else if rust_type.starts_with("Vec") {
                     members.push(OutputMember {
@@ -124,14 +124,14 @@ pub fn analyze(
                         field_annot: Some(
                             r#"#[serde(default, skip_serializing_if = "Vec::is_empty")]"#.into(),
                         ),
-                        docstr: member_doc,
+                        docs: member_doc,
                     })
                 } else {
                     members.push(OutputMember {
                         type_: format!("Option<{}>", rust_type),
                         name: key.to_string(),
                         field_annot: None,
-                        docstr: member_doc,
+                        docs: member_doc,
                     })
                 }
             }
@@ -141,7 +141,7 @@ pub fn analyze(
             name: stack.to_string(),
             members,
             level,
-            docstr: schema.description,
+            docs: schema.description,
         });
     }
 
