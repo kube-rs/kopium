@@ -25,6 +25,8 @@ struct Kopium {
     api_version: Option<String>,
     #[structopt(about = "Do not emit prelude", long)]
     hide_prelude: bool,
+    #[structopt(about = "Emit doc comments from descriptions", long)]
+    docs: bool,
     #[structopt(
         about = "Derive these extra traits on generated structs",
         long,
@@ -54,20 +56,20 @@ async fn main() -> Result<()> {
     let group = crd.spec.group;
     let scope = crd.spec.scope;
 
-
     if let Some(schema) = data {
-        let mut results = vec![];
+        let mut structs = vec![];
         log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
-        analyze(schema, "", &kind, 0, &mut results)?;
+        analyze(schema, "", &kind, 0, &mut structs)?;
 
         if !kopium.hide_prelude {
-            print_prelude(&results);
+            print_prelude(&structs);
         }
 
-        for s in results {
+        for s in structs {
             if s.level == 0 {
                 continue; // ignoring root struct
             } else {
+                print_docstr(&kopium, s.docs, "");
                 if s.level == 1 && s.name.ends_with("Spec") {
                     print_derives(&kopium.derive);
                     println!(
@@ -87,6 +89,7 @@ async fn main() -> Result<()> {
                     println!("pub struct {} {{", spec_trimmed_name);
                 }
                 for m in s.members {
+                    print_docstr(&kopium, m.docs, "    ");
                     if let Some(annot) = m.field_annot {
                         println!("    {}", annot);
                     }
@@ -98,7 +101,8 @@ async fn main() -> Result<()> {
                     let spec_trimmed_type = m.type_.as_str().replace(&format!("{}Spec", kind), &kind);
                     println!("    pub {}: {},", safe_name, spec_trimmed_type);
                 }
-                println!("}}")
+                println!("}}");
+                println!();
             }
         }
     } else {
@@ -106,6 +110,16 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn print_docstr(args: &Kopium, doc: Option<String>, indent: &str) {
+    // print doc strings if requested in arguments
+    if args.docs {
+        if let Some(d) = doc {
+            println!("{}/// {}", indent, d);
+            // TODO: logic to split doc strings by sentence / length here
+        }
+    }
 }
 
 fn print_prelude(results: &[OutputStruct]) {
