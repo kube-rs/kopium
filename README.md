@@ -75,6 +75,8 @@ pub struct PrometheusRuleGroupsRules {
 }
 ```
 
+**Note**: Doc comments on members are also exported when they exist within the schema.
+
 ## Usage with kube
 
 Simply add the generated file (e.g. output from above in `prometheusrule.rs`) to your library, and import (at least) the special root type:
