@@ -86,10 +86,14 @@ Simply add the generated file (e.g. output from above in `prometheusrule.rs`) to
 use prometheusrule::PrometheusRule;
 use kube::{Api, Client, ResourceExt};
 
-let client = Client::try_default().await?;
-let pr: Api<PrometheusRule> = Api::default_namespaced(client);
-for p in pr.list(&Default::default()).await? {
-    println!("Found PrometheusRule {} in current namespace", p.name());
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::try_default().await?;
+    let pr: Api<PrometheusRule> = Api::default_namespaced(client);
+    for p in pr.list(&Default::default()).await? {
+        println!("Found PrometheusRule {} in current namespace", p.name());
+    }
+    Ok(())
 }
 ```
 
