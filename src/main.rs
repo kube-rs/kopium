@@ -3,9 +3,9 @@ use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion,
 };
 use kopium::{analyze, OutputStruct};
-use kube::{Api, Client, ResourceExt};
+use kube::{api, Api, Client, ResourceExt};
 use quote::format_ident;
-use structopt::StructOpt;
+use structopt::{clap, StructOpt};
 
 const KEYWORDS: [&str; 23] = [
     "for", "impl", "continue", "enum", "const", "break", "as", "move", "mut", "mod", "pub", "ref", "self",
@@ -33,6 +33,19 @@ struct Kopium {
         possible_values = &["Copy", "Default", "PartialEq", "Eq", "PartialOrd", "Ord", "Hash"],
     )]
     derive: Vec<String>,
+    #[structopt(subcommand)]
+    command: Option<Command>,
+}
+
+#[derive(StructOpt, Clone, Copy, Debug)]
+enum Command {
+    #[structopt(about = "List available CRDs", setting(clap::AppSettings::Hidden))]
+    ListCrds,
+    #[structopt(about = "Generate completions", setting(clap::AppSettings::Hidden))]
+    Completions {
+        #[structopt(about = "The shell to generate completions for", possible_values = &clap::Shell::variants())]
+        shell: clap::Shell,
+    },
 }
 
 #[tokio::main]
@@ -44,13 +57,21 @@ async fn main() -> Result<()> {
 
 impl Kopium {
     async fn dispatch(&self) -> Result<()> {
-        let crds = Client::try_default()
+        let api = Client::try_default()
             .await
             .map(Api::<CustomResourceDefinition>::all)?;
         if let Some(name) = self.crd.as_deref() {
-            self.generate(crds, name).await
+            if self.command.is_none() {
+                self.generate(api, name).await
+            } else {
+                self.help()
+            }
         } else {
-            self.help()
+            match self.command {
+                Some(Command::ListCrds) => self.list_crds(api).await,
+                Some(Command::Completions { shell }) => self.completions(shell),
+                None => self.help(),
+            }
         }
     }
 
@@ -122,6 +143,22 @@ impl Kopium {
             log::error!("no schema found for crd {}", name);
         }
 
+        Ok(())
+    }
+
+    async fn list_crds(&self, api: Api<CustomResourceDefinition>) -> Result<()> {
+        let lp = api::ListParams::default();
+        api.list(&lp).await?.items.iter().for_each(|crd| {
+            println!("{}", crd.name());
+        });
+        Ok(())
+    }
+
+    fn completions(&self, shell: clap::Shell) -> Result<()> {
+        let mut completions = Vec::new();
+        Self::clap().gen_completions_to("kopium", shell, &mut completions);
+        let completions = String::from_utf8(completions)?;
+        println!("{}", completions);
         Ok(())
     }
 
