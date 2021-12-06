@@ -84,7 +84,7 @@ impl Kopium {
                 } else {
                     self.print_docstr(s.docs, "");
                     if s.level == 1 && s.name.ends_with("Spec") {
-                        print_derives(&self.derive);
+                        self.print_derives();
                         println!(
                             r#"#[kube(group = "{}", version = "{}", kind = "{}", plural = "{}")]"#,
                             group, version, kind, plural
@@ -139,6 +139,17 @@ impl Kopium {
             }
         }
     }
+
+    fn print_derives(&self) {
+        if self.derive.is_empty() {
+            println!("#[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]");
+        } else {
+            println!(
+                "#[derive(CustomResource, Serialize, Deserialize, Clone, Debug, {})]",
+                self.derive.join(", ")
+            );
+        }
+    }
 }
 
 
@@ -157,16 +168,6 @@ fn print_prelude(results: &[OutputStruct]) {
     println!();
 }
 
-fn print_derives(derives: &[String]) {
-    if derives.is_empty() {
-        println!("#[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]");
-    } else {
-        println!(
-            "#[derive(CustomResource, Serialize, Deserialize, Clone, Debug, {})]",
-            derives.join(", ")
-        );
-    }
-}
 
 fn find_crd_version<'a>(
     crd: &'a CustomResourceDefinition,
