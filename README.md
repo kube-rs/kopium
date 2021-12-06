@@ -100,7 +100,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 Autocompletion for most shells available via `kopium completions`:
 
 ```sh
-source <(kopium completion bash)
+source <(kopium completions bash)
 ```
 
 ## Testing
