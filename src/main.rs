@@ -82,7 +82,7 @@ impl Kopium {
                 if s.level == 0 {
                     continue; // ignoring root struct
                 } else {
-                    print_docstr(self, s.docs, "");
+                    self.print_docstr(s.docs, "");
                     if s.level == 1 && s.name.ends_with("Spec") {
                         print_derives(&self.derive);
                         println!(
@@ -102,7 +102,7 @@ impl Kopium {
                         println!("pub struct {} {{", spec_trimmed_name);
                     }
                     for m in s.members {
-                        print_docstr(self, m.docs, "    ");
+                        self.print_docstr(m.docs, "    ");
                         if let Some(annot) = m.field_annot {
                             println!("    {}", annot);
                         }
@@ -129,17 +129,18 @@ impl Kopium {
         Self::clap().print_help().map(|_| println!())?;
         Ok(())
     }
-}
 
-fn print_docstr(args: &Kopium, doc: Option<String>, indent: &str) {
-    // print doc strings if requested in arguments
-    if args.docs {
-        if let Some(d) = doc {
-            println!("{}/// {}", indent, d);
-            // TODO: logic to split doc strings by sentence / length here
+    fn print_docstr(&self, doc: Option<String>, indent: &str) {
+        // print doc strings if requested in arguments
+        if self.docs {
+            if let Some(d) = doc {
+                println!("{}/// {}", indent, d);
+                // TODO: logic to split doc strings by sentence / length here
+            }
         }
     }
 }
+
 
 fn print_prelude(results: &[OutputStruct]) {
     println!("use kube::CustomResource;");
