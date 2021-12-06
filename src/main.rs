@@ -112,6 +112,13 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+impl Kopium {
+    fn help(&self) -> Result<()> {
+        Self::clap().print_help().map(|_| println!())?;
+        Ok(())
+    }
+}
+
 fn print_docstr(args: &Kopium, doc: Option<String>, indent: &str) {
     // print doc strings if requested in arguments
     if args.docs {
