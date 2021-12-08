@@ -33,5 +33,8 @@ impl OutputStruct {
     }
 }
 
-mod analyzer;
 pub use analyzer::analyze;
+pub use version::Version;
+
+mod analyzer;
+mod version;
