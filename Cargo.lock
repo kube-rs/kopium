@@ -377,6 +377,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "http-range-header"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bfe8eed0a9285ef776bb792479ea3834e8b94e13d615c2f66d03dd50a435a29"
+
+[[package]]
 name = "httparse"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -521,6 +527,7 @@ dependencies = [
  "env_logger",
  "k8s-openapi",
  "kube",
+ "kube-core 0.65.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log",
  "quote",
  "serde",
@@ -531,21 +538,19 @@ dependencies = [
 
 [[package]]
 name = "kube"
-version = "0.64.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84dcc2f8ca3f2427a72acc31fa9538159f6b33a97002e315a3fcd5323cf51a2b"
+version = "0.65.0"
+source = "git+https://github.com/kube-rs/kube-rs.git?branch=master#4017a3f349e5901923422c6abece985c513e486f"
 dependencies = [
  "k8s-openapi",
  "kube-client",
- "kube-core",
+ "kube-core 0.65.0 (git+https://github.com/kube-rs/kube-rs.git?branch=master)",
  "kube-derive",
 ]
 
 [[package]]
 name = "kube-client"
-version = "0.64.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8957106140aa24a76de3f7d005966f381b30a4cd6a9c003b3bba6828e9617535"
+version = "0.65.0"
+source = "git+https://github.com/kube-rs/kube-rs.git?branch=master#4017a3f349e5901923422c6abece985c513e486f"
 dependencies = [
  "base64",
  "bytes",
@@ -560,7 +565,7 @@ dependencies = [
  "hyper-tls",
  "jsonpath_lib",
  "k8s-openapi",
- "kube-core",
+ "kube-core 0.65.0 (git+https://github.com/kube-rs/kube-rs.git?branch=master)",
  "openssl",
  "pem",
  "pin-project",
@@ -578,9 +583,24 @@ dependencies = [
 
 [[package]]
 name = "kube-core"
-version = "0.64.0"
+version = "0.65.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ec73e7d8e937dd055d962af06e635e262fdb6ed341c36ecf659d4fece0a8005"
+checksum = "c52b6ab05d160691083430f6f431707a4e05b64903f2ffa0095ee5efde759117"
+dependencies = [
+ "chrono",
+ "form_urlencoded",
+ "http",
+ "k8s-openapi",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "kube-core"
+version = "0.65.0"
+source = "git+https://github.com/kube-rs/kube-rs.git?branch=master#4017a3f349e5901923422c6abece985c513e486f"
 dependencies = [
  "chrono",
  "form_urlencoded",
@@ -594,9 +614,8 @@ dependencies = [
 
 [[package]]
 name = "kube-derive"
-version = "0.64.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6651bfae82bc23439da1099174b52bcbf68df065dc33317c912e3c5c5cea43c"
+version = "0.65.0"
+source = "git+https://github.com/kube-rs/kube-rs.git?branch=master#4017a3f349e5901923422c6abece985c513e486f"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1331,17 +1350,19 @@ dependencies = [
 
 [[package]]
 name = "tower-http"
-version = "0.1.2"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f70061b0592867f0a60e67a6e699da5fe000c88a360a5b92ebdba9d73b2238c"
+checksum = "39ee603d6e665ecc7e0f8d479eedb4626bd4726f0ee6119cee5b3a6bf184cac0"
 dependencies = [
  "base64",
+ "bitflags",
  "bytes",
  "futures-core",
  "futures-util",
  "http",
  "http-body",
- "pin-project",
+ "http-range-header",
+ "pin-project-lite",
  "tower-layer",
  "tower-service",
  "tracing",

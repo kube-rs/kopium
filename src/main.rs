@@ -3,7 +3,7 @@ use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion,
 };
 use kopium::{analyze, OutputStruct};
-use kube::{api, Api, Client, ResourceExt};
+use kube::{api, core::Version, Api, Client, ResourceExt};
 use quote::format_ident;
 use structopt::{clap, StructOpt};
 
@@ -211,6 +211,7 @@ fn find_crd_version<'a>(
     version: Option<&str>,
 ) -> Result<&'a CustomResourceDefinitionVersion> {
     if let Some(version) = version {
+        // pick specified version
         crd.spec
             .versions
             .iter()
@@ -224,18 +225,22 @@ fn find_crd_version<'a>(
                 )
             })
     } else {
+        // pick version with highest version priority
         crd.spec
             .versions
-            .first()
+            .iter()
+            .max_by_key(|v| Version::parse(&v.name).priority())
             .ok_or_else(|| anyhow!("CRD '{}' has no versions", crd.name()))
     }
 }
 
 fn all_versions(crd: &CustomResourceDefinition) -> String {
-    crd.spec
+    let mut vers = crd
+        .spec
         .versions
         .iter()
         .map(|v| v.name.as_str())
-        .collect::<Vec<_>>()
-        .join(", ")
+        .collect::<Vec<_>>();
+    vers.sort_by_cached_key(|v| std::cmp::Reverse(Version::parse(v).priority()));
+    vers.join(", ")
 }
