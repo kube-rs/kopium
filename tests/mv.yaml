@@ -1,0 +1,6 @@
+apiVersion: clux.dev/v1
+kind: MultiVersion
+metadata:
+  name: gen
+spec:
+  name: hello
