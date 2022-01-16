@@ -22,11 +22,18 @@ jobs:
           version: v1.21
           k3d-name: kube
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - run: kubectl apply --force-conflicts --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.52.0/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml
       - run: cargo build --bin kopium
+      # Test a reasonably complicated CRD; promethesurules
+      - run: kubectl apply --force-conflicts --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.52.0/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml
       - run: cargo run --bin kopium -- prometheusrules.monitoring.coreos.com > tests/gen.rs
       - run: echo "pub type CR = PrometheusRule;" >> tests/gen.rs
       - run: kubectl apply -f tests/pr.yaml
+      - run: cargo test --test runner -- --nocapture
+      # Test a fake CRD with multiple versions
+      - run: kubectl apply -f tests/mv-crd.yaml
+      - run: cargo run --bin kopium -- multiversions.clux.dev > tests/gen.rs
+      - run: echo "pub type CR = MultiVersion;" >> tests/gen.rs
+      - run: kubectl apply -f tests/mv.yaml
       - run: cargo test --test runner -- --nocapture
 
   rustfmt:
