@@ -114,6 +114,8 @@ kubectl apply -f tests/pr.yaml # needs to contain a CR with name "gen"
 cargo test --test runner -- --nocapture
 ```
 
+test shortcuts available via `just` in the [`justfile`](./justfile).
+
 ## License
 
 Apache 2.0 licensed. See LICENSE for details.

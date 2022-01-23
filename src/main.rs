@@ -191,7 +191,6 @@ impl Kopium {
 
 
 fn print_prelude(results: &[OutputStruct]) {
-    println!("#![allow(non_snake_case)]"); // see https://github.com/kube-rs/kopium/issues/22
     println!("use kube::CustomResource;");
     println!("use serde::{{Serialize, Deserialize}};");
     if results.iter().any(|o| o.uses_btreemaps()) {
