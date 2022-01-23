@@ -11,6 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
+      - uses: extractions/setup-just@v1
       - uses: actions-rs/toolchain@v1
         with:
           override: true
@@ -24,23 +25,11 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: cargo build --bin kopium
       # Test a reasonably complicated CRD; promethesurules
-      - run: kubectl apply --force-conflicts --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.52.0/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml
-      - run: cargo run --bin kopium -- prometheusrules.monitoring.coreos.com > tests/gen.rs
-      - run: echo "pub type CR = PrometheusRule;" >> tests/gen.rs
-      - run: kubectl apply -f tests/pr.yaml
-      - run: cargo test --test runner -- --nocapture
+      - run: just test-pr
       # Test a fake CRD with multiple versions
-      - run: kubectl apply -f tests/mv-crd.yaml
-      - run: cargo run --bin kopium -- multiversions.clux.dev > tests/gen.rs
-      - run: echo "pub type CR = MultiVersion;" >> tests/gen.rs
-      - run: kubectl apply -f tests/mv.yaml
-      - run: cargo test --test runner -- --nocapture
+      - run: just test-mv
       # Test argocd Applicaiton
-      - run: kubectl apply --force-conflicts --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/crds/application-crd.yaml
-      - run: cargo run --bin kopium -- applications.argoproj.io > tests/gen.rs
-      - run: echo "pub type CR = Application;" >> tests/gen.rs
-      - run: kubectl apply -f tests/app.yaml
-      - run: cargo test --test runner -- --nocapture
+      - run: just test-argo
 
   rustfmt:
     name: Run rustfmt
