@@ -28,3 +28,6 @@ test-argo:
   echo "pub type CR = Application;" >> tests/gen.rs
   kubectl apply -f tests/app.yaml
   cargo test --test runner -- --nocapture
+
+release:
+  cargo release minor --execute
