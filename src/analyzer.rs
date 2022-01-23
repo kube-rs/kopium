@@ -66,7 +66,7 @@ pub fn analyze(
                     if let Some(dict) = dict_key {
                         format!("BTreeMap<String, {}>", dict)
                     } else {
-                        stack.to_string()
+                        format!("{}{}", stack, uppercase_first_letter(key))
                     }
                 }
                 "string" => "String".to_string(),

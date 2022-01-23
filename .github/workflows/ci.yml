@@ -35,6 +35,12 @@ jobs:
       - run: echo "pub type CR = MultiVersion;" >> tests/gen.rs
       - run: kubectl apply -f tests/mv.yaml
       - run: cargo test --test runner -- --nocapture
+      # Test argocd Applicaiton
+      - run: kubectl apply --force-conflicts --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/crds/application-crd.yaml
+      - run: cargo run --bin kopium -- applications.argoproj.io > tests/gen.rs
+      - run: echo "pub type CR = Application;" >> tests/gen.rs
+      - run: kubectl apply -f tests/app.yaml
+      - run: cargo test --test runner -- --nocapture
 
   rustfmt:
     name: Run rustfmt

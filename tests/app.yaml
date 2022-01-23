@@ -1,0 +1,13 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gen
+spec:
+  destination:
+    namespace: default
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    path: kube-rs-controller
+    repoURL: https://github.com/kube-rs/controller-rs
+    targetRevision: HEAD
