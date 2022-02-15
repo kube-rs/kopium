@@ -7,9 +7,9 @@ use kube::{api, core::Version, Api, Client, ResourceExt};
 use quote::format_ident;
 use structopt::{clap, StructOpt};
 
-const KEYWORDS: [&str; 23] = [
+const KEYWORDS: [&str; 24] = [
     "for", "impl", "continue", "enum", "const", "break", "as", "move", "mut", "mod", "pub", "ref", "self",
-    "static", "struct", "super", "true", "trait", "type", "unsafe", "use", "where", "while",
+    "static", "struct", "super", "true", "trait", "type", "unsafe", "use", "where", "while", "virtual"
 ];
 
 #[derive(StructOpt, Debug)]
