@@ -44,12 +44,21 @@ pub fn analyze(
             let rust_type = match value_type.as_ref() {
                 "object" => {
                     let mut dict_key = None;
+                    let mut ary_key = None;
                     if let Some(additional) = &value.additional_properties {
                         debug!("got additional: {}", serde_json::to_string(&additional)?);
                         if let JSONSchemaPropsOrBool::Schema(s) = additional {
                             let dict_type = s.type_.clone().unwrap_or_default();
                             dict_key = match dict_type.as_ref() {
                                 "string" => Some("String".into()),
+                                "array" => {
+                                    // can look into additional.items here and check if it is_some()
+                                    // can also check additional.type_ == Some("object")
+                                    // in which case we need a new struct
+                                    // TODO: recurse here?
+                                    ary_key = Some(uppercase_first_letter(key));
+                                    None // no dict_key
+                                },
                                 "" => {
                                     if s.x_kubernetes_int_or_string.is_some() {
                                         warn!("coercing presumed IntOrString {} to String", key);
@@ -63,7 +72,9 @@ pub fn analyze(
                             };
                         }
                     }
-                    if let Some(dict) = dict_key {
+                    if let Some(ary) = ary_key {
+                        format!("Vec<{}>", ary)
+                    } else if let Some(dict) = dict_key {
                         format!("BTreeMap<String, {}>", dict)
                     } else {
                         format!("{}{}", stack, uppercase_first_letter(key))
