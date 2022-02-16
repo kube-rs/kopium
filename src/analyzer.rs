@@ -50,6 +50,15 @@ pub fn analyze(
                             let dict_type = s.type_.clone().unwrap_or_default();
                             dict_key = match dict_type.as_ref() {
                                 "string" => Some("String".into()),
+                                "array" => {
+                                    // possible to inline a struct here for a map (even though it says array)
+                                    // (openshift agent crd test for struct 'validationsInfo' does this)
+                                    // for now assume this is a convenience for inline map structs (as actual "array" case is below)
+                                    // if this is not true; we may need to restrict this case to:
+                                    // - s.as_ref().items is a Some(JSONSchemaPropsOrArray::Schema(_))
+                                    // it's also possible that this will need better recurse handling for bigger cases
+                                    Some(format!("{}{}", stack, uppercase_first_letter(key)))
+                                }
                                 "" => {
                                     if s.x_kubernetes_int_or_string.is_some() {
                                         warn!("coercing presumed IntOrString {} to String", key);
@@ -156,7 +165,22 @@ pub fn analyze(
         let value_type = value.type_.clone().unwrap_or_default();
         match value_type.as_ref() {
             "object" => {
-                analyze(value, &next_key, &next_stack, level + 1, results)?;
+                // catch unconventional & ad-hoc definitions of "array" maps within an object's additional props:
+                let mut handled_inner = false;
+                if let Some(JSONSchemaPropsOrBool::Schema(s)) = &value.additional_properties {
+                    let dict_type = s.type_.clone().unwrap_or_default();
+                    if dict_type == "array" {
+                        // unpack the inner object from the array wrap
+                        if let Some(JSONSchemaPropsOrArray::Schema(items)) = &s.as_ref().items {
+                            analyze(*items.clone(), &next_key, &next_stack, level + 1, results)?;
+                            handled_inner = true;
+                        }
+                    }
+                }
+                if !handled_inner {
+                    // normal object recurse
+                    analyze(value, &next_key, &next_stack, level + 1, results)?;
+                }
             }
             "array" => {
                 if let Some(recurse) = array_recurse_level.get(&key).cloned() {

@@ -22,7 +22,7 @@ name = "kopium"
 path = "src/lib.rs"
 
 [dependencies]
-k8s-openapi = { version = "0.13.1", features = ["v1_22"] }
+k8s-openapi = { version = "0.14.0", features = ["v1_22"] }
 tokio = { version = "1.14.0", features = ["full"] }
 anyhow = "1.0.48"
 log = "0.4.14"
@@ -32,10 +32,12 @@ clap = "2.33"
 quote = "1.0.10"
 serde = { version = "1.0.130", features = ["derive"] }
 structopt = "0.3"
-kube-core = "0.65.0"
 
 [dependencies.kube]
-version = "0.66.0"
+version = "0.69.0"
 #git = "https://github.com/kube-rs/kube-rs.git"
 #branch = "master"
 features = ["derive"]
+
+[dev-dependencies]
+serde_yaml = "0.8.23"
