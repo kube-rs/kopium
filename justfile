@@ -26,7 +26,7 @@ test-agentshift:
   kubectl apply -f tests/agentshift-crd.yaml
   cargo run --bin kopium -- agents.agent-install.openshift.io > tests/gen.rs
   echo "pub type CR = Agent;" >> tests/gen.rs
-  cargo test --test runner -- --nocapture
+  cargo build --test runner
 
 test-argo:
   kubectl apply --force-conflicts --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/crds/application-crd.yaml

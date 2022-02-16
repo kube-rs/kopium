@@ -44,7 +44,6 @@ pub fn analyze(
             let rust_type = match value_type.as_ref() {
                 "object" => {
                     let mut dict_key = None;
-                    let mut ary_key = None;
                     if let Some(additional) = &value.additional_properties {
                         debug!("got additional: {}", serde_json::to_string(&additional)?);
                         if let JSONSchemaPropsOrBool::Schema(s) = additional {
@@ -52,13 +51,13 @@ pub fn analyze(
                             dict_key = match dict_type.as_ref() {
                                 "string" => Some("String".into()),
                                 "array" => {
-                                    // can look into additional.items here and check if it is_some()
-                                    // can also check additional.type_ == Some("object")
-                                    // in which case we need a new struct
-                                    // TODO: recurse here?
-                                    ary_key = Some(uppercase_first_letter(key));
-                                    None // no dict_key
-                                },
+                                    // possible to inline a struct here for a string map (even though it says array)
+                                    // (openshift agent crd test for struct 'validationsInfo' does this)
+                                    // for now assume that's what the only use of "array" in "object" (as actual "array" case is below)
+                                    // if this is not true; we may need to restrict this case to:
+                                    // - s.as_ref().items is a Some(JSONSchemaPropsOrArray::Schema(_))
+                                    Some(format!("{}{}", stack, uppercase_first_letter(key)))
+                                }
                                 "" => {
                                     if s.x_kubernetes_int_or_string.is_some() {
                                         warn!("coercing presumed IntOrString {} to String", key);
@@ -72,9 +71,7 @@ pub fn analyze(
                             };
                         }
                     }
-                    if let Some(ary) = ary_key {
-                        format!("Vec<{}>", ary)
-                    } else if let Some(dict) = dict_key {
+                    if let Some(dict) = dict_key {
                         format!("BTreeMap<String, {}>", dict)
                     } else {
                         format!("{}{}", stack, uppercase_first_letter(key))
@@ -167,7 +164,31 @@ pub fn analyze(
         let value_type = value.type_.clone().unwrap_or_default();
         match value_type.as_ref() {
             "object" => {
-                analyze(value, &next_key, &next_stack, level + 1, results)?;
+                let mut handled_inner = false;
+                // catch unconventional & ad-hoc definitions of maps within an object's additional props:
+                if let Some(additional) = &value.additional_properties {
+                    if let JSONSchemaPropsOrBool::Schema(s) = additional {
+                        let dict_type = s.type_.clone().unwrap_or_default();
+                        match dict_type.as_ref() {
+                            "array" => {
+                                //trace!("{} catching extra - {} + {}", key, next_key, next_stack);
+                                //trace!("with outer: {}", serde_json::to_string_pretty(&s).unwrap());
+                                if let Some(JSONSchemaPropsOrArray::Schema(items)) = &s.as_ref().items {
+                                    //trace!("{} catching extra - {} + {}", key, next_key, next_stack);
+                                    //trace!("passing on inner: {}", serde_json::to_string_pretty(&items).unwrap());
+                                    analyze(*items.clone(), &next_key, &next_stack, level + 1, results)?;
+                                    handled_inner = true;
+                                }
+                            }
+                            _ => {}
+                        };
+                    }
+                }
+                if !handled_inner {
+                    //trace!("{} catching normal - {} + {}", key, next_key, next_stack);
+                    //trace!("passing on {}", serde_json::to_string_pretty(&value).unwrap());
+                    analyze(value, &next_key, &next_stack, level + 1, results)?;
+                }
             }
             "array" => {
                 if let Some(recurse) = array_recurse_level.get(&key).cloned() {

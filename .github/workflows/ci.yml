@@ -28,8 +28,10 @@ jobs:
       - run: just test-pr
       # Test a fake CRD with multiple versions
       - run: just test-mv
-      # Test argocd Applicaiton
+      # Test argocd Application
       - run: just test-argo
+      # Partially test openshift agent crd
+      - run: just test-agentshift
 
   rustfmt:
     name: Run rustfmt
