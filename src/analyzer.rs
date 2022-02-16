@@ -51,9 +51,9 @@ pub fn analyze(
                             dict_key = match dict_type.as_ref() {
                                 "string" => Some("String".into()),
                                 "array" => {
-                                    // possible to inline a struct here for a string map (even though it says array)
+                                    // possible to inline a struct here for a map (even though it says array)
                                     // (openshift agent crd test for struct 'validationsInfo' does this)
-                                    // for now assume that's what the only use of "array" in "object" (as actual "array" case is below)
+                                    // for now assume this is a convenience for inline map structs (as actual "array" case is below)
                                     // if this is not true; we may need to restrict this case to:
                                     // - s.as_ref().items is a Some(JSONSchemaPropsOrArray::Schema(_))
                                     Some(format!("{}{}", stack, uppercase_first_letter(key)))
@@ -164,29 +164,20 @@ pub fn analyze(
         let value_type = value.type_.clone().unwrap_or_default();
         match value_type.as_ref() {
             "object" => {
+                // catch unconventional & ad-hoc definitions of "array" maps within an object's additional props:
                 let mut handled_inner = false;
-                // catch unconventional & ad-hoc definitions of maps within an object's additional props:
-                if let Some(additional) = &value.additional_properties {
-                    if let JSONSchemaPropsOrBool::Schema(s) = additional {
-                        let dict_type = s.type_.clone().unwrap_or_default();
-                        match dict_type.as_ref() {
-                            "array" => {
-                                //trace!("{} catching extra - {} + {}", key, next_key, next_stack);
-                                //trace!("with outer: {}", serde_json::to_string_pretty(&s).unwrap());
-                                if let Some(JSONSchemaPropsOrArray::Schema(items)) = &s.as_ref().items {
-                                    //trace!("{} catching extra - {} + {}", key, next_key, next_stack);
-                                    //trace!("passing on inner: {}", serde_json::to_string_pretty(&items).unwrap());
-                                    analyze(*items.clone(), &next_key, &next_stack, level + 1, results)?;
-                                    handled_inner = true;
-                                }
-                            }
-                            _ => {}
-                        };
+                if let Some(JSONSchemaPropsOrBool::Schema(s)) = &value.additional_properties {
+                    let dict_type = s.type_.clone().unwrap_or_default();
+                    if dict_type == "array" {
+                        // unpack the inner object from the array wrap
+                        if let Some(JSONSchemaPropsOrArray::Schema(items)) = &s.as_ref().items {
+                            analyze(*items.clone(), &next_key, &next_stack, level + 1, results)?;
+                            handled_inner = true;
+                        }
                     }
                 }
                 if !handled_inner {
-                    //trace!("{} catching normal - {} + {}", key, next_key, next_stack);
-                    //trace!("passing on {}", serde_json::to_string_pretty(&value).unwrap());
+                    // normal object recurse
                     analyze(value, &next_key, &next_stack, level + 1, results)?;
                 }
             }
