@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
-    CustomResourceDefinition, CustomResourceDefinitionVersion,
+    CustomResourceDefinition, CustomResourceDefinitionVersion, CustomResourceSubresources,
 };
 use kopium::{analyze, OutputStruct};
 use kube::{api, core::Version, Api, Client, ResourceExt};
@@ -134,12 +134,12 @@ impl Kopium {
             .schema
             .as_ref()
             .and_then(|schema| schema.open_api_v3_schema.clone());
-        let version = version.name.clone();
+        let version_name = version.name.clone();
 
-        let kind = crd.spec.names.kind;
-        let plural = crd.spec.names.plural;
-        let group = crd.spec.group;
-        let scope = crd.spec.scope;
+        let kind = &crd.spec.names.kind;
+        let plural = &crd.spec.names.plural;
+        let group = &crd.spec.group;
+        let scope = &crd.spec.scope;
 
         if let Some(schema) = data {
             let mut structs = vec![];
@@ -159,10 +159,15 @@ impl Kopium {
                         self.print_derives();
                         println!(
                             r#"#[kube(group = "{}", version = "{}", kind = "{}", plural = "{}")]"#,
-                            group, version, kind, plural
+                            group, version_name, kind, plural
                         );
                         if scope == "Namespaced" {
                             println!(r#"#[kube(namespaced)]"#);
+                        }
+
+                        if let Some(CustomResourceSubresources { status: Some(_), .. }) = version.subresources
+                        {
+                            println!(r#"#[kube(status = "{}Status")]"#, kind);
                         }
                         // don't support grabbing original schema atm so disable schemas:
                         // (we coerce IntToString to String anyway so it wont match anyway)
