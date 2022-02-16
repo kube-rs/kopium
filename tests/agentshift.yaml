@@ -1,0 +1,290 @@
+apiVersion: agent-install.openshift.io/v1beta1
+kind: Agent
+metadata:
+  name: gen
+  labels:
+    agent-install.openshift.io/bmh: cluster-spoke-0-master-2
+    infraenvs.agent-install.openshift.io: spoke0-cluster
+spec:
+  approved: true
+  clusterDeploymentName:
+    name: spoke0-cluster
+    namespace: spoke0-cluster
+  hostname: cluster-spoke-0-master-2
+  role: ""
+status:
+  bootstrap: true
+  conditions:
+  - lastTransitionTime: "2022-02-14T17:55:14Z"
+    message: The Spec has been successfully applied
+    reason: SyncOK
+    status: "True"
+    type: SpecSynced
+  - lastTransitionTime: "2022-02-14T17:55:14Z"
+    message: The agent's connection to the installation service is unimpaired
+    reason: AgentIsConnected
+    status: "True"
+    type: Connected
+  - lastTransitionTime: "2022-02-14T17:56:37Z"
+    message: The agent installation stopped
+    reason: AgentInstallationStopped
+    status: "True"
+    type: RequirementsMet
+  - lastTransitionTime: "2022-02-14T17:56:37Z"
+    message: The agent's validations are passing
+    reason: ValidationsPassing
+    status: "True"
+    type: Validated
+  - lastTransitionTime: "2022-02-14T18:15:20Z"
+    message: 'The installation has completed: Done'
+    reason: InstallationCompleted
+    status: "True"
+    type: Installed
+  - lastTransitionTime: "2022-02-14T17:55:14Z"
+    message: The agent is bound to a cluster deployment
+    reason: Bound
+    status: "True"
+    type: Bound
+  debugInfo:
+    eventsURL: EVENTS_URL
+    state: installed
+    stateInfo: Done
+  inventory:
+    bmcAddress: 0.0.0.0
+    bmcV6Address: ::/0
+    boot:
+      currentBootMode: uefi
+    cpu:
+      architecture: x86_64
+      clockMegahertz: 2394
+      count: 24
+      flags:
+      - fpu
+      - vme
+      - de
+      - pse
+      - tsc
+      - msr
+      - pae
+      - mce
+      - cx8
+      - apic
+      - sep
+      - mtrr
+      - pge
+      - mca
+      - cmov
+      - pat
+      - pse36
+      - clflush
+      - mmx
+      - fxsr
+      - sse
+      - sse2
+      - ss
+      - syscall
+      - nx
+      - pdpe1gb
+      - rdtscp
+      - lm
+      - constant_tsc
+      - rep_good
+      - nopl
+      - xtopology
+      - cpuid
+      - tsc_known_freq
+      - pni
+      - pclmulqdq
+      - vmx
+      - ssse3
+      - fma
+      - cx16
+      - pdcm
+      - pcid
+      - sse4_1
+      - sse4_2
+      - x2apic
+      - movbe
+      - popcnt
+      - tsc_deadline_timer
+      - aes
+      - xsave
+      - avx
+      - f16c
+      - rdrand
+      - hypervisor
+      - lahf_lm
+      - abm
+      - 3dnowprefetch
+      - cpuid_fault
+      - invpcid_single
+      - ssbd
+      - ibrs
+      - ibpb
+      - stibp
+      - ibrs_enhanced
+      - tpr_shadow
+      - vnmi
+      - flexpriority
+      - ept
+      - vpid
+      - ept_ad
+      - fsgsbase
+      - tsc_adjust
+      - bmi1
+      - avx2
+      - smep
+      - bmi2
+      - erms
+      - invpcid
+      - avx512f
+      - avx512dq
+      - rdseed
+      - adx
+      - smap
+      - clflushopt
+      - clwb
+      - avx512cd
+      - avx512bw
+      - avx512vl
+      - xsaveopt
+      - xsavec
+      - xgetbv1
+      - xsaves
+      - arat
+      - umip
+      - pku
+      - ospke
+      - avx512_vnni
+      - md_clear
+      - arch_capabilities
+      modelName: Intel Xeon Processor (Cascadelake)
+    disks:
+    - byPath: /dev/disk/by-path/pci-0000:00:1f.2-ata-1
+      driveType: ODD
+      hctl: "0:0:0:0"
+      id: /dev/disk/by-path/pci-0000:00:1f.2-ata-1
+      installationEligibility:
+        notEligibleReasons:
+        - Disk is removable
+        - Disk is too small (disk only has 109 MB, but 120 GB are required)
+        - Drive type is ODD, it must be one of HDD, SSD.
+      ioPerf: {}
+      model: QEMU_DVD-ROM
+      name: sr0
+      path: /dev/sr0
+      serial: QM00001
+      sizeBytes: 108984320
+      smart: '{"json_format_version":[1,0],"smartctl":{"version":[7,1],"svn_revision":"5049","platform_info":"x86_64-linux-4.18.0-305.19.1.el8_4.x86_64","build_info":"(local
+        build)","argv":["smartctl","--xall","--json=c","/dev/sr0"],"exit_status":4},"device":{"name":"/dev/sr0","info_name":"/dev/sr0","type":"scsi","protocol":"SCSI"},"vendor":"QEMU","product":"QEMU
+        DVD-ROM","model_name":"QEMU QEMU DVD-ROM","revision":"2.5+","scsi_version":"SPC-3","device_type":{"scsi_value":5,"name":"CD/DVD"},"local_time":{"time_t":1644862275,"asctime":"Mon
+        Feb 14 18:11:15 2022 UTC"},"temperature":{"current":0,"drive_trip":0}}'
+      vendor: QEMU
+    - bootable: true
+      byPath: /dev/disk/by-path/pci-0000:05:00.0
+      driveType: HDD
+      id: /dev/disk/by-path/pci-0000:05:00.0
+      installationEligibility:
+        eligible: true
+        notEligibleReasons: []
+      ioPerf: {}
+      name: vda
+      path: /dev/vda
+      sizeBytes: 214748364800
+      smart: '{"json_format_version":[1,0],"smartctl":{"version":[7,1],"svn_revision":"5049","platform_info":"x86_64-linux-4.18.0-305.19.1.el8_4.x86_64","build_info":"(local
+        build)","argv":["smartctl","--xall","--json=c","/dev/vda"],"messages":[{"string":"/dev/vda:
+        Unable to detect device type","severity":"error"}],"exit_status":1}}'
+      vendor: "0x1af4"
+    - byPath: /dev/disk/by-path/pci-0000:06:00.0
+      driveType: HDD
+      id: /dev/disk/by-path/pci-0000:06:00.0
+      installationEligibility:
+        eligible: true
+        notEligibleReasons: []
+      ioPerf: {}
+      name: vdb
+      path: /dev/vdb
+      sizeBytes: 214748364800
+      smart: '{"json_format_version":[1,0],"smartctl":{"version":[7,1],"svn_revision":"5049","platform_info":"x86_64-linux-4.18.0-305.19.1.el8_4.x86_64","build_info":"(local
+        build)","argv":["smartctl","--xall","--json=c","/dev/vdb"],"messages":[{"string":"/dev/vdb:
+        Unable to detect device type","severity":"error"}],"exit_status":1}}'
+      vendor: "0x1af4"
+    - byPath: /dev/disk/by-path/pci-0000:07:00.0
+      driveType: HDD
+      id: /dev/disk/by-path/pci-0000:07:00.0
+      installationEligibility:
+        eligible: true
+        notEligibleReasons: []
+      ioPerf: {}
+      name: vdc
+      path: /dev/vdc
+      sizeBytes: 214748364800
+      smart: '{"json_format_version":[1,0],"smartctl":{"version":[7,1],"svn_revision":"5049","platform_info":"x86_64-linux-4.18.0-305.19.1.el8_4.x86_64","build_info":"(local
+        build)","argv":["smartctl","--xall","--json=c","/dev/vdc"],"messages":[{"string":"/dev/vdc:
+        Unable to detect device type","severity":"error"}],"exit_status":1}}'
+      vendor: "0x1af4"
+    - byPath: /dev/disk/by-path/pci-0000:08:00.0
+      driveType: HDD
+      id: /dev/disk/by-path/pci-0000:08:00.0
+      installationEligibility:
+        eligible: true
+        notEligibleReasons: []
+      ioPerf: {}
+      name: vdd
+      path: /dev/vdd
+      sizeBytes: 214748364800
+      smart: '{"json_format_version":[1,0],"smartctl":{"version":[7,1],"svn_revision":"5049","platform_info":"x86_64-linux-4.18.0-305.19.1.el8_4.x86_64","build_info":"(local
+        build)","argv":["smartctl","--xall","--json=c","/dev/vdd"],"messages":[{"string":"/dev/vdd:
+        Unable to detect device type","severity":"error"}],"exit_status":1}}'
+      vendor: "0x1af4"
+    hostname: cluster-spoke-0-master-2.bare-net
+    interfaces:
+    - flags:
+      - up
+      - broadcast
+      - multicast
+      hasCarrier: true
+      ipV4Addresses:
+      - 192.168.150.204/24
+      ipV6Addresses: []
+      macAddress: ee:ee:ee:ee:20:2e
+      mtu: 1500
+      name: enp1s0
+      product: "0x0001"
+      speedMbps: -1
+      vendor: "0x1af4"
+    - flags:
+      - up
+      - broadcast
+      - multicast
+      hasCarrier: true
+      ipV4Addresses:
+      - 192.168.7.12/24
+      ipV6Addresses: []
+      macAddress: aa:aa:aa:aa:20:2a
+      mtu: 1500
+      name: enp2s0
+      product: "0x0001"
+      speedMbps: -1
+      vendor: "0x1af4"
+    memory:
+      physicalBytes: 67108864000
+      usableBytes: 65927147520
+    systemVendor:
+      manufacturer: Red Hat
+      productName: KVM
+      virtual: true
+  ntpSources:
+  - sourceName: mail.sebi.org
+    sourceState: not_combined
+  - sourceName: 79.133.44.139
+    sourceState: synced
+  - sourceName: x.ns.gin.ntt.net
+    sourceState: not_combined
+  - sourceName: h2924008.stratoserver.net
+    sourceState: not_combined
+  progress:
+    currentStage: Done
+    stageStartTime: "2022-02-14T18:15:20Z"
+    stageUpdateTime: "2022-02-14T18:15:20Z"
+  role: master
