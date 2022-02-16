@@ -56,6 +56,7 @@ pub fn analyze(
                                     // for now assume this is a convenience for inline map structs (as actual "array" case is below)
                                     // if this is not true; we may need to restrict this case to:
                                     // - s.as_ref().items is a Some(JSONSchemaPropsOrArray::Schema(_))
+                                    // it's also possible that this will need better recurse handling for bigger cases
                                     Some(format!("{}{}", stack, uppercase_first_letter(key)))
                                 }
                                 "" => {
