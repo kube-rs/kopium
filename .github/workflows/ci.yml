@@ -31,7 +31,7 @@ jobs:
       # Test argocd Application
       - run: just test-argo
       # Test openshift agent crd
-      - run: just test-agentshift
+      - run: just test-agent
 
   rustfmt:
     name: Run rustfmt

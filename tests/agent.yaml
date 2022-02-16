@@ -1,3 +1,4 @@
+---
 apiVersion: agent-install.openshift.io/v1beta1
 kind: Agent
 metadata:

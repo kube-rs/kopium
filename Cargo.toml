@@ -38,3 +38,6 @@ version = "0.69.0"
 #git = "https://github.com/kube-rs/kube-rs.git"
 #branch = "master"
 features = ["derive"]
+
+[dev-dependencies]
+serde_yaml = "0.8.23"
