@@ -63,29 +63,15 @@ jobs:
           mv kopium-ubuntu-latest-amd64/kopium ./kopium-linux-amd64
           mv kopium-macos-latest-amd64/kopium ./kopium-darwin-amd64
           rm -rf kopium-ubuntu-latest-amd64 kopium-macos-latest-amd64
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-      - name: Release kopium-linux-amd64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_name: kopium-linux-amd64
-          asset_path: kopium-linux-amd64
-          asset_content_type: application/octet-stream
-      - name: Release kopium-macos-amd64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: kopium-darwin-amd64
-          asset_name: kopium-darwin-amd64
-          asset_content_type: application/octet-stream
+          generate_release_notes: true
+          draft: true
+          fail_on_unmatched_files: true
+          files: |
+            kopium-darwin-amd64
+            kopium-linux-amd64
