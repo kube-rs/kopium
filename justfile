@@ -36,5 +36,12 @@ test-argo:
   kubectl apply -f tests/app.yaml
   cargo test --test runner -- --nocapture
 
+test-certmanager:
+  kubectl apply --force-conflicts --server-side -f https://github.com/jetstack/cert-manager/releases/download/v1.7.1/cert-manager.crds.yaml
+  cargo run --bin kopium -- --docs certificates.cert-manager.io > tests/gen.rs
+  echo "pub type CR = Certificate;" >> tests/gen.rs
+  kubectl apply -f tests/cert.yaml
+  cargo test --test runner -- --nocapture
+
 release:
   cargo release minor --execute

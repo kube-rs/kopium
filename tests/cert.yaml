@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: gen
+  namespace: default
+spec:
+  secretName: test-certificate
+  issuerRef:
+    name: snakeoil
+    kind: Issuer
+  commonName: "foo.example.com"
+  isCA: false
+  dnsNames:
+  - foo.example.com
