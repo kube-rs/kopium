@@ -32,6 +32,8 @@ jobs:
       - run: just test-argo
       # Test openshift agent crd
       - run: just test-agent
+      # Test around documentation in cert-manager certificates
+      - run: just test-certmanager
 
   rustfmt:
     name: Run rustfmt

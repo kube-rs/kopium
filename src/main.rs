@@ -227,7 +227,7 @@ impl Kopium {
         // print doc strings if requested in arguments
         if self.docs {
             if let Some(d) = doc {
-                println!("{}/// {}", indent, d);
+                println!("{}/// {}", indent, d.replace("\n", &format!("\n{}/// ", indent)));
                 // TODO: logic to split doc strings by sentence / length here
             }
         }
@@ -245,7 +245,6 @@ impl Kopium {
     }
 }
 
-
 fn print_prelude(results: &[OutputStruct]) {
     println!("use kube::CustomResource;");
     println!("use serde::{{Serialize, Deserialize}};");
@@ -260,7 +259,6 @@ fn print_prelude(results: &[OutputStruct]) {
     }
     println!();
 }
-
 
 fn find_crd_version<'a>(
     crd: &'a CustomResourceDefinition,
