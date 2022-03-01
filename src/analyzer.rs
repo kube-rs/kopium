@@ -31,22 +31,35 @@ pub fn analyze(
         if let Some(JSONSchemaPropsOrBool::Schema(s)) = schema.additional_properties.as_ref() {
             let dict_type = s.type_.clone().unwrap_or_default();
             // It's possible to specify the properties inside a nested additionalProperties.properties
-            // so cancel here only if there's no dict type AND no properties
-            if !dict_type.is_empty() && !s.properties.is_some() {
+            if let Some(extra_props) = &s.properties {
+                // in this case we need to run analysis on these nested types
+                debug!("Generating nested struct for {} (under {})", current, stack);
+                let new_result = analyze_object_properties(
+                    &extra_props,
+                    stack,
+                    &mut array_recurse_level,
+                    level,
+                    &schema,
+                )?;
+                results.extend(new_result);
+            }
+            else if !dict_type.is_empty() {
                 warn!("not generating type {} - using {} map", current, dict_type);
                 return Ok(()); // no members here - it'll be inlined
             }
         }
-        debug!("Generating struct for {} (under {})", current, stack);
-        // initial analysis of properties (we do not recurse here, we need to find members first)
-        let new_result = analyze_object_properties(
-            &props,
-            stack,
-            &mut array_recurse_level,
-            level,
-            &schema,
-        )?;
-        results.extend(new_result);
+        else { // else, regular properties only
+            debug!("Generating struct for {} (under {})", current, stack);
+            // initial analysis of properties (we do not recurse here, we need to find members first)
+            let new_result = analyze_object_properties(
+                &props,
+                stack,
+                &mut array_recurse_level,
+                level,
+                &schema,
+            )?;
+            results.extend(new_result);
+        }
     }
 
     // Start recursion for properties
