@@ -34,30 +34,19 @@ pub fn analyze(
             if let Some(extra_props) = &s.properties {
                 // in this case we need to run analysis on these nested types
                 debug!("Generating nested struct for {} (under {})", current, stack);
-                let new_result = analyze_object_properties(
-                    &extra_props,
-                    stack,
-                    &mut array_recurse_level,
-                    level,
-                    &schema,
-                )?;
+                let new_result =
+                    analyze_object_properties(&extra_props, stack, &mut array_recurse_level, level, &schema)?;
                 results.extend(new_result);
-            }
-            else if !dict_type.is_empty() {
+            } else if !dict_type.is_empty() {
                 warn!("not generating type {} - using {} map", current, dict_type);
                 return Ok(()); // no members here - it'll be inlined
             }
-        }
-        else { // else, regular properties only
+        } else {
+            // else, regular properties only
             debug!("Generating struct for {} (under {})", current, stack);
             // initial analysis of properties (we do not recurse here, we need to find members first)
-            let new_result = analyze_object_properties(
-                &props,
-                stack,
-                &mut array_recurse_level,
-                level,
-                &schema,
-            )?;
+            let new_result =
+                analyze_object_properties(&props, stack, &mut array_recurse_level, level, &schema)?;
             results.extend(new_result);
         }
     }
@@ -160,12 +149,12 @@ fn analyze_object_properties(
                                 // - s.as_ref().items is a Some(JSONSchemaPropsOrArray::Schema(_))
                                 // it's also possible that this will need better recurse handling for bigger cases
                                 Some(format!("{}{}", stack, uppercase_first_letter(key)))
-                            },
+                            }
                             "object" => {
                                 // we can have objects inlined inside additional properties
                                 // we THINK this is the Map : String -> Struct case - need more test data
                                 Some(format!("{}{}", stack, uppercase_first_letter(key)))
-                            },
+                            }
                             "" => {
                                 if s.x_kubernetes_int_or_string.is_some() {
                                     warn!("coercing presumed IntOrString {} to String", key);
