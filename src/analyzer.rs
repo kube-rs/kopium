@@ -84,6 +84,13 @@ pub fn analyze(
                             handled_inner = true;
                         }
                     }
+                    // TODO: not sure if these nested recurses are necessary - cluster test case does not have enough data
+                    //if let Some(extra_props) = &s.properties {
+                    //    for (_key, value) in extra_props {
+                    //        debug!("nested recurse into {} {} - key: {}", next_key, next_stack, _key);
+                    //        analyze(value.clone(), &next_key, &next_stack, level +1, results)?;
+                    //    }
+                    //}
                 }
                 if !handled_inner {
                     // normal object recurse
@@ -153,7 +160,12 @@ fn analyze_object_properties(
                                 // - s.as_ref().items is a Some(JSONSchemaPropsOrArray::Schema(_))
                                 // it's also possible that this will need better recurse handling for bigger cases
                                 Some(format!("{}{}", stack, uppercase_first_letter(key)))
-                            }
+                            },
+                            "object" => {
+                                // we can have objects inlined inside additional properties
+                                // we THINK this is the Map : String -> Struct case - need more test data
+                                Some(format!("{}{}", stack, uppercase_first_letter(key)))
+                            },
                             "" => {
                                 if s.x_kubernetes_int_or_string.is_some() {
                                     warn!("coercing presumed IntOrString {} to String", key);
