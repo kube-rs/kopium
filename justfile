@@ -6,7 +6,7 @@ SEMVER_VERSION := `grep version Cargo.toml | awk -F"\"" '{print $2}' | head -n 1
 default:
   @just --list --unsorted | grep -v "    default"
 
-test: test-pr test-mv test-argo test-agent
+test: test-pr test-mv test-argo test-agent test-certmanager test-cluster
 
 test-pr:
   kubectl apply --force-conflicts --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.52.0/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml
@@ -41,6 +41,12 @@ test-certmanager:
   cargo run --bin kopium -- --docs certificates.cert-manager.io > tests/gen.rs
   echo "pub type CR = Certificate;" >> tests/gen.rs
   kubectl apply -f tests/cert.yaml
+  cargo test --test runner -- --nocapture
+
+test-cluster:
+  kubectl apply -f tests/cluster-crd.yaml
+  cargo run --bin kopium -- clusters.cluster.x-k8s.io > tests/gen.rs
+  echo "pub type CR = Cluster;" >> tests/gen.rs
   cargo test --test runner -- --nocapture
 
 release:
