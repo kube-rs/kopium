@@ -47,7 +47,8 @@ test-cluster:
   kubectl apply -f tests/cluster-crd.yaml
   cargo run --bin kopium -- clusters.cluster.x-k8s.io > tests/gen.rs
   echo "pub type CR = Cluster;" >> tests/gen.rs
-  cargo test --test runner -- --nocapture
+  # No test instance for this crd
+  cargo build --test runner
 
 release:
   cargo release minor --execute
