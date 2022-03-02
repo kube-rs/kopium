@@ -6,6 +6,9 @@ SEMVER_VERSION := `grep version Cargo.toml | awk -F"\"" '{print $2}' | head -n 1
 default:
   @just --list --unsorted | grep -v "    default"
 
+fmt:
+  cargo +nightly fmt
+
 test: test-pr test-mv test-argo test-agent test-certmanager test-cluster
 
 test-pr:
