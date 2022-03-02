@@ -4,7 +4,7 @@ use anyhow::{bail, Result};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     JSONSchemaProps, JSONSchemaPropsOrArray, JSONSchemaPropsOrBool,
 };
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 const IGNORED_KEYS: [&str; 3] = ["metadata", "apiVersion", "kind"];
 
@@ -22,136 +22,34 @@ pub fn analyze(
     level: u8,
     results: &mut Vec<OutputStruct>,
 ) -> Result<()> {
-    let props = schema.properties.unwrap_or_default();
+    let props = schema.properties.clone().unwrap_or_default();
     let mut array_recurse_level: HashMap<String, u8> = Default::default();
     // first generate the object if it is one
-    let current_type = schema.type_.unwrap_or_default();
+    let current_type = schema.type_.clone().unwrap_or_default();
     if current_type == "object" {
-        if let Some(JSONSchemaPropsOrBool::Schema(s)) = schema.additional_properties {
-            let dict_type = s.type_.unwrap_or_default();
-            if !dict_type.is_empty() {
+        // we can have additionalProperties XOR properties
+        // https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation
+        if let Some(JSONSchemaPropsOrBool::Schema(s)) = schema.additional_properties.as_ref() {
+            let dict_type = s.type_.clone().unwrap_or_default();
+            // object with additionalProperties == map
+            if let Some(extra_props) = &s.properties {
+                // map values is an object with properties
+                debug!("Generating map struct for {} (under {})", current, stack);
+                let new_result =
+                    analyze_object_properties(&extra_props, stack, &mut array_recurse_level, level, &schema)?;
+                results.extend(new_result);
+            } else if !dict_type.is_empty() {
                 warn!("not generating type {} - using {} map", current, dict_type);
                 return Ok(()); // no members here - it'll be inlined
             }
+        } else {
+            // else, regular properties only
+            debug!("Generating struct for {} (under {})", current, stack);
+            // initial analysis of properties (we do not recurse here, we need to find members first)
+            let new_result =
+                analyze_object_properties(&props, stack, &mut array_recurse_level, level, &schema)?;
+            results.extend(new_result);
         }
-        let mut members = vec![];
-        debug!("Generating struct for {} (under {})", current, stack);
-
-        let reqs = schema.required.unwrap_or_default();
-        // initial analysis of properties (we do not recurse here, we need to find members first)
-        for (key, value) in &props {
-            let value_type = value.type_.clone().unwrap_or_default();
-            let rust_type = match value_type.as_ref() {
-                "object" => {
-                    let mut dict_key = None;
-                    if let Some(additional) = &value.additional_properties {
-                        debug!("got additional: {}", serde_json::to_string(&additional)?);
-                        if let JSONSchemaPropsOrBool::Schema(s) = additional {
-                            let dict_type = s.type_.clone().unwrap_or_default();
-                            dict_key = match dict_type.as_ref() {
-                                "string" => Some("String".into()),
-                                "array" => {
-                                    // possible to inline a struct here for a map (even though it says array)
-                                    // (openshift agent crd test for struct 'validationsInfo' does this)
-                                    // for now assume this is a convenience for inline map structs (as actual "array" case is below)
-                                    // if this is not true; we may need to restrict this case to:
-                                    // - s.as_ref().items is a Some(JSONSchemaPropsOrArray::Schema(_))
-                                    // it's also possible that this will need better recurse handling for bigger cases
-                                    Some(format!("{}{}", stack, uppercase_first_letter(key)))
-                                }
-                                "" => {
-                                    if s.x_kubernetes_int_or_string.is_some() {
-                                        warn!("coercing presumed IntOrString {} to String", key);
-                                        Some("String".into())
-                                    } else {
-                                        bail!("unknown empty dict type for {}", key)
-                                    }
-                                }
-                                // think the type we get is the value type
-                                x => Some(uppercase_first_letter(x)), // best guess
-                            };
-                        }
-                    }
-                    if let Some(dict) = dict_key {
-                        format!("BTreeMap<String, {}>", dict)
-                    } else {
-                        format!("{}{}", stack, uppercase_first_letter(key))
-                    }
-                }
-                "string" => "String".to_string(),
-                "boolean" => "bool".to_string(),
-                "date" => extract_date_type(value)?,
-                "number" => extract_number_type(value)?,
-                "integer" => extract_integer_type(value)?,
-                "array" => {
-                    // recurse through repeated arrays until we find a concrete type (keep track of how deep we went)
-                    let (array_type, recurse_level) = array_recurse_for_type(value, stack, key, 1)?;
-                    debug!(
-                        "got array type {} for {} in level {}",
-                        array_type, key, recurse_level
-                    );
-                    array_recurse_level.insert(key.clone(), recurse_level);
-                    array_type
-                }
-                "" => {
-                    if value.x_kubernetes_int_or_string.is_some() {
-                        warn!("coercing presumed IntOrString {} to String", key);
-                        "String".into()
-                    } else {
-                        bail!("unknown empty dict type for {}", key)
-                    }
-                }
-                x => bail!("unknown type {}", x),
-            };
-
-            // Create member and wrap types correctly
-            let member_doc = value.description.clone();
-            if reqs.contains(key) {
-                debug!("with required member {} of type {}", key, rust_type);
-                members.push(OutputMember {
-                    type_: rust_type,
-                    name: key.to_string(),
-                    field_annot: None,
-                    docs: member_doc,
-                })
-            } else {
-                // option wrapping possibly needed if not required
-                debug!("with optional member {} of type {}", key, rust_type);
-                if rust_type.starts_with("BTreeMap") {
-                    members.push(OutputMember {
-                        type_: rust_type,
-                        name: key.to_string(),
-                        field_annot: Some(
-                            r#"#[serde(default, skip_serializing_if = "BTreeMap::is_empty")]"#.into(),
-                        ),
-                        docs: member_doc,
-                    })
-                } else if rust_type.starts_with("Vec") {
-                    members.push(OutputMember {
-                        type_: rust_type,
-                        name: key.to_string(),
-                        field_annot: Some(
-                            r#"#[serde(default, skip_serializing_if = "Vec::is_empty")]"#.into(),
-                        ),
-                        docs: member_doc,
-                    })
-                } else {
-                    members.push(OutputMember {
-                        type_: format!("Option<{}>", rust_type),
-                        name: key.to_string(),
-                        field_annot: None,
-                        docs: member_doc,
-                    })
-                }
-            }
-        }
-        // Finalize struct with given members
-        results.push(OutputStruct {
-            name: stack.to_string(),
-            members,
-            level,
-            docs: schema.description,
-        });
     }
 
     // Start recursion for properties
@@ -165,7 +63,7 @@ pub fn analyze(
         let value_type = value.type_.clone().unwrap_or_default();
         match value_type.as_ref() {
             "object" => {
-                // catch unconventional & ad-hoc definitions of "array" maps within an object's additional props:
+                // objects, maps
                 let mut handled_inner = false;
                 if let Some(JSONSchemaPropsOrBool::Schema(s)) = &value.additional_properties {
                     let dict_type = s.type_.clone().unwrap_or_default();
@@ -176,6 +74,13 @@ pub fn analyze(
                             handled_inner = true;
                         }
                     }
+                    // TODO: not sure if these nested recurses are necessary - cluster test case does not have enough data
+                    //if let Some(extra_props) = &s.properties {
+                    //    for (_key, value) in extra_props {
+                    //        debug!("nested recurse into {} {} - key: {}", next_key, next_stack, _key);
+                    //        analyze(value.clone(), &next_key, &next_stack, level +1, results)?;
+                    //    }
+                    //}
                 }
                 if !handled_inner {
                     // normal object recurse
@@ -213,6 +118,133 @@ pub fn analyze(
         }
     }
     Ok(())
+}
+
+// helper to figure out what output structs (returned) and embedded members are contained in the current object schema
+fn analyze_object_properties(
+    props: &BTreeMap<String, JSONSchemaProps>,
+    stack: &str,
+    array_recurse_level: &mut HashMap<String, u8>,
+    level: u8,
+    schema: &JSONSchemaProps,
+) -> Result<Vec<OutputStruct>, anyhow::Error> {
+    let mut results = vec![];
+    let mut members = vec![];
+    let reqs = schema.required.clone().unwrap_or_default();
+    for (key, value) in props {
+        let value_type = value.type_.clone().unwrap_or_default();
+        let rust_type = match value_type.as_ref() {
+            "object" => {
+                let mut dict_key = None;
+                if let Some(additional) = &value.additional_properties {
+                    debug!("got additional: {}", serde_json::to_string(&additional)?);
+                    if let JSONSchemaPropsOrBool::Schema(s) = additional {
+                        // This case is for maps. It is generally String -> Something, depending on the type key:
+                        let dict_type = s.type_.clone().unwrap_or_default();
+                        dict_key = match dict_type.as_ref() {
+                            "string" => Some("String".into()),
+                            // We are not 100% sure the array and object subcases here are correct but they pass tests atm.
+                            // authoratative, but more detailed sources than crd validation docs below are welcome
+                            // https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation
+                            "array" => {
+                                // agent test with `validationInfo` uses this spec format
+                                Some(format!("{}{}", stack, uppercase_first_letter(key)))
+                            }
+                            "object" => {
+                                // cluster test with `failureDomains` uses this spec format
+                                Some(format!("{}{}", stack, uppercase_first_letter(key)))
+                            }
+                            "" => {
+                                if s.x_kubernetes_int_or_string.is_some() {
+                                    warn!("coercing presumed IntOrString {} to String", key);
+                                    Some("String".into())
+                                } else {
+                                    bail!("unknown empty dict type for {}", key)
+                                }
+                            }
+                            // think the type we get is the value type
+                            x => Some(uppercase_first_letter(x)), // best guess
+                        };
+                    }
+                }
+                if let Some(dict) = dict_key {
+                    format!("BTreeMap<String, {}>", dict)
+                } else {
+                    format!("{}{}", stack, uppercase_first_letter(key))
+                }
+            }
+            "string" => "String".to_string(),
+            "boolean" => "bool".to_string(),
+            "date" => extract_date_type(value)?,
+            "number" => extract_number_type(value)?,
+            "integer" => extract_integer_type(value)?,
+            "array" => {
+                // recurse through repeated arrays until we find a concrete type (keep track of how deep we went)
+                let (array_type, recurse_level) = array_recurse_for_type(value, stack, key, 1)?;
+                debug!(
+                    "got array type {} for {} in level {}",
+                    array_type, key, recurse_level
+                );
+                array_recurse_level.insert(key.clone(), recurse_level);
+                array_type
+            }
+            "" => {
+                if value.x_kubernetes_int_or_string.is_some() {
+                    warn!("coercing presumed IntOrString {} to String", key);
+                    "String".into()
+                } else {
+                    bail!("unknown empty dict type for {}", key)
+                }
+            }
+            x => bail!("unknown type {}", x),
+        };
+
+        // Create member and wrap types correctly
+        let member_doc = value.description.clone();
+        if reqs.contains(key) {
+            debug!("with required member {} of type {}", key, rust_type);
+            members.push(OutputMember {
+                type_: rust_type,
+                name: key.to_string(),
+                field_annot: None,
+                docs: member_doc,
+            })
+        } else {
+            // option wrapping possibly needed if not required
+            debug!("with optional member {} of type {}", key, rust_type);
+            if rust_type.starts_with("BTreeMap") {
+                members.push(OutputMember {
+                    type_: rust_type,
+                    name: key.to_string(),
+                    field_annot: Some(
+                        r#"#[serde(default, skip_serializing_if = "BTreeMap::is_empty")]"#.into(),
+                    ),
+                    docs: member_doc,
+                })
+            } else if rust_type.starts_with("Vec") {
+                members.push(OutputMember {
+                    type_: rust_type,
+                    name: key.to_string(),
+                    field_annot: Some(r#"#[serde(default, skip_serializing_if = "Vec::is_empty")]"#.into()),
+                    docs: member_doc,
+                })
+            } else {
+                members.push(OutputMember {
+                    type_: format!("Option<{}>", rust_type),
+                    name: key.to_string(),
+                    field_annot: None,
+                    docs: member_doc,
+                })
+            }
+        }
+    }
+    results.push(OutputStruct {
+        name: stack.to_string(),
+        members,
+        level,
+        docs: schema.description.clone(),
+    });
+    Ok(results)
 }
 
 // recurse into an array type to find its nested type
