@@ -27,13 +27,14 @@ pub fn analyze(
     // first generate the object if it is one
     let current_type = schema.type_.clone().unwrap_or_default();
     if current_type == "object" {
-        // TODO: figure out if we can have both additionalProperties and properties
+        // we can have additionalProperties XOR properties
+        // https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation
         if let Some(JSONSchemaPropsOrBool::Schema(s)) = schema.additional_properties.as_ref() {
             let dict_type = s.type_.clone().unwrap_or_default();
-            // It's possible to specify the properties inside a nested additionalProperties.properties
+            // object with additionalProperties == map
             if let Some(extra_props) = &s.properties {
-                // in this case we need to run analysis on these nested types
-                debug!("Generating nested struct for {} (under {})", current, stack);
+                // map values is an object with properties
+                debug!("Generating map struct for {} (under {})", current, stack);
                 let new_result =
                     analyze_object_properties(&extra_props, stack, &mut array_recurse_level, level, &schema)?;
                 results.extend(new_result);
@@ -62,7 +63,7 @@ pub fn analyze(
         let value_type = value.type_.clone().unwrap_or_default();
         match value_type.as_ref() {
             "object" => {
-                // catch unconventional & ad-hoc definitions of "array" maps within an object's additional props:
+                // objects, maps
                 let mut handled_inner = false;
                 if let Some(JSONSchemaPropsOrBool::Schema(s)) = &value.additional_properties {
                     let dict_type = s.type_.clone().unwrap_or_default();
@@ -138,21 +139,19 @@ fn analyze_object_properties(
                 if let Some(additional) = &value.additional_properties {
                     debug!("got additional: {}", serde_json::to_string(&additional)?);
                     if let JSONSchemaPropsOrBool::Schema(s) = additional {
+                        // This case is for maps. It is generally String -> Something, depending on the type key:
                         let dict_type = s.type_.clone().unwrap_or_default();
                         dict_key = match dict_type.as_ref() {
                             "string" => Some("String".into()),
+                            // We are not 100% sure the array and object subcases here are correct but they pass tests atm.
+                            // authoratative, but more detailed sources than crd validation docs below are welcome
+                            // https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation
                             "array" => {
-                                // possible to inline a struct here for a map (even though it says array)
-                                // (openshift agent crd test for struct 'validationsInfo' does this)
-                                // for now assume this is a convenience for inline map structs (as actual "array" case is below)
-                                // if this is not true; we may need to restrict this case to:
-                                // - s.as_ref().items is a Some(JSONSchemaPropsOrArray::Schema(_))
-                                // it's also possible that this will need better recurse handling for bigger cases
+                                // agent test with `validationInfo` uses this spec format
                                 Some(format!("{}{}", stack, uppercase_first_letter(key)))
                             }
                             "object" => {
-                                // we can have objects inlined inside additional properties
-                                // we THINK this is the Map : String -> Struct case - need more test data
+                                // cluster test with `failureDomains` uses this spec format
                                 Some(format!("{}{}", stack, uppercase_first_letter(key)))
                             }
                             "" => {
