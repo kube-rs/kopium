@@ -1,0 +1,11 @@
+apiVersion: policy.linkerd.io/v1beta1
+kind: ServerAuthorization
+metadata:
+  name: gen
+spec:
+  client:
+    meshTLS:
+      identities:
+      - '*.environment-0d0c8465-02ef-496c-9586-ebbaecd63e0d-0.serviceaccount.identity.linkerd.cluster.local'
+  server:
+    name: myserver
