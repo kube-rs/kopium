@@ -331,3 +331,66 @@ fn uppercase_first_letter(s: &str) -> String {
         Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
     }
 }
+
+
+// unit tests particular schema patterns
+#[cfg(test)]
+mod test {
+    use crate::analyze;
+    use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::JSONSchemaProps;
+    use serde_yaml;
+
+    #[test]
+    fn map_of_struct() {
+        // validationsInfo from agent test
+        let schema_str = r#"
+        description: AgentStatus defines the observed state of Agent
+        properties:
+          validationsInfo:
+            additionalProperties:
+              items:
+                properties:
+                  id:
+                    type: string
+                  message:
+                    type: string
+                  status:
+                    type: string
+                required:
+                - id
+                - message
+                - status
+                type: object
+              type: array
+            description: ValidationsInfo is a JSON-formatted string containing
+              the validation results for each validation id grouped by category
+              (network, hosts-data, etc.)
+            type: object
+        type: object
+"#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        //env_logger::init();
+        //println!("schema: {}", serde_json::to_string_pretty(&schema).unwrap());
+
+        let mut structs = vec![];
+        analyze(schema, "ValidationsInfo", "Agent", 0, &mut structs).unwrap();
+        //println!("{:?}", structs);
+        let root = &structs[0];
+        assert_eq!(root.name, "Agent");
+        assert_eq!(root.level, 0);
+        // should have a member with a key to the map:
+        let map = &root.members[0];
+        assert_eq!(map.name, "validationsInfo");
+        assert_eq!(map.type_, "Option<BTreeMap<String, AgentValidationsInfo>>");
+        // should have a separate struct
+        let other = &structs[1];
+        assert_eq!(other.name, "AgentValidationsInfo");
+        assert_eq!(other.level, 1);
+        assert_eq!(other.members[0].name, "id");
+        assert_eq!(other.members[0].type_, "String");
+        assert_eq!(other.members[1].name, "message");
+        assert_eq!(other.members[1].type_, "String");
+        assert_eq!(other.members[2].name, "status");
+        assert_eq!(other.members[2].type_, "String");
+    }
+}
