@@ -210,32 +210,14 @@ fn analyze_object_properties(
                 docs: member_doc,
             })
         } else {
-            // option wrapping possibly needed if not required
+            // option wrapping needed if not required
             debug!("with optional member {} of type {}", key, rust_type);
-            if rust_type.starts_with("BTreeMap") {
-                members.push(OutputMember {
-                    type_: rust_type,
-                    name: key.to_string(),
-                    field_annot: Some(
-                        r#"#[serde(default, skip_serializing_if = "BTreeMap::is_empty")]"#.into(),
-                    ),
-                    docs: member_doc,
-                })
-            } else if rust_type.starts_with("Vec") {
-                members.push(OutputMember {
-                    type_: rust_type,
-                    name: key.to_string(),
-                    field_annot: Some(r#"#[serde(default, skip_serializing_if = "Vec::is_empty")]"#.into()),
-                    docs: member_doc,
-                })
-            } else {
-                members.push(OutputMember {
-                    type_: format!("Option<{}>", rust_type),
-                    name: key.to_string(),
-                    field_annot: None,
-                    docs: member_doc,
-                })
-            }
+            members.push(OutputMember {
+                type_: format!("Option<{}>", rust_type),
+                name: key.to_string(),
+                field_annot: Some(r#"#[serde(default, skip_serializing_if = "Option::is_none")]"#.into()),
+                docs: member_doc,
+            })
         }
     }
     results.push(OutputStruct {
