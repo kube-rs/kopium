@@ -31,6 +31,10 @@ impl OutputStruct {
     pub fn uses_date(&self) -> bool {
         self.members.iter().any(|m| m.type_.contains("NaiveDate"))
     }
+
+    pub fn uses_int_or_string(&self) -> bool {
+        self.members.iter().any(|m| m.type_.contains("IntOrString"))
+    }
 }
 
 mod analyzer;

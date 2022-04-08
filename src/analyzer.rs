@@ -156,8 +156,7 @@ fn analyze_object_properties(
                             }
                             "" => {
                                 if s.x_kubernetes_int_or_string.is_some() {
-                                    warn!("coercing presumed IntOrString {} to String", key);
-                                    Some("String".into())
+                                    Some("IntOrString".into())
                                 } else {
                                     bail!("unknown empty dict type for {}", key)
                                 }
@@ -190,8 +189,7 @@ fn analyze_object_properties(
             }
             "" => {
                 if value.x_kubernetes_int_or_string.is_some() {
-                    warn!("coercing presumed IntOrString {} to String", key);
-                    "String".into()
+                    "IntOrString".into()
                 } else {
                     bail!("unknown empty dict type for {}", key)
                 }
@@ -332,7 +330,6 @@ fn uppercase_first_letter(s: &str) -> String {
     }
 }
 
-
 // unit tests particular schema patterns
 #[cfg(test)]
 mod test {
@@ -392,5 +389,30 @@ mod test {
         assert_eq!(other.members[1].type_, "String");
         assert_eq!(other.members[2].name, "status");
         assert_eq!(other.members[2].type_, "String");
+    }
+
+    #[test]
+    fn int_or_string() {
+        let schema_str = r#"
+            properties:
+              port:
+                description: A port name or number. Must exist in a pod spec.
+                x-kubernetes-int-or-string: true
+            required:
+            - port
+            type: object
+"#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+
+        let mut structs = vec![];
+        analyze(schema, "ServerSpec", "Server", 0, &mut structs).unwrap();
+        let root = &structs[0];
+        assert_eq!(root.name, "Server");
+        assert_eq!(root.level, 0);
+        // should have an IntOrString member:
+        let member = &root.members[0];
+        assert_eq!(member.name, "port");
+        assert_eq!(member.type_, "IntOrString");
+        assert!(root.uses_int_or_string());
     }
 }
