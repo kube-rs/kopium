@@ -257,6 +257,9 @@ fn print_prelude(results: &[OutputStruct]) {
     if results.iter().any(|o| o.uses_date()) {
         println!("use chrono::naive::NaiveDate;");
     }
+    if results.iter().any(|o| o.uses_int_or_string()) {
+        println!("use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;");
+    }
     println!();
 }
 
