@@ -34,6 +34,10 @@ jobs:
       - run: just test-agent
       # Test around documentation in cert-manager certificates
       - run: just test-certmanager
+      # Test some linkerd crds
+      - run: just test-linkerd-serverauth
+      - run: just test-linkerd-server
+
 
   rustfmt:
     name: Run rustfmt
