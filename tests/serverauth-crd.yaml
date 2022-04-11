@@ -288,24 +288,3 @@ spec:
         type: object
     served: true
     storage: true
-status:
-  acceptedNames:
-    kind: ServerAuthorization
-    listKind: ServerAuthorizationList
-    plural: serverauthorizations
-    shortNames:
-    - saz
-    singular: serverauthorization
-  conditions:
-  - lastTransitionTime: "2021-12-13T21:51:27Z"
-    message: no conflicts found
-    reason: NoConflicts
-    status: "True"
-    type: NamesAccepted
-  - lastTransitionTime: "2021-12-13T21:51:27Z"
-    message: the initial names have been accepted
-    reason: InitialNamesAccepted
-    status: "True"
-    type: Established
-  storedVersions:
-  - v1beta1

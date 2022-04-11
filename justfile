@@ -9,7 +9,7 @@ default:
 fmt:
   cargo +nightly fmt
 
-test: test-pr test-mv test-argo test-agent test-certmanager test-cluster test-linkerd-serverauth
+test: test-pr test-mv test-argo test-agent test-certmanager test-cluster test-linkerd-serverauth test-linkerd-server
 
 test-pr:
   kubectl apply --force-conflicts --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.52.0/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml
@@ -60,14 +60,12 @@ test-linkerd-serverauth:
   kubectl apply -f tests/serverauth.yaml
   cargo test --test runner -- --nocapture
 
-# This fails in the test runner when trying to patch the applied instance.
-# let _obj = cr.patch_status("gen", &pp, &patch).await?;
-#test-linkerd-server:
-#  kubectl apply --server-side -f tests/server-crd.yaml
-#  cargo run --bin kopium -- --docs servers.policy.linkerd.io > tests/gen.rs
-#  echo "pub type CR = Server;" >> tests/gen.rs
-#  kubectl apply -f tests/server.yaml
-#  cargo test --test runner -- --nocapture
+test-linkerd-server:
+  kubectl apply --server-side -f tests/server-crd.yaml
+  cargo run --bin kopium -- --docs servers.policy.linkerd.io > tests/gen.rs
+  echo "pub type CR = Server;" >> tests/gen.rs
+  kubectl apply -f tests/server.yaml
+  cargo test --test runner -- --nocapture
 
 release:
   cargo release minor --execute

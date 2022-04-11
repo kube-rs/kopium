@@ -437,7 +437,9 @@ type: object
         let match_labels = &server_selector.members[0];
         assert_eq!(match_labels.name, "matchLabels");
         assert_eq!(match_labels.type_, "BTreeMap<String, serde_json::Value>");
+    }
 
+    #[test]
     fn int_or_string() {
         let schema_str = r#"
             properties:
