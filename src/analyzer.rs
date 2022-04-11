@@ -46,6 +46,10 @@ pub fn analyze(
             // else, regular properties only
             debug!("Generating struct for {} (under {})", current, stack);
             // initial analysis of properties (we do not recurse here, we need to find members first)
+            if props.is_empty() && schema.x_kubernetes_preserve_unknown_fields.unwrap_or(false) {
+                warn!("not generating type {} - using BTreeMap", current);
+                return Ok(());
+            }
             let new_result =
                 analyze_object_properties(&props, stack, &mut array_recurse_level, level, &schema)?;
             results.extend(new_result);
@@ -165,6 +169,10 @@ fn analyze_object_properties(
                             x => Some(uppercase_first_letter(x)), // best guess
                         };
                     }
+                } else if value.properties.is_none()
+                    && value.x_kubernetes_preserve_unknown_fields.unwrap_or(false)
+                {
+                    dict_key = Some("serde_json::Value".into());
                 }
                 if let Some(dict) = dict_key {
                     format!("BTreeMap<String, {}>", dict)
@@ -389,6 +397,46 @@ mod test {
         assert_eq!(other.members[1].type_, "String");
         assert_eq!(other.members[2].name, "status");
         assert_eq!(other.members[2].type_, "String");
+    }
+
+    #[test]
+    fn empty_preserve_unknown_fields() {
+        let schema_str = r#"
+description: |-
+  Identifies servers in the same namespace for which this authorization applies.
+required:
+  - selector
+properties:
+  selector:
+    description: A label query over servers on which this authorization
+      applies.
+    required:
+      - matchLabels
+    properties:
+      matchLabels:
+        type: object
+        x-kubernetes-preserve-unknown-fields: true
+    type: object
+type: object
+"#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        println!("{:#?}", schema);
+        let mut structs = vec![];
+        analyze(schema, "Selector", "Server", 0, &mut structs).unwrap();
+        println!("{:#?}", structs);
+
+        let root = &structs[0];
+        assert_eq!(root.name, "Server");
+        assert_eq!(root.level, 0);
+        let root_member = &root.members[0];
+        assert_eq!(root_member.name, "selector");
+        assert_eq!(root_member.type_, "ServerSelector");
+        let server_selector = &structs[1];
+        assert_eq!(server_selector.name, "ServerSelector");
+        assert_eq!(server_selector.level, 1);
+        let match_labels = &server_selector.members[0];
+        assert_eq!(match_labels.name, "matchLabels");
+        assert_eq!(match_labels.type_, "BTreeMap<String, serde_json::Value>");
     }
 
     #[test]

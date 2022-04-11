@@ -1,0 +1,9 @@
+apiVersion: policy.linkerd.io/v1beta1
+kind: Server
+metadata:
+  name: gen
+spec:
+  podSelector:
+    matchLabels: {}
+  port: myport
+  proxyProtocol: HTTP/1

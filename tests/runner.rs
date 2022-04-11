@@ -39,12 +39,17 @@ mod tests {
         if let Ok(contents) = std::fs::read_to_string(&filename) {
             let file_data: serde_yaml::Value = serde_yaml::from_str(&contents).expect("read yaml");
             let data: serde_json::Value = serde_json::to_value(&file_data).expect("to json");
-            let patch = Patch::Merge(data);
+            if let Some(root) = data.as_object() {
+                if root.contains_key("status") {
+                    println!("Patching status");
+                    let patch = Patch::Merge(data);
 
-            let pp = PatchParams::default();
-            let _obj = cr.patch_status("gen", &pp, &patch).await?;
-            // TODO: need some generic way to detect if we can use status..
-            //assert_eq!(obj.status.is_some());
+                    let pp = PatchParams::default();
+                    let _obj = cr.patch_status("gen", &pp, &patch).await?;
+                    // TODO: need some generic way to detect if we can use status..
+                    //assert_eq!(obj.status.is_some());
+                }
+            }
         }
         Ok(())
     }

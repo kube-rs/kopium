@@ -1,0 +1,154 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: servers.policy.linkerd.io
+spec:
+  conversion:
+    strategy: None
+  group: policy.linkerd.io
+  names:
+    kind: Server
+    listKind: ServerList
+    plural: servers
+    shortNames:
+    - srv
+    singular: server
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              podSelector:
+                description: Selects pods in the same namespace.
+                oneOf:
+                - required:
+                  - matchExpressions
+                - required:
+                  - matchLabels
+                properties:
+                  matchExpressions:
+                    items:
+                      properties:
+                        key:
+                          type: string
+                        operator:
+                          enum:
+                          - In
+                          - NotIn
+                          - Exists
+                          - DoesNotExist
+                          type: string
+                        values:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - key
+                      - operator
+                      type: object
+                    type: array
+                  matchLabels:
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                type: object
+              port:
+                description: A port name or number. Must exist in a pod spec.
+                x-kubernetes-int-or-string: true
+              proxyProtocol:
+                default: unknown
+                description: |-
+                  Configures protocol discovery for inbound connections.
+                  Supersedes the `config.linkerd.io/opaque-ports` annotation.
+                enum:
+                - unknown
+                - HTTP/1
+                - HTTP/2
+                - gRPC
+                - opaque
+                - TLS
+                type: string
+            required:
+            - podSelector
+            - port
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: false
+  - additionalPrinterColumns:
+    - description: The port the server is listening on
+      jsonPath: .spec.port
+      name: Port
+      type: string
+    - description: The protocol of the server
+      jsonPath: .spec.proxyProtocol
+      name: Protocol
+      type: string
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              podSelector:
+                description: Selects pods in the same namespace.
+                oneOf:
+                - required:
+                  - matchExpressions
+                - required:
+                  - matchLabels
+                properties:
+                  matchExpressions:
+                    items:
+                      properties:
+                        key:
+                          type: string
+                        operator:
+                          enum:
+                          - In
+                          - NotIn
+                          - Exists
+                          - DoesNotExist
+                          type: string
+                        values:
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - key
+                      - operator
+                      type: object
+                    type: array
+                  matchLabels:
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                type: object
+              port:
+                description: A port name or number. Must exist in a pod spec.
+                x-kubernetes-int-or-string: true
+              proxyProtocol:
+                default: unknown
+                description: |-
+                  Configures protocol discovery for inbound connections.
+                  Supersedes the `config.linkerd.io/opaque-ports` annotation.
+                enum:
+                - unknown
+                - HTTP/1
+                - HTTP/2
+                - gRPC
+                - opaque
+                - TLS
+                type: string
+            required:
+            - podSelector
+            - port
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
