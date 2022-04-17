@@ -67,5 +67,13 @@ test-linkerd-server:
   kubectl apply -f tests/server.yaml
   cargo test --test runner -- --nocapture
 
+test-istio-destrule:
+  kubectl apply --server-side -f tests/destinationrule-crd.yaml
+  cargo run --bin kopium -- destinationrules.networking.istio.io > tests/gen.rs
+  echo "pub type CR = DestinationRule;" >> tests/gen.rs
+  kubectl apply -f tests/destinationrule.yaml
+  # NB: this currently fails because of an empty status object with preserve-unknown-fields
+  cargo test --test runner -- --nocapture
+
 release:
   cargo release minor --execute

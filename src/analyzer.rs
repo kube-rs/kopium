@@ -165,6 +165,7 @@ fn analyze_object_properties(
                                     bail!("unknown empty dict type for {}", key)
                                 }
                             }
+                            "integer" => Some(extract_integer_type(s)?),
                             // think the type we get is the value type
                             x => Some(uppercase_first_letter(x)), // best guess
                         };
@@ -420,10 +421,10 @@ properties:
 type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        println!("{:#?}", schema);
+        //println!("schema: {}", serde_json::to_string_pretty(&schema).unwrap());
         let mut structs = vec![];
         analyze(schema, "Selector", "Server", 0, &mut structs).unwrap();
-        println!("{:#?}", structs);
+        //println!("{:#?}", structs);
 
         let root = &structs[0];
         assert_eq!(root.name, "Server");
@@ -462,5 +463,70 @@ type: object
         assert_eq!(member.name, "port");
         assert_eq!(member.type_, "IntOrString");
         assert!(root.uses_int_or_string());
+    }
+
+    #[test]
+    fn integer_handling_in_maps() {
+        // via https://istio.io/latest/docs/reference/config/networking/destination-rule/
+        // distribute:
+        // - from: us-west/zone1/*
+        //   to:
+        //     "us-west/zone1/*": 80
+        //     "us-west/zone2/*": 20
+        // - from: us-west/zone2/*
+        //   to:
+        //     "us-west/zone1/*": 20
+        //     "us-west/zone2/*": 80
+
+        // i.e. distribute is an array of {from: String, to: BTreeMap<String, Integer>}
+        // with the correct integer type
+
+        // the schema is found in destinationrule-crd.yaml with this excerpt:
+        let schema_str = r#"
+        properties:
+          distribute:
+            description: 'Optional: only one of distribute, failover
+              or failoverPriority can be set.'
+            items:
+              properties:
+                from:
+                  description: Originating locality, '/' separated
+                  type: string
+                to:
+                  additionalProperties:
+                    type: integer
+                    format: int32
+                  description: Map of upstream localities to traffic
+                    distribution weights.
+                  type: object
+              type: object
+            type: array
+        type: object
+"#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+
+        //println!("schema: {}", serde_json::to_string_pretty(&schema).unwrap());
+        let mut structs = vec![];
+        analyze(schema, "LocalityLbSetting", "DestinationRule", 1, &mut structs).unwrap();
+        //println!("{:#?}", structs);
+
+        // this should produce the root struct struct
+        let root = &structs[0];
+        assert_eq!(root.name, "DestinationRule");
+        assert_eq!(root.level, 1);
+        // which contains the distribute member:
+        let distmember = &root.members[0];
+        assert_eq!(distmember.name, "distribute");
+        assert_eq!(distmember.type_, "Option<Vec<DestinationRuleDistribute>>");
+        // which references the map type with {from,to} so find that struct:
+        let ruledist = &structs[1];
+        assert_eq!(ruledist.name, "DestinationRuleDistribute");
+        // and has from and to members
+        let from = &ruledist.members[0];
+        let to = &ruledist.members[1];
+        assert_eq!(from.name, "from");
+        assert_eq!(to.name, "to");
+        assert_eq!(from.type_, "Option<String>");
+        assert_eq!(to.type_, "Option<BTreeMap<String, i32>>");
     }
 }
