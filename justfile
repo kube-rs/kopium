@@ -72,6 +72,7 @@ test-istio-destrule:
   cargo run --bin kopium -- destinationrules.networking.istio.io > tests/gen.rs
   echo "pub type CR = DestinationRule;" >> tests/gen.rs
   kubectl apply -f tests/destinationrule.yaml
+  # NB: this currently fails because of an empty status object with preserve-unknown-fields
   cargo test --test runner -- --nocapture
 
 release:

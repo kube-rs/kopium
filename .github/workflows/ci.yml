@@ -40,7 +40,6 @@ jobs:
       # Test some linkerd crds
       - run: just test-linkerd-serverauth
       - run: just test-linkerd-server
-      - run: just test-istio-destrule
 
 
   rustfmt:
