@@ -1,10 +1,11 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion, CustomResourceSubresources,
 };
 use kopium::{analyze, OutputStruct};
 use kube::{api, core::Version, Api, Client, ResourceExt};
 use quote::format_ident;
+use std::path::PathBuf;
 use structopt::{clap, StructOpt};
 
 // synced from https://doc.rust-lang.org/reference/keywords.html feb 2022
@@ -70,20 +71,37 @@ const KEYWORDS: [&str; 52] = [
     about = "Kubernetes OPenapI UnMangler",
 )]
 struct Kopium {
-    #[structopt(about = "Give the name of the input CRD to use e.g. prometheusrules.monitoring.coreos.com")]
+    #[structopt(
+        about = "Give the name of the input CRD to use e.g. prometheusrules.monitoring.coreos.com",
+        conflicts_with("file")
+    )]
     crd: Option<String>,
+
+    #[structopt(
+        parse(from_os_str),
+        about = "Point to the location of a CRD to use on disk",
+        long = "--filename",
+        short = "f",
+        conflicts_with("crsd")
+    )]
+    file: Option<PathBuf>,
+
     #[structopt(about = "Use this CRD version if multiple versions are present", long)]
     api_version: Option<String>,
+
     #[structopt(about = "Do not emit prelude", long)]
     hide_prelude: bool,
+
     #[structopt(about = "Emit doc comments from descriptions", long)]
     docs: bool,
+
     #[structopt(
         about = "Derive these extra traits on generated structs",
         long,
         possible_values = &["Copy", "Default", "PartialEq", "Eq", "PartialOrd", "Ord", "Hash"],
     )]
     derive: Vec<String>,
+
     #[structopt(subcommand)]
     command: Option<Command>,
 }
@@ -102,32 +120,38 @@ enum Command {
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::init();
-
     Kopium::from_args().dispatch().await
 }
 
 impl Kopium {
     async fn dispatch(&self) -> Result<()> {
-        let api = Client::try_default()
-            .await
-            .map(Api::<CustomResourceDefinition>::all)?;
         if let Some(name) = self.crd.as_deref() {
-            if self.command.is_none() {
-                self.generate(api, name).await
-            } else {
-                self.help()
-            }
+            let api = Client::try_default()
+                .await
+                .map(Api::<CustomResourceDefinition>::all)?;
+            let crd = api.get(name).await?;
+            self.generate(crd).await
+        } else if let Some(f) = self.file.as_deref() {
+            // no cluster access needed in this case
+            let data =
+                std::fs::read_to_string(&f).with_context(|| format!("Failed to read {}", f.display()))?;
+            let crd: CustomResourceDefinition = serde_yaml::from_str(&data)?;
+            self.generate(crd).await
         } else {
             match self.command {
-                Some(Command::ListCrds) => self.list_crds(api).await,
+                Some(Command::ListCrds) => {
+                    let api = Client::try_default()
+                        .await
+                        .map(Api::<CustomResourceDefinition>::all)?;
+                    self.list_crds(api).await
+                }
                 Some(Command::Completions { shell }) => self.completions(shell),
                 None => self.help(),
             }
         }
     }
 
-    async fn generate(&self, api: Api<CustomResourceDefinition>, name: &str) -> Result<()> {
-        let crd = api.get(name).await?;
+    async fn generate(&self, crd: CustomResourceDefinition) -> Result<()> {
         let version = self.api_version.as_deref();
         let version = find_crd_version(&crd, version)?;
         let data = version
@@ -196,7 +220,7 @@ impl Kopium {
                 }
             }
         } else {
-            log::error!("no schema found for crd {}", name);
+            log::error!("no schema found for crd");
         }
 
         Ok(())
