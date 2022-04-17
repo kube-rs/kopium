@@ -133,9 +133,8 @@ impl Kopium {
             self.generate(crd).await
         } else if let Some(f) = self.file.as_deref() {
             // no cluster access needed in this case
-            let data = std::fs::read_to_string(&f).with_context(|| {
-                format!("Failed to read {}", f.display())
-            })?;
+            let data =
+                std::fs::read_to_string(&f).with_context(|| format!("Failed to read {}", f.display()))?;
             let crd: CustomResourceDefinition = serde_yaml::from_str(&data)?;
             self.generate(crd).await
         } else {
@@ -145,7 +144,7 @@ impl Kopium {
                         .await
                         .map(Api::<CustomResourceDefinition>::all)?;
                     self.list_crds(api).await
-                },
+                }
                 Some(Command::Completions { shell }) => self.completions(shell),
                 None => self.help(),
             }
