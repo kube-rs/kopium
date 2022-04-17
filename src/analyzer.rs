@@ -165,6 +165,7 @@ fn analyze_object_properties(
                                     bail!("unknown empty dict type for {}", key)
                                 }
                             }
+                            "integer" => Some(extract_integer_type(s)?),
                             // think the type we get is the value type
                             x => Some(uppercase_first_letter(x)), // best guess
                         };
@@ -494,6 +495,7 @@ type: object
                 to:
                   additionalProperties:
                     type: integer
+                    format: int32
                   description: Map of upstream localities to traffic
                     distribution weights.
                   type: object
@@ -525,6 +527,6 @@ type: object
         assert_eq!(from.name, "from");
         assert_eq!(to.name, "to");
         assert_eq!(from.type_, "Option<String>");
-        assert_eq!(to.type_, "Option<BTreeMap<String, i64>>");
+        assert_eq!(to.type_, "Option<BTreeMap<String, i32>>");
     }
 }
