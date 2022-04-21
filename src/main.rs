@@ -248,7 +248,7 @@ impl Kopium {
                 } else {
                     self.print_docstr(s.docs, "");
                     if s.level == 1 && s.name.ends_with("Spec") {
-                        self.print_derives();
+                        self.print_derives(true);
                         //root struct gets kube derives unless opted out
                         if !self.hide_kube {
                             println!(
@@ -269,8 +269,7 @@ impl Kopium {
                         }
                         println!("pub struct {} {{", s.name);
                     } else {
-                        self.print_derives();
-                        println!("#[derive(Serialize, Deserialize, Clone, Debug)]");
+                        self.print_derives(false);
                         let spec_trimmed_name = s.name.as_str().replace(&format!("{}Spec", kind), &kind);
                         println!("pub struct {} {{", spec_trimmed_name);
                     }
@@ -338,15 +337,17 @@ impl Kopium {
         }
     }
 
-    fn print_derives(&self) {
-        if self.derive.is_empty() {
-            println!("#[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]");
-        } else {
-            println!(
-                "#[derive(CustomResource, Serialize, Deserialize, Clone, Debug, {})]",
-                self.derive.join(", ")
-            );
+    fn print_derives(&self, is_root: bool) {
+        let mut derives: Vec<String> = vec!["Serialize", "Deserialize", "Clone", "Debug"]
+            .into_iter()
+            .map(String::from)
+            .collect();
+        if is_root {
+            // CustomResource first for root struct
+            derives.insert(0, "CustomResource".to_string());
         }
+        derives.extend(self.derive.clone()); // user derives last in user order
+        println!("#[derive({})]", derives.join(", "));
     }
 
     fn print_prelude(&self, results: &[OutputStruct]) {

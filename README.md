@@ -64,8 +64,7 @@ pub struct PrometheusRuleSpec {
 }
 
 /// RuleGroup is a list of sequentially evaluated recording and alerting rules. Note: PartialResponseStrategy is only used by ThanosRuler and will be ignored by Prometheus instances.  Valid values for this field are 'warn' or 'abort'.  More info: https://github.com/thanos-io/thanos/blob/main/docs/components/rule.md#partial-response
-#[derive(CustomResource, Serialize, Deserialize, Clone, Debug, JsonSchema)]
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 pub struct PrometheusRuleGroups {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub interval: Option<String>,
@@ -76,8 +75,7 @@ pub struct PrometheusRuleGroups {
 }
 
 /// Rule describes an alerting or recording rule See Prometheus documentation: [alerting](https://www.prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) or [recording](https://www.prometheus.io/docs/prometheus/latest/configuration/recording_rules/#recording-rules) rule
-#[derive(CustomResource, Serialize, Deserialize, Clone, Debug, JsonSchema)]
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 pub struct PrometheusRuleGroupsRules {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub alert: Option<String>,
