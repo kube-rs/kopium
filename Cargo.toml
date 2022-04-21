@@ -42,4 +42,5 @@ version = "0.69.0"
 features = ["derive"]
 
 [dev-dependencies]
+schemars = "0.8.8"
 serde_yaml = "0.8.23"

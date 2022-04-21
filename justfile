@@ -62,7 +62,7 @@ test-linkerd-serverauth:
 
 test-linkerd-server:
   kubectl apply --server-side -f tests/server-crd.yaml
-  cargo run --bin kopium -- -iA servers.policy.linkerd.io > tests/gen.rs
+  cargo run --bin kopium -- -iz servers.policy.linkerd.io > tests/gen.rs
   echo "pub type CR = Server;" >> tests/gen.rs
   kubectl apply -f tests/server.yaml
   cargo test --test runner -- --nocapture
