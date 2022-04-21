@@ -92,7 +92,11 @@ struct Kopium {
     #[structopt(about = "Do not emit prelude", long)]
     hide_prelude: bool,
 
-    #[structopt(about = "Do not emit kube derive instructions; structs only", long)]
+
+    /// Do not emit kube derive instructions; structs only
+    ///
+    /// If this is set, it makes any kube-derive specific options such as `--schema` unnecessary.
+    #[structopt(long)]
     hide_kube: bool,
 
     #[structopt(about = "Emit doc comments from descriptions", long)]
@@ -100,14 +104,16 @@ struct Kopium {
 
     /// Schema mode to use for kube-derive
     ///
-    /// The default is to not --derive JsonSchema and therefore set this to disabled.
-    /// The default will compile without a schema, but the resulting crd cannot be applied into a cluster.
+    /// The default is --schema=disabled and will compile without a schema,
+    /// but the resulting crd cannot be applied into a cluster.
     ///
-    /// --schema=manual requires the user to impl JsonSchema for MyCrdSpec elsewhere
-    /// --schema=derived implies --derive JsonSchema and makes everything automatic
+    /// --schema=manual requires the user to `impl JsonSchema for MyCrdSpec` elsewhere for the code to compile.
+    /// Once this is done, the crd via `CustomResourceExt::crd()` can be applied into Kubernetes directly.
+    ///
+    /// --schema=derived implies `--derive JsonSchema`. The resulting schema will compile without external user action.
+    /// The crd via `CustomResourceExt::crd()` can be applied into Kubernetes directly.
     #[structopt(
         long,
-        conflicts_with("hide_kube"),
         default_value = "disabled",
         possible_values = &["disabled", "manual", "derived"],
     )]
