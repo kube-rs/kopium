@@ -123,7 +123,10 @@ struct Kopium {
     schema: String,
 
     /// Derive these extra traits on generated structs
-    #[structopt(long, possible_values = &["Copy", "Default", "PartialEq", "Eq", "PartialOrd", "Ord", "Hash", "JsonSchema"])]
+    #[structopt(long,
+        short = "D",
+        possible_values = &["Copy", "Default", "PartialEq", "Eq", "PartialOrd", "Ord", "Hash", "JsonSchema"],
+    )]
     derive: Vec<String>,
 
     #[structopt(subcommand)]
@@ -266,6 +269,7 @@ impl Kopium {
                         }
                         println!("pub struct {} {{", s.name);
                     } else {
+                        self.print_derives();
                         println!("#[derive(Serialize, Deserialize, Clone, Debug)]");
                         let spec_trimmed_name = s.name.as_str().replace(&format!("{}Spec", kind), &kind);
                         println!("pub struct {} {{", spec_trimmed_name);

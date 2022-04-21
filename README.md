@@ -17,7 +17,9 @@ Requirements:
 ## Features
 
 - **Instantly queryable**: generated type uses [`kube-derive`](https://docs.rs/kube/latest/kube/derive.CustomResource.html) to provide api integration with `kube`
-- **[Rust doc comments](https://doc.rust-lang.org/rust-by-example/meta/doc.html#doc-comments)**: optionally extracted from `description` values in schema (`--docs`)
+- **[Rust doc comments](https://doc.rust-lang.org/rust-by-example/meta/doc.html#doc-comments)**: optionally extracted from `description` values in schema
+- **Safe case conversion**: generated types uses rust standard camel_case with occasional serde rename annotations
+- **Usable in CI or locally**: Can read crds via `-f crd.yaml` OR a `mycrd.group.io` crd name in cluster
 
 ## Installation
 
@@ -29,22 +31,32 @@ cargo install kopium
 
 ## Usage
 
+If you have a crd installed in your cluster, pass a crd name accessible from your `KUBECONFIG`:
+
 ```sh
-kopium prometheusrules.monitoring.coreos.com --docs > prometheusrule.rs
+kopium prometheusrules.monitoring.coreos.com -A > prometheusrule.rs
+```
+
+Or pass a file/stdin via `-f`:
+
+```sh
+curl -sSL https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml \
+    | kopium -f - -A > prometheusrule.rs
 ```
 
 ## Output
 
 ```rust
 use kube::CustomResource;
+use schemars::JsonSchema;
 use serde::{Serialize, Deserialize};
 use std::collections::BTreeMap;
+use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 
 /// Specification of desired alerting rule definitions for Prometheus.
-#[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
+#[derive(CustomResource, Serialize, Deserialize, Clone, Debug, JsonSchema)]
 #[kube(group = "monitoring.coreos.com", version = "v1", kind = "PrometheusRule", plural = "prometheusrules")]
 #[kube(namespaced)]
-#[kube(schema = "disabled")]
 pub struct PrometheusRuleSpec {
     /// Content of Prometheus rule file
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -52,6 +64,7 @@ pub struct PrometheusRuleSpec {
 }
 
 /// RuleGroup is a list of sequentially evaluated recording and alerting rules. Note: PartialResponseStrategy is only used by ThanosRuler and will be ignored by Prometheus instances.  Valid values for this field are 'warn' or 'abort'.  More info: https://github.com/thanos-io/thanos/blob/main/docs/components/rule.md#partial-response
+#[derive(CustomResource, Serialize, Deserialize, Clone, Debug, JsonSchema)]
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PrometheusRuleGroups {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -63,13 +76,14 @@ pub struct PrometheusRuleGroups {
 }
 
 /// Rule describes an alerting or recording rule See Prometheus documentation: [alerting](https://www.prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) or [recording](https://www.prometheus.io/docs/prometheus/latest/configuration/recording_rules/#recording-rules) rule
+#[derive(CustomResource, Serialize, Deserialize, Clone, Debug, JsonSchema)]
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PrometheusRuleGroupsRules {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub alert: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub annotations: Option<BTreeMap<String, String>>,
-    pub expr: String,
+    pub expr: IntOrString,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub r#for: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -109,16 +123,23 @@ source <(kopium completions bash)
 
 ## Testing
 
-Generate a CRD, tell the test runner to try to use it.
+Unit tests and running `kopium` from a file do not require a cluster and can be run with:
 
 ```sh
-cargo run --bin kopium -- prometheusrules.monitoring.coreos.com > tests/gen.rs
+cargo test --lib
+cargo run --bin kopium -- -f mycrd.yaml -A
+```
+
+Full integration tests use your current cluster to try to read a CRD and a `gen` object (instance of the CRD type) and parse it into the generated type:
+
+```sh
+cargo run --bin kopium -- -f prometheusrules.monitoring.coreos.com > tests/gen.rs
 echo "pub type CR = PrometheusRule;" >> tests/gen.rs
 kubectl apply -f tests/pr.yaml # needs to contain a CR with name "gen"
 cargo test --test runner -- --nocapture
 ```
 
-test shortcuts available via `just` in the [`justfile`](./justfile).
+test shortcuts available via `just` in the [`justfile`](./justfile) and run pre-merge.
 
 ## License
 
