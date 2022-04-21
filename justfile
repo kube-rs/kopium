@@ -20,14 +20,14 @@ test-pr:
 
 test-mv:
   kubectl apply -f tests/mv-crd.yaml
-  cargo run --bin kopium -- multiversions.clux.dev -iz > tests/gen.rs
+  cargo run --bin kopium -- multiversions.clux.dev -iA > tests/gen.rs
   echo "pub type CR = MultiVersion;" >> tests/gen.rs
   kubectl apply -f tests/mv.yaml
   cargo test --test runner -- --nocapture
 
 test-agent:
   kubectl apply -f tests/agent-crd.yaml
-  cargo run --bin kopium -- -izdf tests/agent-crd.yaml > tests/gen.rs
+  cargo run --bin kopium -- -iAf tests/agent-crd.yaml > tests/gen.rs
   echo "pub type CR = Agent;" >> tests/gen.rs
   kubectl apply -f tests/agent.yaml
   cargo test --test runner -- --nocapture
