@@ -18,7 +18,7 @@ mod tests {
         let cr: Api<CR> = Api::default_namespaced(client);
 
         println!(
-            "crd gvk {}-{}-{}",
+            "# crd gvk {}-{}-{}",
             CR::group(&()),
             CR::version(&()),
             CR::kind(&())
@@ -31,18 +31,20 @@ mod tests {
         assert_eq!(canonical.spec.group, CR::group(&()).to_string());
 
         // assumes a resource of type CR has been applied with name 'gen' in the namespace
+        println!("# fetching {}{} {}", canonical.spec.names.kind, canonical.spec.group, "gen");
         let instance = cr.get("gen").await?;
         assert_eq!(instance.name(), "gen");
 
         // extra verification for status types - replace_status manually
         let filename = format!("./tests/{}.yaml", CR::kind(&()).to_string().to_ascii_lowercase());
-        println!("speculatively opening '{}' for replacing", filename);
+        // NB: this relies on filenames following a format, and having a status object
+        println!("# speculatively opening '{}' for replacing", filename);
         if let Ok(contents) = std::fs::read_to_string(&filename) {
             let file_data: serde_yaml::Value = serde_yaml::from_str(&contents).expect("read yaml");
             let data: serde_json::Value = serde_json::to_value(&file_data).expect("to json");
             if let Some(root) = data.as_object() {
                 if root.contains_key("status") {
-                    println!("Patching status");
+                    println!("# patching status");
                     let patch = Patch::Merge(data);
 
                     let pp = PatchParams::default();
