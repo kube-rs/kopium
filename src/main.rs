@@ -138,6 +138,16 @@ struct Kopium {
     /// However, while not needing the #![allow(non_snake_case)] inner attribute; your code will be longer.
     #[structopt(long, short = "z")]
     snake_case: bool,
+
+    /// Enable all automatation features
+    ///
+    /// This is a recommended, but early set of features that generates the most rust native code.
+    ///
+    /// It contains an unstable set of of features and may get expanded in the future.
+    ///
+    /// Setting --auto enables: --schema=derived --derive=JsonSchema --snake-case --docs
+    #[structopt(long, short = "A")]
+    auto: bool,
 }
 
 #[derive(StructOpt, Clone, Copy, Debug)]
@@ -155,6 +165,11 @@ enum Command {
 async fn main() -> Result<()> {
     env_logger::init();
     let mut args = Kopium::from_args();
+    if args.auto {
+        args.docs = true;
+        args.snake_case = true;
+        args.schema = "derived".into();
+    }
     if args.schema == "derived" && !args.derive.contains(&"JsonSchema".to_string()) {
         args.derive.push("JsonSchema".to_string());
     }
