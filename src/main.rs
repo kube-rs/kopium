@@ -92,6 +92,9 @@ struct Kopium {
     #[structopt(about = "Do not emit prelude", long)]
     hide_prelude: bool,
 
+    #[structopt(about = "Do not emit kube derive instructions; structs only", long)]
+    hide_kube: bool,
+
     #[structopt(about = "Emit doc comments from descriptions", long)]
     docs: bool,
 
@@ -183,7 +186,7 @@ impl Kopium {
             analyze(schema, "", &kind, 0, &mut structs)?;
 
             if !self.hide_prelude {
-                print_prelude(&structs);
+                self.print_prelude(&structs);
             }
 
             for s in structs {
@@ -193,21 +196,24 @@ impl Kopium {
                     self.print_docstr(s.docs, "");
                     if s.level == 1 && s.name.ends_with("Spec") {
                         self.print_derives();
-                        println!(
-                            r#"#[kube(group = "{}", version = "{}", kind = "{}", plural = "{}")]"#,
-                            group, version_name, kind, plural
-                        );
-                        if scope == "Namespaced" {
-                            println!(r#"#[kube(namespaced)]"#);
+                        //root struct gets kube derives unless opted out
+                        if !self.hide_kube {
+                            println!(
+                                r#"#[kube(group = "{}", version = "{}", kind = "{}", plural = "{}")]"#,
+                                group, version_name, kind, plural
+                            );
+                            if scope == "Namespaced" {
+                                println!(r#"#[kube(namespaced)]"#);
+                            }
+                            if let Some(CustomResourceSubresources { status: Some(_), .. }) =
+                                version.subresources
+                            {
+                                println!(r#"#[kube(status = "{}Status")]"#, kind);
+                            }
+                            // don't support grabbing original schema atm so disable schemas:
+                            // (we coerce IntToString to String anyway so it wont match anyway)
+                            println!(r#"#[kube(schema = "disabled")]"#);
                         }
-
-                        if let Some(CustomResourceSubresources { status: Some(_), .. }) = version.subresources
-                        {
-                            println!(r#"#[kube(status = "{}Status")]"#, kind);
-                        }
-                        // don't support grabbing original schema atm so disable schemas:
-                        // (we coerce IntToString to String anyway so it wont match anyway)
-                        println!(r#"#[kube(schema = "disabled")]"#);
                         println!("pub struct {} {{", s.name);
                     } else {
                         println!("#[derive(Serialize, Deserialize, Clone, Debug)]");
@@ -279,24 +285,26 @@ impl Kopium {
             );
         }
     }
-}
 
-fn print_prelude(results: &[OutputStruct]) {
-    println!("use kube::CustomResource;");
-    println!("use serde::{{Serialize, Deserialize}};");
-    if results.iter().any(|o| o.uses_btreemaps()) {
-        println!("use std::collections::BTreeMap;");
+    fn print_prelude(&self, results: &[OutputStruct]) {
+        if !self.hide_kube {
+            println!("use kube::CustomResource;");
+        }
+        println!("use serde::{{Serialize, Deserialize}};");
+        if results.iter().any(|o| o.uses_btreemaps()) {
+            println!("use std::collections::BTreeMap;");
+        }
+        if results.iter().any(|o| o.uses_datetime()) {
+            println!("use chrono::{{DateTime, Utc}};");
+        }
+        if results.iter().any(|o| o.uses_date()) {
+            println!("use chrono::naive::NaiveDate;");
+        }
+        if results.iter().any(|o| o.uses_int_or_string()) {
+            println!("use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;");
+        }
+        println!();
     }
-    if results.iter().any(|o| o.uses_datetime()) {
-        println!("use chrono::{{DateTime, Utc}};");
-    }
-    if results.iter().any(|o| o.uses_date()) {
-        println!("use chrono::naive::NaiveDate;");
-    }
-    if results.iter().any(|o| o.uses_int_or_string()) {
-        println!("use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;");
-    }
-    println!();
 }
 
 fn find_crd_version<'a>(
