@@ -193,7 +193,8 @@ impl Kopium {
                             if scope == "Namespaced" {
                                 println!(r#"#[kube(namespaced)]"#);
                             }
-                            if let Some(CustomResourceSubresources { status: Some(_), .. }) = version.subresources
+                            if let Some(CustomResourceSubresources { status: Some(_), .. }) =
+                                version.subresources
                             {
                                 println!(r#"#[kube(status = "{}Status")]"#, kind);
                             }
