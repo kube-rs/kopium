@@ -123,6 +123,14 @@ async fn main() -> Result<()> {
     Kopium::from_args().dispatch().await
 }
 
+fn get_stdin_data() -> Result<String> {
+    use std::io::{stdin, Read};
+    let mut buf = Vec::new();
+    stdin().read_to_end(&mut buf)?;
+    let input = String::from_utf8(buf)?;
+    Ok(input)
+}
+
 impl Kopium {
     async fn dispatch(&self) -> Result<()> {
         if let Some(name) = self.crd.as_deref() {
@@ -133,8 +141,12 @@ impl Kopium {
             self.generate(crd).await
         } else if let Some(f) = self.file.as_deref() {
             // no cluster access needed in this case
-            let data =
-                std::fs::read_to_string(&f).with_context(|| format!("Failed to read {}", f.display()))?;
+            let data = if f.to_string_lossy() == "-" {
+                get_stdin_data().with_context(|| format!("Failed to read from stdin"))?
+            } else {
+                std::fs::read_to_string(&f).with_context(|| format!("Failed to read {}", f.display()))?
+            };
+
             let crd: CustomResourceDefinition = serde_yaml::from_str(&data)?;
             self.generate(crd).await
         } else {
