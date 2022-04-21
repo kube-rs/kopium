@@ -465,6 +465,54 @@ type: object
         assert!(root.uses_int_or_string());
     }
 
+
+    #[test]
+    fn service_monitor_params() {
+        let schema_str = r#"
+        properties:
+          endpoints:
+            items:
+              description: Endpoint defines a scrapeable endpoint serving Prometheus
+                metrics.
+              properties:
+                params:
+                  additionalProperties:
+                    items:
+                      type: string
+                    type: array
+                  description: Optional HTTP URL parameters
+                  type: object
+              type: object
+            type: array
+        required:
+        - endpoints
+        type: object
+"#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+
+        let mut structs = vec![];
+        analyze(schema, "Endpoints", "ServiceMonitor", 0, &mut structs).unwrap();
+        println!("got {:?}", structs);
+        let root = &structs[0];
+        assert_eq!(root.name, "ServiceMonitor");
+        assert_eq!(root.level, 0);
+
+        // should have a required endpoints member
+        let member = &root.members[0];
+        assert_eq!(member.name, "endpoints");
+        assert_eq!(member.type_, "Vec<ServiceMonitorEndpoints>");
+
+        // Should have a endpoints struct:
+        let eps = &structs[1];
+        assert_eq!(eps.name, "ServiceMonitorEndpoints");
+        assert_eq!(eps.level, 1);
+        // should have an params member:
+        let member = &eps.members[0];
+        assert_eq!(member.name, "params");
+        assert_eq!(member.type_, "Option<BTreeMap<String, String>>");
+    }
+
+
     #[test]
     fn integer_handling_in_maps() {
         // via https://istio.io/latest/docs/reference/config/networking/destination-rule/
