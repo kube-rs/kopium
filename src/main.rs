@@ -64,7 +64,7 @@ const KEYWORDS: [&str; 52] = [
     "macro_rules",
 ];
 
-#[derive(StructOpt, Debug)]
+#[derive(StructOpt)]
 #[structopt(
     version = clap::crate_version!(),
     author = "clux <sszynrae@gmail.com>",
@@ -92,11 +92,31 @@ struct Kopium {
     #[structopt(about = "Do not emit prelude", long)]
     hide_prelude: bool,
 
-    #[structopt(about = "Do not emit kube derive instructions; structs only", long)]
+    /// Do not emit kube derive instructions; structs only
+    ///
+    /// If this is set, it makes any kube-derive specific options such as `--schema` unnecessary.
+    #[structopt(long)]
     hide_kube: bool,
 
     #[structopt(about = "Emit doc comments from descriptions", long)]
     docs: bool,
+
+    /// Schema mode to use for kube-derive
+    ///
+    /// The default is --schema=disabled and will compile without a schema,
+    /// but the resulting crd cannot be applied into a cluster.
+    ///
+    /// --schema=manual requires the user to `impl JsonSchema for MyCrdSpec` elsewhere for the code to compile.
+    /// Once this is done, the crd via `CustomResourceExt::crd()` can be applied into Kubernetes directly.
+    ///
+    /// --schema=derived implies `--derive JsonSchema`. The resulting schema will compile without external user action.
+    /// The crd via `CustomResourceExt::crd()` can be applied into Kubernetes directly.
+    #[structopt(
+        long,
+        default_value = "disabled",
+        possible_values = &["disabled", "manual", "derived"],
+    )]
+    schema: String,
 
     #[structopt(
         about = "Derive these extra traits on generated structs",
@@ -123,7 +143,11 @@ enum Command {
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::init();
-    Kopium::from_args().dispatch().await
+    let mut args = Kopium::from_args();
+    if args.schema == "derived" && !args.derive.contains(&"JsonSchema".to_string()) {
+        args.derive.push("JsonSchema".to_string());
+    }
+    args.dispatch().await
 }
 
 fn get_stdin_data() -> Result<String> {
@@ -210,9 +234,9 @@ impl Kopium {
                             {
                                 println!(r#"#[kube(status = "{}Status")]"#, kind);
                             }
-                            // don't support grabbing original schema atm so disable schemas:
-                            // (we coerce IntToString to String anyway so it wont match anyway)
-                            println!(r#"#[kube(schema = "disabled")]"#);
+                            if self.schema != "derived" {
+                                println!(r#"#[kube(schema = "{}")]"#, self.schema);
+                            }
                         }
                         println!("pub struct {} {{", s.name);
                     } else {
