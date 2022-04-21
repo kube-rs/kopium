@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context, Result};
+use heck::ToSnakeCase;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion, CustomResourceSubresources,
 };
@@ -127,6 +128,13 @@ struct Kopium {
 
     #[structopt(subcommand)]
     command: Option<Command>,
+
+    #[structopt(
+        about = "Convert struct members to snake_case (EXPERIMENTAL)",
+        long,
+        short = "z"
+    )]
+    snake_case: bool,
 }
 
 #[derive(StructOpt, Clone, Copy, Debug)]
@@ -238,9 +246,15 @@ impl Kopium {
                                 println!(r#"#[kube(schema = "{}")]"#, self.schema);
                             }
                         }
+                        if self.snake_case {
+                            println!("#[serde(rename_all = \"camelCase\")]");
+                        }
                         println!("pub struct {} {{", s.name);
                     } else {
                         println!("#[derive(Serialize, Deserialize, Clone, Debug)]");
+                        if self.snake_case {
+                            println!("#[serde(rename_all = \"camelCase\")]");
+                        }
                         let spec_trimmed_name = s.name.as_str().replace(&format!("{}Spec", kind), &kind);
                         println!("pub struct {} {{", spec_trimmed_name);
                     }
@@ -249,10 +263,15 @@ impl Kopium {
                         if let Some(annot) = m.field_annot {
                             println!("    {}", annot);
                         }
-                        let safe_name = if KEYWORDS.contains(&m.name.as_ref()) {
-                            format_ident!("r#{}", m.name)
+                        let name = if self.snake_case {
+                            m.name.to_snake_case()
                         } else {
-                            format_ident!("{}", m.name)
+                            m.name
+                        };
+                        let safe_name = if KEYWORDS.contains(&name.as_ref()) {
+                            format_ident!("r#{}", name)
+                        } else {
+                            format_ident!("{}", name)
                         };
                         let spec_trimmed_type = m.type_.as_str().replace(&format!("{}Spec", kind), &kind);
                         println!("    pub {}: {},", safe_name, spec_trimmed_type);
@@ -311,6 +330,9 @@ impl Kopium {
     }
 
     fn print_prelude(&self, results: &[OutputStruct]) {
+        if !self.snake_case {
+            println!("#![allow(non_snake_case)]");
+        }
         if !self.hide_kube {
             println!("use kube::CustomResource;");
         }
