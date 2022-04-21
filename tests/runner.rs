@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
     include!("./gen.rs"); // import generated test structs in scope

@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context, Result};
+use heck::ToSnakeCase;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion, CustomResourceSubresources,
 };
@@ -71,25 +72,20 @@ const KEYWORDS: [&str; 52] = [
     about = "Kubernetes OPenapI UnMangler",
 )]
 struct Kopium {
-    #[structopt(
-        about = "Give the name of the input CRD to use e.g. prometheusrules.monitoring.coreos.com",
-        conflicts_with("file")
-    )]
+    /// Give the name of the input CRD to use e.g. prometheusrules.monitoring.coreos.com
+    #[structopt(conflicts_with("file"))]
     crd: Option<String>,
 
-    #[structopt(
-        parse(from_os_str),
-        about = "Point to the location of a CRD to use on disk",
-        long = "--filename",
-        short = "f",
-        conflicts_with("crsd")
-    )]
+    /// Point to the location of a CRD to use on disk
+    #[structopt(parse(from_os_str), long = "--filename", short = "f", conflicts_with("crsd"))]
     file: Option<PathBuf>,
 
-    #[structopt(about = "Use this CRD version if multiple versions are present", long)]
+    /// Use this CRD version if multiple versions are present
+    #[structopt(long)]
     api_version: Option<String>,
 
-    #[structopt(about = "Do not emit prelude", long)]
+    /// Do not emit prelude
+    #[structopt(long)]
     hide_prelude: bool,
 
     /// Do not emit kube derive instructions; structs only
@@ -98,7 +94,15 @@ struct Kopium {
     #[structopt(long)]
     hide_kube: bool,
 
-    #[structopt(about = "Emit doc comments from descriptions", long)]
+    /// Do not emit inner attributes such as #![allow(non_snake_case)]
+    ///
+    /// This is useful if you need to consume the code within an include! macro
+    /// which does not support inner attributes: https://github.com/rust-lang/rust/issues/47995
+    #[structopt(long, short = "i")]
+    hide_inner_attr: bool,
+
+    /// Emit doc comments from descriptions
+    #[structopt(long, short = "d")]
     docs: bool,
 
     /// Schema mode to use for kube-derive
@@ -118,15 +122,22 @@ struct Kopium {
     )]
     schema: String,
 
-    #[structopt(
-        about = "Derive these extra traits on generated structs",
-        long,
-        possible_values = &["Copy", "Default", "PartialEq", "Eq", "PartialOrd", "Ord", "Hash", "JsonSchema"],
-    )]
+    /// Derive these extra traits on generated structs
+    #[structopt(long, possible_values = &["Copy", "Default", "PartialEq", "Eq", "PartialOrd", "Ord", "Hash", "JsonSchema"])]
     derive: Vec<String>,
 
     #[structopt(subcommand)]
     command: Option<Command>,
+
+    /// Convert struct members to snake_case
+    ///
+    /// This will run all members through heck::ToSnakeCase, and if different,
+    /// produce a #[serde(rename = "originalName")] attribute on the member.
+    ///
+    /// This operation is safe because names are preserved through attributes.
+    /// However, while not needing the #![allow(non_snake_case)] inner attribute; your code will be longer.
+    #[structopt(long, short = "z")]
+    snake_case: bool,
 }
 
 #[derive(StructOpt, Clone, Copy, Debug)]
@@ -246,13 +257,22 @@ impl Kopium {
                     }
                     for m in s.members {
                         self.print_docstr(m.docs, "    ");
+                        let name = if self.snake_case {
+                            let converted = m.name.to_snake_case();
+                            if converted != m.name {
+                                println!("    #[serde(rename = \"{}\")]", m.name);
+                            }
+                            converted
+                        } else {
+                            m.name
+                        };
                         if let Some(annot) = m.field_annot {
                             println!("    {}", annot);
                         }
-                        let safe_name = if KEYWORDS.contains(&m.name.as_ref()) {
-                            format_ident!("r#{}", m.name)
+                        let safe_name = if KEYWORDS.contains(&name.as_ref()) {
+                            format_ident!("r#{}", name)
                         } else {
-                            format_ident!("{}", m.name)
+                            format_ident!("{}", name)
                         };
                         let spec_trimmed_type = m.type_.as_str().replace(&format!("{}Spec", kind), &kind);
                         println!("    pub {}: {},", safe_name, spec_trimmed_type);
@@ -311,6 +331,10 @@ impl Kopium {
     }
 
     fn print_prelude(&self, results: &[OutputStruct]) {
+        if !self.snake_case && !self.hide_inner_attr {
+            println!("#![allow(non_snake_case)]");
+            println!();
+        }
         if !self.hide_kube {
             println!("use kube::CustomResource;");
         }
