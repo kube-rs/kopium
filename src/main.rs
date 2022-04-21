@@ -92,7 +92,6 @@ struct Kopium {
     #[structopt(about = "Do not emit prelude", long)]
     hide_prelude: bool,
 
-
     /// Do not emit kube derive instructions; structs only
     ///
     /// If this is set, it makes any kube-derive specific options such as `--schema` unnecessary.
