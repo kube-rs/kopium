@@ -64,7 +64,7 @@ const KEYWORDS: [&str; 52] = [
     "macro_rules",
 ];
 
-#[derive(StructOpt, Debug)]
+#[derive(StructOpt)]
 #[structopt(
     version = clap::crate_version!(),
     author = "clux <sszynrae@gmail.com>",
@@ -98,6 +98,21 @@ struct Kopium {
     #[structopt(about = "Emit doc comments from descriptions", long)]
     docs: bool,
 
+    /// Schema mode to use for kube-derive
+    ///
+    /// The default is to not --derive JsonSchema and therefore set this to disabled.
+    /// The default will compile without a schema, but the resulting crd cannot be applied into a cluster.
+    ///
+    /// --schema=manual requires the user to impl JsonSchema for MyCrdSpec elsewhere
+    /// --schema=derived implies --derive JsonSchema and makes everything automatic
+    #[structopt(
+        long,
+        conflicts_with("hide_kube"),
+        default_value = "disabled",
+        possible_values = &["disabled", "manual", "derived"],
+    )]
+    schema: String,
+
     #[structopt(
         about = "Derive these extra traits on generated structs",
         long,
@@ -123,7 +138,11 @@ enum Command {
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::init();
-    Kopium::from_args().dispatch().await
+    let mut args = Kopium::from_args();
+    if args.schema == "derived" && !args.derive.contains(&"JsonSchema".to_string()) {
+        args.derive.push("JsonSchema".to_string());
+    }
+    args.dispatch().await
 }
 
 fn get_stdin_data() -> Result<String> {
@@ -210,9 +229,9 @@ impl Kopium {
                             {
                                 println!(r#"#[kube(status = "{}Status")]"#, kind);
                             }
-                            // don't support grabbing original schema atm so disable schemas:
-                            // (we coerce IntToString to String anyway so it wont match anyway)
-                            println!(r#"#[kube(schema = "disabled")]"#);
+                            if self.schema != "derived" {
+                                println!(r#"#[kube(schema = "{}")]"#, self.schema);
+                            }
                         }
                         println!("pub struct {} {{", s.name);
                     } else {
