@@ -246,28 +246,26 @@ impl Kopium {
                                 println!(r#"#[kube(schema = "{}")]"#, self.schema);
                             }
                         }
-                        if self.snake_case {
-                            println!("#[serde(rename_all = \"camelCase\")]");
-                        }
                         println!("pub struct {} {{", s.name);
                     } else {
                         println!("#[derive(Serialize, Deserialize, Clone, Debug)]");
-                        if self.snake_case {
-                            println!("#[serde(rename_all = \"camelCase\")]");
-                        }
                         let spec_trimmed_name = s.name.as_str().replace(&format!("{}Spec", kind), &kind);
                         println!("pub struct {} {{", spec_trimmed_name);
                     }
                     for m in s.members {
                         self.print_docstr(m.docs, "    ");
-                        if let Some(annot) = m.field_annot {
-                            println!("    {}", annot);
-                        }
                         let name = if self.snake_case {
-                            m.name.to_snake_case()
+                            let converted = m.name.to_snake_case();
+                            if converted != m.name {
+                                println!("    #[serde(rename = \"{}\")]", m.name);
+                            }
+                            converted
                         } else {
                             m.name
                         };
+                        if let Some(annot) = m.field_annot {
+                            println!("    {}", annot);
+                        }
                         let safe_name = if KEYWORDS.contains(&name.as_ref()) {
                             format_ident!("r#{}", name)
                         } else {
