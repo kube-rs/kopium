@@ -41,7 +41,7 @@ Or pass a file/stdin via `-f`:
 
 ```sh
 curl -sSL https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml \
-    | kopium -f - -A > prometheusrule.rs
+    | kopium -Af - > prometheusrule.rs
 ```
 
 ## Output
