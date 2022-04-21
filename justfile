@@ -9,13 +9,20 @@ default:
 fmt:
   cargo +nightly fmt
 
-test: test-pr test-mv test-argo test-agent test-certmanager test-cluster test-linkerd-serverauth test-linkerd-server
+test: test-pr test-sm test-mv test-argo test-agent test-certmanager test-cluster test-linkerd-serverauth test-linkerd-server
 
 test-pr:
   kubectl apply --force-conflicts --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.52.0/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml
   cargo run --bin kopium -- prometheusrules.monitoring.coreos.com -iz > tests/gen.rs
   echo "pub type CR = PrometheusRule;" >> tests/gen.rs
   kubectl apply -f tests/pr.yaml
+  cargo test --test runner -- --nocapture
+
+test-sm:
+  kubectl apply --force-conflicts --server-side -f tests/servicemon-crd.yaml
+  cargo run --bin kopium -- -izf tests/servicemon-crd.yaml > tests/gen.rs
+  echo "pub type CR = ServiceMonitor;" >> tests/gen.rs
+  kubectl apply -f tests/servicemon.yaml
   cargo test --test runner -- --nocapture
 
 test-mv:

@@ -151,8 +151,38 @@ fn analyze_object_properties(
                             // authoratative, but more detailed sources than crd validation docs below are welcome
                             // https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation
                             "array" => {
-                                // agent test with `validationInfo` uses this spec format
-                                Some(format!("{}{}", stack, uppercase_first_letter(key)))
+                                let mut simple_inner = None;
+                                if let Some(inner) = &s.items {
+                                    if let JSONSchemaPropsOrArray::Schema(ix) = inner {
+                                        simple_inner = ix.type_.clone();
+                                        debug!("additional simple inner  type: {:?}", simple_inner);
+                                    }
+                                }
+                                // Simple case: additionalProperties contain: {items: {type: K}}
+                                // Then it's a simple map (service_monitor_params) - but key is useless
+                                match simple_inner.as_deref() {
+                                    Some("string") => Some("String".into()),
+                                    Some("integer") => Some(extract_integer_type(s)?),
+                                    Some("date") => Some(extract_date_type(value)?),
+                                    Some("") => {
+                                        if s.x_kubernetes_int_or_string.is_some() {
+                                            Some("IntOrString".into())
+                                        } else {
+                                            bail!("unknown inner empty dict type for {}", key)
+                                        }
+                                    }
+                                    // can probably cover the regulars here as well
+
+                                    // Harder case: inline structs under items (agent test with `validationInfo`)
+                                    // key becomes the struct
+                                    Some("object") => {
+                                        Some(format!("{}{}", stack, uppercase_first_letter(key)))
+                                    }
+                                    None => Some(format!("{}{}", stack, uppercase_first_letter(key))),
+
+                                    // leftovers, array of arrays?... need a better way to recurse probably
+                                    Some(x) => bail!("unknown inner empty dict type {} for {}", x, key),
+                                }
                             }
                             "object" => {
                                 // cluster test with `failureDomains` uses this spec format
@@ -464,6 +494,54 @@ type: object
         assert_eq!(member.type_, "IntOrString");
         assert!(root.uses_int_or_string());
     }
+
+
+    #[test]
+    fn service_monitor_params() {
+        let schema_str = r#"
+        properties:
+          endpoints:
+            items:
+              description: Endpoint defines a scrapeable endpoint serving Prometheus
+                metrics.
+              properties:
+                params:
+                  additionalProperties:
+                    items:
+                      type: string
+                    type: array
+                  description: Optional HTTP URL parameters
+                  type: object
+              type: object
+            type: array
+        required:
+        - endpoints
+        type: object
+"#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        env_logger::init();
+        let mut structs = vec![];
+        analyze(schema, "Endpoints", "ServiceMonitor", 0, &mut structs).unwrap();
+        println!("got {:?}", structs);
+        let root = &structs[0];
+        assert_eq!(root.name, "ServiceMonitor");
+        assert_eq!(root.level, 0);
+
+        // should have a required endpoints member
+        let member = &root.members[0];
+        assert_eq!(member.name, "endpoints");
+        assert_eq!(member.type_, "Vec<ServiceMonitorEndpoints>");
+
+        // Should have a endpoints struct:
+        let eps = &structs[1];
+        assert_eq!(eps.name, "ServiceMonitorEndpoints");
+        assert_eq!(eps.level, 1);
+        // should have an params member:
+        let member = &eps.members[0];
+        assert_eq!(member.name, "params");
+        assert_eq!(member.type_, "Option<BTreeMap<String, String>>");
+    }
+
 
     #[test]
     fn integer_handling_in_maps() {

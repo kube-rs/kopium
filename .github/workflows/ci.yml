@@ -27,8 +27,9 @@ jobs:
       - run: cargo test --lib
       # integration tests
       - run: cargo build --bin kopium
-      # Test a reasonably complicated CRD; promethesurules
+      # Test reasonably complicated CRDs; promethesurules and servicemonitors
       - run: just test-pr
+      - run: just test-sm
       # Test a fake CRD with multiple versions
       - run: just test-mv
       # Test argocd Application

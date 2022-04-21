@@ -1,0 +1,33 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: gen
+spec:
+  endpoints:
+  - interval: 15s
+    path: /metrics
+    relabelings:
+    - action: labelmap
+      regex: __meta_kubernetes_service_label_(.+)
+    - action: replace
+      sourceLabels:
+      - __meta_kubernetes_namespace
+      targetLabel: namespace
+    - action: replace
+      sourceLabels:
+      - __meta_kubernetes_service_name
+      targetLabel: service
+    - action: replace
+      sourceLabels:
+      - __meta_kubernetes_service_label_app_kubernetes_io_name
+      targetLabel: app
+    - action: labeldrop
+      regex: app_kubernetes_io.*|chart|heritage|release|helm_sh_chart|k8s_app|fluxcd_io_sync_gc_mark
+    scheme: http
+    targetPort: http
+  jobLabel: gen
+  namespaceSelector:
+    any: true
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gen
