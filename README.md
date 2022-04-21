@@ -18,8 +18,8 @@ Requirements:
 
 - **Instantly queryable**: generated type uses [`kube-derive`](https://docs.rs/kube/latest/kube/derive.CustomResource.html) to provide api integration with `kube`
 - **[Rust doc comments](https://doc.rust-lang.org/rust-by-example/meta/doc.html#doc-comments)**: optionally extracted from `description` values in schema
-- **Safe case conversion**: generated types uses rust standard camel_case with occasional serde rename annotations
-- **Usable in CI or locally**: Can read crds via `-f crd.yaml` OR a `mycrd.group.io` crd name in cluster
+- **Safe case [conversion](https://github.com/withoutboats/heck)**: generated types uses rust standard camel_case with occasional [serde rename attributes](https://serde.rs/field-attrs.html)
+- **Usable locally and in CI**: Can read crds by name in cluster via `mycrd.group.io` or from file via `-f crd.yaml`
 
 ## Installation
 
