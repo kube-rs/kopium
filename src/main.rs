@@ -101,7 +101,7 @@ struct Kopium {
     #[structopt(
         about = "Derive these extra traits on generated structs",
         long,
-        possible_values = &["Copy", "Default", "PartialEq", "Eq", "PartialOrd", "Ord", "Hash"],
+        possible_values = &["Copy", "Default", "PartialEq", "Eq", "PartialOrd", "Ord", "Hash", "JsonSchema"],
     )]
     derive: Vec<String>,
 
@@ -289,6 +289,9 @@ impl Kopium {
     fn print_prelude(&self, results: &[OutputStruct]) {
         if !self.hide_kube {
             println!("use kube::CustomResource;");
+        }
+        if self.derive.contains(&"JsonSchema".to_string()) {
+            println!("use schemars::JsonSchema;");
         }
         println!("use serde::{{Serialize, Deserialize}};");
         if results.iter().any(|o| o.uses_btreemaps()) {
