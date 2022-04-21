@@ -133,6 +133,9 @@ struct Kopium {
     ///
     /// This will run all members through heck::ToSnakeCase, and if different,
     /// produce a #[serde(rename = "originalName")] attribute on the member.
+    ///
+    /// This operation is safe because names are preserved through attributes.
+    /// However, while not needing the #![allow(non_snake_case)] inner attribute; your code will be longer.
     #[structopt(long, short = "z")]
     snake_case: bool,
 }
