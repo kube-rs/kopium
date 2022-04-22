@@ -243,7 +243,7 @@ fn analyze_object_properties(
             members.push(OutputMember {
                 type_: rust_type,
                 name: key.to_string(),
-                field_annot: None,
+                serde_annot: vec![],
                 docs: member_doc,
             })
         } else {
@@ -252,7 +252,10 @@ fn analyze_object_properties(
             members.push(OutputMember {
                 type_: format!("Option<{}>", rust_type),
                 name: key.to_string(),
-                field_annot: Some(r#"#[serde(default, skip_serializing_if = "Option::is_none")]"#.into()),
+                serde_annot: vec![
+                    "default".into(),
+                    "skip_serializing_if = \"Option::is_none\"".into(),
+                ],
                 docs: member_doc,
             })
         }

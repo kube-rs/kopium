@@ -275,17 +275,18 @@ impl Kopium {
                     }
                     for m in s.members {
                         self.print_docstr(m.docs, "    ");
+                        let mut serda = m.serde_annot;
                         let name = if self.snake_case {
                             let converted = m.name.to_snake_case();
                             if converted != m.name {
-                                println!("    #[serde(rename = \"{}\")]", m.name);
+                                serda.push(format!("rename = \"{}\"", m.name));
                             }
                             converted
                         } else {
                             m.name
                         };
-                        if let Some(annot) = m.field_annot {
-                            println!("    {}", annot);
+                        if !serda.is_empty() {
+                            println!("    #[serde({})]", serda.join(", "));
                         }
                         let safe_name = if KEYWORDS.contains(&name.as_ref()) {
                             format_ident!("r#{}", name)
