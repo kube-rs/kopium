@@ -31,7 +31,10 @@ mod tests {
         assert_eq!(canonical.spec.group, CR::group(&()).to_string());
 
         // assumes a resource of type CR has been applied with name 'gen' in the namespace
-        println!("# fetching {}{} {}", canonical.spec.names.kind, canonical.spec.group, "gen");
+        println!(
+            "# Api<{}.{}>.get(\"{}\")",
+            canonical.spec.names.kind, canonical.spec.group, "gen"
+        );
         let instance = cr.get("gen").await?;
         assert_eq!(instance.name(), "gen");
 
