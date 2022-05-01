@@ -498,56 +498,133 @@ type: object
     #[test]
     fn enum_one_of() {
         let schema_str = r#"
-        properties:
-          matchExpressions:
-            items:
-              properties:
-                key:
-                  type: string
                 operator:
                   enum:
                   - In
                   - NotIn
                   - Exists
                   - DoesNotExist
-                  type: string
-                values:
-                  items:
-                    type: string
-                  type: array
-              required:
-              - key
-              - operator
-              type: object
-            type: array
-        type: object
-        "#;
+                  type: string"#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
         env_logger::init();
         let mut structs = vec![];
-        analyze(schema, "MatchExpressions", "PodSelector", 0, &mut structs).unwrap();
+        analyze(schema, "", "Operator", 0, &mut structs).unwrap();
         println!("got {:?}", structs);
         let root = &structs[0];
-        assert_eq!(root.name, "PodSelector");
+        assert_eq!(root.name, "Operator");
         assert_eq!(root.level, 0);
 
-        // should have a required match expressions
-        let member = &root.members[0];
-        assert_eq!(member.name, "matchExpressions");
-        assert_eq!(member.type_, "Option<BTreeMap<String, PodSelectorMatchExpressions>>");
-
-        // Should have a endpoints struct:
-        let eps = &structs[1];
-        assert_eq!(eps.name, "PodSelectorMatchExpressions");
-        assert_eq!(eps.level, 1);
-
         // should have enum members:
-        assert_eq!(&eps.members[0].name, "In");
-        assert_eq!(&eps.members[0].name, "NotIn");
-        assert_eq!(&eps.members[0].name, "Exists");
-        assert_eq!(&eps.members[0].name, "DoesNotExist");
+        assert_eq!(&root.members[0].name, "In");
+        assert_eq!(&root.members[0].type_, "");
+        assert_eq!(&root.members[1].name, "NotIn");
+        assert_eq!(&root.members[1].type_, "");
+        assert_eq!(&root.members[2].name, "Exists");
+        assert_eq!(&root.members[2].type_, "");
+        assert_eq!(&root.members[3].name, "DoesNotExist");
+        assert_eq!(&root.members[3].type_, "");
     }
+
+    #[test]
+    fn enum_nested() {
+        let schema_str = r#"
+    description: "Auto-generated derived type for ServerSpec via `CustomResource`"
+    properties:
+      spec:
+        properties:
+          podSelector:
+            oneOf:
+              - required:
+                  - matchExpressions
+              - required:
+                  - matchLabels
+            properties:
+              matchExpressions:
+                items:
+                  properties:
+                    key:
+                      type: string
+                    operator:
+                      enum:
+                        - In
+                        - NotIn
+                        - Exists
+                        - DoesNotExists
+                      type: string
+                    values:
+                      items:
+                        type: string
+                      nullable: true
+                      type: array
+                  required:
+                    - key
+                    - operator
+                  type: object
+                type: array
+              matchLabels:
+                additionalProperties:
+                  type: string
+                type: object
+            type: object
+        required:
+          - podSelector
+        type: object
+    required:
+      - spec
+    title: Server
+    type: object"#;
+
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        env_logger::init();
+        let mut structs = vec![];
+        analyze(schema, "", "ServerSpec", 0, &mut structs).unwrap();
+        println!("got {:?}", structs);
+        let root = &structs[0];
+        assert_eq!(root.name, "ServerSpec");
+        assert_eq!(root.level, 0);
+
+        // should have a required selector
+        let member = &root.members[0];
+        assert_eq!(member.name, "pod_selector");
+        assert_eq!(member.type_, "ServerPodSelector");
+
+        // and this should be an enum
+        let ps = &structs[1]; // TODO: encode as struct?
+        assert_eq!(ps.name, "ServerPodSelector");
+        assert_eq!(ps.level, 1);
+
+        // should have enum members: TODO: encode inner type as type_?
+        assert_eq!(&ps.members[0].name, "MatchExpressions");
+        assert_eq!(&ps.members[0].type_, "Vec<ServerPodSelectorMatchExpressions");
+        assert_eq!(&ps.members[1].name, "MatchLabels");
+        assert_eq!(&ps.members[1].type_, "BTreeMap<String, String>");
+
+        // should have the inner struct match expressions
+        let me = &structs[2];
+        assert_eq!(me.name, "ServerPodSelectorMatchExpressions");
+        assert_eq!(me.level, 2);
+
+        // which should have 3 members
+        assert_eq!(&me.members[0].name, "key");
+        assert_eq!(&me.members[0].type_, "String");
+        assert_eq!(&me.members[1].name, "operator");
+        assert_eq!(&me.members[1].type_, "ServerPodSelectorMatchExpressionsOperator");
+        assert_eq!(&me.members[2].name, "values");
+        assert_eq!(&me.members[2].type_, " Option<Vec<String>>");
+
+        // last struct being the innermost enum operator:
+        let op = &structs[3];
+        assert_eq!(op.name, "ServerPodSelectorMatchExpressionsOperator");
+        assert_eq!(op.level, 3);
+
+        // with enum members:
+        assert_eq!(&op.members[0].name, "In");
+        assert_eq!(&op.members[1].name, "In");
+        assert_eq!(&op.members[2].name, "In");
+        assert_eq!(&op.members[3].name, "In");
+    }
+
 
     #[test]
     fn service_monitor_params() {
