@@ -34,7 +34,7 @@ test-mv:
 
 test-agent:
   kubectl apply -f tests/agent-crd.yaml
-  cargo run --bin kopium -- -iAf tests/agent-crd.yaml > tests/gen.rs
+  cargo run --bin kopium -- -ibAf tests/agent-crd.yaml > tests/gen.rs
   echo "pub type CR = Agent;" >> tests/gen.rs
   kubectl apply -f tests/agent.yaml
   cargo test --test runner -- --nocapture
@@ -69,7 +69,7 @@ test-linkerd-serverauth:
 
 test-linkerd-server:
   kubectl apply --server-side -f tests/server-crd.yaml
-  cargo run --bin kopium -- -iz servers.policy.linkerd.io > tests/gen.rs
+  cargo run --bin kopium -- -ibz servers.policy.linkerd.io > tests/gen.rs
   echo "pub type CR = Server;" >> tests/gen.rs
   kubectl apply -f tests/server.yaml
   cargo test --test runner -- --nocapture

@@ -105,6 +105,10 @@ struct Kopium {
     #[structopt(long, short = "d")]
     docs: bool,
 
+    /// Emit builder derives via the typed_builder crate
+    #[structopt(long, short = "b")]
+    builders: bool,
+
     /// Schema mode to use for kube-derive
     ///
     /// The default is --schema=disabled and will compile without a schema,
@@ -293,6 +297,15 @@ impl Kopium {
                             format_ident!("{}", name)
                         };
                         let spec_trimmed_type = m.type_.as_str().replace(&format!("{}Spec", kind), &kind);
+                        if self.builders {
+                            if spec_trimmed_type.starts_with("Option") {
+                                println!("#[builder(default, setter(strip_option))]");
+                            } else if spec_trimmed_type.starts_with("Vec")
+                                || spec_trimmed_type.starts_with("BTreeMap")
+                            {
+                                println!("#[builder(default)]");
+                            }
+                        }
                         println!("    pub {}: {},", safe_name, spec_trimmed_type);
                     }
                     println!("}}");
@@ -346,6 +359,9 @@ impl Kopium {
             // CustomResource first for root struct
             derives.insert(0, "CustomResource".to_string());
         }
+        if self.builders {
+            derives.push("TypedBuilder".to_string());
+        }
         derives.extend(self.derive.clone()); // user derives last in user order
         println!("#[derive({})]", derives.join(", "));
     }
@@ -357,6 +373,9 @@ impl Kopium {
         }
         if !self.hide_kube {
             println!("use kube::CustomResource;");
+        }
+        if self.builders {
+            println!("use typed_builder::TypedBuilder;");
         }
         if self.derive.contains(&"JsonSchema".to_string()) {
             println!("use schemars::JsonSchema;");
