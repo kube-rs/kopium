@@ -495,6 +495,59 @@ type: object
         assert!(root.uses_int_or_string());
     }
 
+    #[test]
+    fn enum_one_of() {
+        let schema_str = r#"
+        properties:
+          matchExpressions:
+            items:
+              properties:
+                key:
+                  type: string
+                operator:
+                  enum:
+                  - In
+                  - NotIn
+                  - Exists
+                  - DoesNotExist
+                  type: string
+                values:
+                  items:
+                    type: string
+                  type: array
+              required:
+              - key
+              - operator
+              type: object
+            type: array
+        type: object
+        "#;
+
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        env_logger::init();
+        let mut structs = vec![];
+        analyze(schema, "MatchExpressions", "PodSelector", 0, &mut structs).unwrap();
+        println!("got {:?}", structs);
+        let root = &structs[0];
+        assert_eq!(root.name, "PodSelector");
+        assert_eq!(root.level, 0);
+
+        // should have a required match expressions
+        let member = &root.members[0];
+        assert_eq!(member.name, "matchExpressions");
+        assert_eq!(member.type_, "Option<BTreeMap<String, PodSelectorMatchExpressions>>");
+
+        // Should have a endpoints struct:
+        let eps = &structs[1];
+        assert_eq!(eps.name, "PodSelectorMatchExpressions");
+        assert_eq!(eps.level, 1);
+
+        // should have enum members:
+        assert_eq!(&eps.members[0].name, "In");
+        assert_eq!(&eps.members[0].name, "NotIn");
+        assert_eq!(&eps.members[0].name, "Exists");
+        assert_eq!(&eps.members[0].name, "DoesNotExist");
+    }
 
     #[test]
     fn service_monitor_params() {
