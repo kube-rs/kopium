@@ -2,7 +2,7 @@
 use crate::{OutputMember, OutputStruct};
 use anyhow::{bail, Result};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
-    JSONSchemaProps, JSONSchemaPropsOrArray, JSONSchemaPropsOrBool,
+    JSONSchemaProps, JSONSchemaPropsOrArray, JSONSchemaPropsOrBool, JSON,
 };
 use std::collections::{BTreeMap, HashMap};
 
@@ -118,11 +118,57 @@ pub fn analyze(
                     debug!("not recursing into unknown empty type {}", key)
                 }
             }
-            x => debug!("not recursing into {} (not a container - {})", key, x),
+            x => {
+                if let Some(en) = value.enum_ {
+                    let new_result = analyze_enum_properties(&en, &next_stack, level, &schema)?;
+                    results.extend(new_result);
+                    // TODO: this should probably be done outside of the property recursion loop
+                } else {
+                    debug!("not recursing into {} (not a container - {})", key, x)
+                }
+            }
         }
     }
     Ok(())
 }
+
+// helper to figure out what output enums and embedded members are contained in the current object schema
+fn analyze_enum_properties(
+    items: &Vec<JSON>,
+    stack: &str,
+    level: u8,
+    schema: &JSONSchemaProps,
+) -> Result<Vec<OutputStruct>, anyhow::Error> {
+    let mut results = vec![];
+    let mut members = vec![];
+    debug!("analyzing enum {}", serde_json::to_string(&schema).unwrap());
+    for en in items {
+        //debug!("got enum {:?}", en);
+        // TODO: do we need to verify enum elements? only in oneOf only right?
+        let (name, rust_type) = match &en.0 {
+            serde_json::Value::String(name) => (name, "".to_string()),
+            _ => bail!("not handling non-string enum"),
+        };
+        // Create member and wrap types correctly
+        let member_doc = None;
+        debug!("with enum member {} of type {}", name, rust_type);
+        members.push(OutputMember {
+            type_: rust_type,
+            name: name.to_string(),
+            field_annot: None,
+            docs: member_doc,
+        })
+    }
+    results.push(OutputStruct {
+        name: stack.to_string(),
+        members,
+        level,
+        docs: schema.description.clone(),
+        is_enum: true,
+    });
+    Ok(results)
+}
+
 
 // helper to figure out what output structs (returned) and embedded members are contained in the current object schema
 fn analyze_object_properties(
@@ -134,6 +180,8 @@ fn analyze_object_properties(
 ) -> Result<Vec<OutputStruct>, anyhow::Error> {
     let mut results = vec![];
     let mut members = vec![];
+    let mut is_enum = false;
+    //debug!("analyzing object {}", serde_json::to_string(&schema).unwrap());
     let reqs = schema.required.clone().unwrap_or_default();
     for (key, value) in props {
         let value_type = value.type_.clone().unwrap_or_default();
@@ -211,7 +259,15 @@ fn analyze_object_properties(
                     format!("{}{}", stack, uppercase_first_letter(key))
                 }
             }
-            "string" => "String".to_string(),
+            "string" => {
+                debug!("got string schema: {}", serde_json::to_string(&schema).unwrap());
+                if let Some(_en) = &value.enum_ {
+                    is_enum = true;
+                    format!("{}{}", stack, uppercase_first_letter(key))
+                } else {
+                    "String".to_string()
+                }
+            }
             "boolean" => "bool".to_string(),
             "date" => extract_date_type(value)?,
             "number" => extract_number_type(value)?,
@@ -239,7 +295,7 @@ fn analyze_object_properties(
         // Create member and wrap types correctly
         let member_doc = value.description.clone();
         if reqs.contains(key) {
-            debug!("with required member {} of type {}", key, rust_type);
+            debug!("with required member {} of type {}", key, &rust_type);
             members.push(OutputMember {
                 type_: rust_type,
                 name: key.to_string(),
@@ -262,6 +318,7 @@ fn analyze_object_properties(
         members,
         level,
         docs: schema.description.clone(),
+        is_enum,
     });
     Ok(results)
 }
@@ -496,34 +553,46 @@ type: object
     }
 
     #[test]
-    fn enum_one_of() {
+    fn enum_string() {
         let schema_str = r#"
-                operator:
-                  enum:
-                  - In
-                  - NotIn
-                  - Exists
-                  - DoesNotExist
-                  type: string"#;
+      properties:
+        operator:
+          enum:
+          - In
+          - NotIn
+          - Exists
+          - DoesNotExist
+          type: string
+      required:
+      - operator
+      type: object
+"#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
         env_logger::init();
         let mut structs = vec![];
-        analyze(schema, "", "Operator", 0, &mut structs).unwrap();
+        analyze(schema, "", "MatchExpressions", 0, &mut structs).unwrap();
         println!("got {:?}", structs);
         let root = &structs[0];
-        assert_eq!(root.name, "Operator");
+        assert_eq!(root.name, "MatchExpressions");
         assert_eq!(root.level, 0);
+        assert_eq!(&root.members[0].name, "operator");
+        assert_eq!(&root.members[0].type_, "MatchExpressionsOperator");
+
+        // operator member
+        let op = &structs[1];
+        assert!(op.is_enum);
+        assert_eq!(op.name, "MatchExpressionsOperator");
 
         // should have enum members:
-        assert_eq!(&root.members[0].name, "In");
-        assert_eq!(&root.members[0].type_, "");
-        assert_eq!(&root.members[1].name, "NotIn");
-        assert_eq!(&root.members[1].type_, "");
-        assert_eq!(&root.members[2].name, "Exists");
-        assert_eq!(&root.members[2].type_, "");
-        assert_eq!(&root.members[3].name, "DoesNotExist");
-        assert_eq!(&root.members[3].type_, "");
+        assert_eq!(&op.members[0].name, "In");
+        assert_eq!(&op.members[0].type_, "");
+        assert_eq!(&op.members[1].name, "NotIn");
+        assert_eq!(&op.members[1].type_, "");
+        assert_eq!(&op.members[2].name, "Exists");
+        assert_eq!(&op.members[2].type_, "");
+        assert_eq!(&op.members[3].name, "DoesNotExist");
+        assert_eq!(&op.members[3].type_, "");
     }
 
     #[test]
