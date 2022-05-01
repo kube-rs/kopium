@@ -297,6 +297,15 @@ impl Kopium {
                             format_ident!("{}", name)
                         };
                         let spec_trimmed_type = m.type_.as_str().replace(&format!("{}Spec", kind), &kind);
+                        if self.builders {
+                            if spec_trimmed_type.starts_with("Option") {
+                                println!("#[builder(default, setter(strip_option))]");
+                            } else if spec_trimmed_type.starts_with("Vec")
+                                || spec_trimmed_type.starts_with("BTreeMap")
+                            {
+                                println!("#[builder(default)]");
+                            }
+                        }
                         println!("    pub {}: {},", safe_name, spec_trimmed_type);
                     }
                     println!("}}");
@@ -350,11 +359,11 @@ impl Kopium {
             // CustomResource first for root struct
             derives.insert(0, "CustomResource".to_string());
         }
+        if self.builders {
+            derives.push("TypedBuilder".to_string());
+        }
         derives.extend(self.derive.clone()); // user derives last in user order
         println!("#[derive({})]", derives.join(", "));
-        if self.builders {
-            println!("#[builder(field_defaults(setter(strip_option)))]");
-        }
     }
 
     fn print_prelude(&self, results: &[OutputStruct]) {
