@@ -105,6 +105,10 @@ struct Kopium {
     #[structopt(long, short = "d")]
     docs: bool,
 
+    /// Emit builder derives via the typed_builder crate
+    #[structopt(long, short = "b")]
+    builders: bool,
+
     /// Schema mode to use for kube-derive
     ///
     /// The default is --schema=disabled and will compile without a schema,
@@ -348,6 +352,9 @@ impl Kopium {
         }
         derives.extend(self.derive.clone()); // user derives last in user order
         println!("#[derive({})]", derives.join(", "));
+        if self.builders {
+            println!("#[builder(field_defaults(setter(strip_option)))]");
+        }
     }
 
     fn print_prelude(&self, results: &[OutputStruct]) {
@@ -357,6 +364,9 @@ impl Kopium {
         }
         if !self.hide_kube {
             println!("use kube::CustomResource;");
+        }
+        if self.builders {
+            println!("use typed_builder::TypedBuilder;");
         }
         if self.derive.contains(&"JsonSchema".to_string()) {
             println!("use schemars::JsonSchema;");
