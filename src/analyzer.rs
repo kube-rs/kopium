@@ -683,7 +683,6 @@ type: object
     }
 
     #[test]
-    #[ignore] // oneof support not done
     fn enum_oneof() {
         init();
         let schema_str = r#"

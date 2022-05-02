@@ -68,11 +68,11 @@ test-linkerd-serverauth:
   cargo test --test runner -- --nocapture
 
 test-linkerd-server:
-  #kubectl apply --server-side -f tests/server-crd.yaml
-  #cargo run --bin kopium -- -ibz servers.policy.linkerd.io > tests/gen.rs
-  #echo "pub type CR = Server;" >> tests/gen.rs
-  #kubectl apply -f tests/server.yaml
-  #cargo test --test runner -- --nocapture
+  kubectl apply --server-side -f tests/server-crd.yaml
+  cargo run --bin kopium -- -ibz servers.policy.linkerd.io > tests/gen.rs
+  echo "pub type CR = Server;" >> tests/gen.rs
+  kubectl apply -f tests/server.yaml
+  cargo test --test runner -- --nocapture
 
 test-istio-destrule:
   kubectl apply --server-side -f tests/destinationrule-crd.yaml
