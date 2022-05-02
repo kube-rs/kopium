@@ -120,11 +120,11 @@ pub fn analyze(
             }
             x => {
                 if let Some(en) = value.enum_ {
+                    // plain enums do not need to recurse, can collect it here
                     let new_result = analyze_enum_properties(&en, &next_stack, level, &schema)?;
-                    results.extend(new_result);
-                    // TODO: this should probably be done outside of the property recursion loop
+                    results.push(new_result);
                 } else {
-                    debug!("not recursing into {} (not a container - {})", key, x)
+                    debug!("not recursing into {} ('{}' is not a container)", key, x)
                 }
             }
         }
@@ -138,8 +138,7 @@ fn analyze_enum_properties(
     stack: &str,
     level: u8,
     schema: &JSONSchemaProps,
-) -> Result<Vec<OutputStruct>, anyhow::Error> {
-    let mut results = vec![];
+) -> Result<OutputStruct, anyhow::Error> {
     let mut members = vec![];
     debug!("analyzing enum {}", serde_json::to_string(&schema).unwrap());
     for en in items {
@@ -159,14 +158,13 @@ fn analyze_enum_properties(
             docs: member_doc,
         })
     }
-    results.push(OutputStruct {
+    Ok(OutputStruct {
         name: stack.to_string(),
         members,
         level,
         docs: schema.description.clone(),
         is_enum: true,
-    });
-    Ok(results)
+    })
 }
 
 
@@ -180,10 +178,11 @@ fn analyze_object_properties(
 ) -> Result<Vec<OutputStruct>, anyhow::Error> {
     let mut results = vec![];
     let mut members = vec![];
-    let mut is_enum = false;
     //debug!("analyzing object {}", serde_json::to_string(&schema).unwrap());
+    debug!("analyze object props in {}", stack);
     let reqs = schema.required.clone().unwrap_or_default();
     for (key, value) in props {
+        debug!("analyze key {}", key);
         let value_type = value.type_.clone().unwrap_or_default();
         let rust_type = match value_type.as_ref() {
             "object" => {
@@ -260,9 +259,8 @@ fn analyze_object_properties(
                 }
             }
             "string" => {
-                debug!("got string schema: {}", serde_json::to_string(&schema).unwrap());
                 if let Some(_en) = &value.enum_ {
-                    is_enum = true;
+                    debug!("got enum string: {}", serde_json::to_string(&schema).unwrap());
                     format!("{}{}", stack, uppercase_first_letter(key))
                 } else {
                     "String".to_string()
@@ -308,9 +306,13 @@ fn analyze_object_properties(
             members.push(OutputMember {
                 type_: format!("Option<{}>", rust_type),
                 name: key.to_string(),
-                field_annot: Some(r#"#[serde(default, skip_serializing_if = "Option::is_none")]"#.into()),
+                field_annot: Some(r#"#[serde(default , skip_serializing_if = "Option::is_none")]"#.into()),
                 docs: member_doc,
             })
+            // TODO: must capture `default` key here instead of blindly using serde default
+            // this will require us storing default properties for the member in above loop
+            // This is complicated because serde default requires a default fn / impl Default
+            // probably better to do impl Default to avoid having to make custom fns
         }
     }
     results.push(OutputStruct {
@@ -318,7 +320,7 @@ fn analyze_object_properties(
         members,
         level,
         docs: schema.description.clone(),
-        is_enum,
+        is_enum: false,
     });
     Ok(results)
 }
@@ -569,7 +571,7 @@ type: object
 "#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        env_logger::init();
+        //env_logger::init();
         let mut structs = vec![];
         analyze(schema, "", "MatchExpressions", 0, &mut structs).unwrap();
         println!("got {:?}", structs);
@@ -596,7 +598,72 @@ type: object
     }
 
     #[test]
-    fn enum_nested() {
+    fn enum_string_within_container() {
+        let schema_str = r#"
+      description: Endpoint
+      properties:
+        relabelings:
+          items:
+            properties:
+              action:
+                default: replace
+                description: Action to perform based on regex matching.
+                  Default is 'replace'
+                enum:
+                - replace
+                - keep
+                - drop
+                - hashmod
+                - labelmap
+                - labeldrop
+                - labelkeep
+                type: string
+              modulus:
+                format: int64
+                type: integer
+            type: object
+          type: array
+      type: object
+        "#;
+
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        //env_logger::init();
+        let mut structs = vec![];
+        analyze(schema, "", "Endpoint", 0, &mut structs).unwrap();
+        println!("got {:?}", structs);
+        let root = &structs[0];
+        assert_eq!(root.name, "Endpoint");
+        assert_eq!(root.level, 0);
+        assert_eq!(root.is_enum, false);
+        assert_eq!(&root.members[0].name, "relabelings");
+        assert_eq!(&root.members[0].type_, "Option<Vec<EndpointRelabelings>>");
+
+        let rel = &structs[1];
+        assert_eq!(rel.name, "EndpointRelabelings");
+        assert_eq!(rel.is_enum, false);
+        assert_eq!(&rel.members[0].name, "action");
+        assert_eq!(&rel.members[0].type_, "Option<EndpointRelabelingsAction>");
+        // TODO: verify rel.members[0].field_annot uses correct default
+
+        // action enum member
+        let act = &structs[2];
+        assert_eq!(act.name, "EndpointRelabelingsAction");
+        assert_eq!(act.is_enum, true);
+
+        // should have enum members:
+        assert_eq!(&act.members[0].name, "replace");
+        assert_eq!(&act.members[0].type_, "");
+        assert_eq!(&act.members[1].name, "keep");
+        assert_eq!(&act.members[1].type_, "");
+        assert_eq!(&act.members[2].name, "drop");
+        assert_eq!(&act.members[2].type_, "");
+        assert_eq!(&act.members[3].name, "hashmod");
+        assert_eq!(&act.members[3].type_, "");
+    }
+
+    #[test]
+    #[ignore] // oneof support not done
+    fn enum_oneof() {
         let schema_str = r#"
     description: "Auto-generated derived type for ServerSpec via `CustomResource`"
     properties:
@@ -645,7 +712,7 @@ type: object
     type: object"#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        env_logger::init();
+        //env_logger::init();
         let mut structs = vec![];
         analyze(schema, "", "ServerSpec", 0, &mut structs).unwrap();
         println!("got {:?}", structs);
@@ -718,7 +785,7 @@ type: object
         type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        env_logger::init();
+        //env_logger::init();
         let mut structs = vec![];
         analyze(schema, "Endpoints", "ServiceMonitor", 0, &mut structs).unwrap();
         println!("got {:?}", structs);
