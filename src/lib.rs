@@ -8,6 +8,7 @@ pub struct OutputStruct {
     pub level: u8,
     pub members: Vec<OutputMember>,
     pub docs: Option<String>,
+    pub is_enum: bool,
 }
 
 /// Output member belonging to an OutputStruct

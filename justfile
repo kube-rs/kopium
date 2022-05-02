@@ -20,7 +20,7 @@ test-pr:
 
 test-sm:
   kubectl apply --force-conflicts --server-side -f tests/servicemon-crd.yaml
-  cargo run --bin kopium -- -izf tests/servicemon-crd.yaml > tests/gen.rs
+  cargo run --bin kopium -- -izdf tests/servicemon-crd.yaml > tests/gen.rs
   echo "pub type CR = ServiceMonitor;" >> tests/gen.rs
   kubectl apply -f tests/servicemon.yaml
   cargo test --test runner -- --nocapture
@@ -34,7 +34,7 @@ test-mv:
 
 test-agent:
   kubectl apply -f tests/agent-crd.yaml
-  cargo run --bin kopium -- -iAf tests/agent-crd.yaml > tests/gen.rs
+  cargo run --bin kopium -- -ibAf tests/agent-crd.yaml > tests/gen.rs
   echo "pub type CR = Agent;" >> tests/gen.rs
   kubectl apply -f tests/agent.yaml
   cargo test --test runner -- --nocapture
@@ -68,11 +68,11 @@ test-linkerd-serverauth:
   cargo test --test runner -- --nocapture
 
 test-linkerd-server:
-  kubectl apply --server-side -f tests/server-crd.yaml
-  cargo run --bin kopium -- -iz servers.policy.linkerd.io > tests/gen.rs
-  echo "pub type CR = Server;" >> tests/gen.rs
-  kubectl apply -f tests/server.yaml
-  cargo test --test runner -- --nocapture
+  #kubectl apply --server-side -f tests/server-crd.yaml
+  #cargo run --bin kopium -- -ibz servers.policy.linkerd.io > tests/gen.rs
+  #echo "pub type CR = Server;" >> tests/gen.rs
+  #kubectl apply -f tests/server.yaml
+  #cargo test --test runner -- --nocapture
 
 test-istio-destrule:
   kubectl apply --server-side -f tests/destinationrule-crd.yaml

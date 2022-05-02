@@ -2,7 +2,7 @@
 use crate::{OutputMember, OutputStruct};
 use anyhow::{bail, Result};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
-    JSONSchemaProps, JSONSchemaPropsOrArray, JSONSchemaPropsOrBool,
+    JSONSchemaProps, JSONSchemaPropsOrArray, JSONSchemaPropsOrBool, JSON,
 };
 use std::collections::{BTreeMap, HashMap};
 
@@ -118,11 +118,55 @@ pub fn analyze(
                     debug!("not recursing into unknown empty type {}", key)
                 }
             }
-            x => debug!("not recursing into {} (not a container - {})", key, x),
+            x => {
+                if let Some(en) = value.enum_ {
+                    // plain enums do not need to recurse, can collect it here
+                    let new_result = analyze_enum_properties(&en, &next_stack, level, &schema)?;
+                    results.push(new_result);
+                } else {
+                    debug!("not recursing into {} ('{}' is not a container)", key, x)
+                }
+            }
         }
     }
     Ok(())
 }
+
+// helper to figure out what output enums and embedded members are contained in the current object schema
+fn analyze_enum_properties(
+    items: &Vec<JSON>,
+    stack: &str,
+    level: u8,
+    schema: &JSONSchemaProps,
+) -> Result<OutputStruct, anyhow::Error> {
+    let mut members = vec![];
+    debug!("analyzing enum {}", serde_json::to_string(&schema).unwrap());
+    for en in items {
+        //debug!("got enum {:?}", en);
+        // TODO: do we need to verify enum elements? only in oneOf only right?
+        let (name, rust_type) = match &en.0 {
+            serde_json::Value::String(name) => (name, "".to_string()),
+            _ => bail!("not handling non-string enum"),
+        };
+        // Create member and wrap types correctly
+        let member_doc = None;
+        debug!("with enum member {} of type {}", name, rust_type);
+        members.push(OutputMember {
+            type_: rust_type,
+            name: name.to_string(),
+            field_annot: None,
+            docs: member_doc,
+        })
+    }
+    Ok(OutputStruct {
+        name: stack.to_string(),
+        members,
+        level,
+        docs: schema.description.clone(),
+        is_enum: true,
+    })
+}
+
 
 // helper to figure out what output structs (returned) and embedded members are contained in the current object schema
 fn analyze_object_properties(
@@ -134,8 +178,11 @@ fn analyze_object_properties(
 ) -> Result<Vec<OutputStruct>, anyhow::Error> {
     let mut results = vec![];
     let mut members = vec![];
+    //debug!("analyzing object {}", serde_json::to_string(&schema).unwrap());
+    debug!("analyze object props in {}", stack);
     let reqs = schema.required.clone().unwrap_or_default();
     for (key, value) in props {
+        debug!("analyze key {}", key);
         let value_type = value.type_.clone().unwrap_or_default();
         let rust_type = match value_type.as_ref() {
             "object" => {
@@ -211,7 +258,14 @@ fn analyze_object_properties(
                     format!("{}{}", stack, uppercase_first_letter(key))
                 }
             }
-            "string" => "String".to_string(),
+            "string" => {
+                if let Some(_en) = &value.enum_ {
+                    debug!("got enum string: {}", serde_json::to_string(&schema).unwrap());
+                    format!("{}{}", stack, uppercase_first_letter(key))
+                } else {
+                    "String".to_string()
+                }
+            }
             "boolean" => "bool".to_string(),
             "date" => extract_date_type(value)?,
             "number" => extract_number_type(value)?,
@@ -239,7 +293,7 @@ fn analyze_object_properties(
         // Create member and wrap types correctly
         let member_doc = value.description.clone();
         if reqs.contains(key) {
-            debug!("with required member {} of type {}", key, rust_type);
+            debug!("with required member {} of type {}", key, &rust_type);
             members.push(OutputMember {
                 type_: rust_type,
                 name: key.to_string(),
@@ -258,6 +312,10 @@ fn analyze_object_properties(
                 ],
                 docs: member_doc,
             })
+            // TODO: must capture `default` key here instead of blindly using serde default
+            // this will require us storing default properties for the member in above loop
+            // This is complicated because serde default requires a default fn / impl Default
+            // probably better to do impl Default to avoid having to make custom fns
         }
     }
     results.push(OutputStruct {
@@ -265,6 +323,7 @@ fn analyze_object_properties(
         members,
         level,
         docs: schema.description.clone(),
+        is_enum: false,
     });
     Ok(results)
 }
@@ -378,9 +437,20 @@ mod test {
     use crate::analyze;
     use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::JSONSchemaProps;
     use serde_yaml;
+    use std::sync::Once;
+
+    static START: Once = Once::new();
+    fn init() {
+        START.call_once(|| {
+            env_logger::init();
+        });
+    }
+    // To debug individual tests:
+    // RUST_LOG=debug cargo test --lib -- --nocapture testname
 
     #[test]
     fn map_of_struct() {
+        init();
         // validationsInfo from agent test
         let schema_str = r#"
         description: AgentStatus defines the observed state of Agent
@@ -408,7 +478,6 @@ mod test {
         type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        //env_logger::init();
         //println!("schema: {}", serde_json::to_string_pretty(&schema).unwrap());
 
         let mut structs = vec![];
@@ -435,6 +504,7 @@ mod test {
 
     #[test]
     fn empty_preserve_unknown_fields() {
+        init();
         let schema_str = r#"
 description: |-
   Identifies servers in the same namespace for which this authorization applies.
@@ -475,6 +545,7 @@ type: object
 
     #[test]
     fn int_or_string() {
+        init();
         let schema_str = r#"
             properties:
               port:
@@ -498,9 +569,215 @@ type: object
         assert!(root.uses_int_or_string());
     }
 
+    #[test]
+    fn enum_string() {
+        init();
+        let schema_str = r#"
+      properties:
+        operator:
+          enum:
+          - In
+          - NotIn
+          - Exists
+          - DoesNotExist
+          type: string
+      required:
+      - operator
+      type: object
+"#;
+
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        let mut structs = vec![];
+        analyze(schema, "", "MatchExpressions", 0, &mut structs).unwrap();
+        println!("got {:?}", structs);
+        let root = &structs[0];
+        assert_eq!(root.name, "MatchExpressions");
+        assert_eq!(root.level, 0);
+        assert_eq!(&root.members[0].name, "operator");
+        assert_eq!(&root.members[0].type_, "MatchExpressionsOperator");
+
+        // operator member
+        let op = &structs[1];
+        assert!(op.is_enum);
+        assert_eq!(op.name, "MatchExpressionsOperator");
+
+        // should have enum members:
+        assert_eq!(&op.members[0].name, "In");
+        assert_eq!(&op.members[0].type_, "");
+        assert_eq!(&op.members[1].name, "NotIn");
+        assert_eq!(&op.members[1].type_, "");
+        assert_eq!(&op.members[2].name, "Exists");
+        assert_eq!(&op.members[2].type_, "");
+        assert_eq!(&op.members[3].name, "DoesNotExist");
+        assert_eq!(&op.members[3].type_, "");
+    }
+
+    #[test]
+    fn enum_string_within_container() {
+        init();
+        let schema_str = r#"
+      description: Endpoint
+      properties:
+        relabelings:
+          items:
+            properties:
+              action:
+                default: replace
+                enum:
+                - replace
+                - keep
+                - drop
+                - hashmod
+                - labelmap
+                - labeldrop
+                - labelkeep
+                type: string
+              modulus:
+                format: int64
+                type: integer
+            type: object
+          type: array
+      type: object
+        "#;
+
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        let mut structs = vec![];
+        analyze(schema, "", "Endpoint", 0, &mut structs).unwrap();
+        println!("got {:?}", structs);
+        let root = &structs[0];
+        assert_eq!(root.name, "Endpoint");
+        assert_eq!(root.level, 0);
+        assert_eq!(root.is_enum, false);
+        assert_eq!(&root.members[0].name, "relabelings");
+        assert_eq!(&root.members[0].type_, "Option<Vec<EndpointRelabelings>>");
+
+        let rel = &structs[1];
+        assert_eq!(rel.name, "EndpointRelabelings");
+        assert_eq!(rel.is_enum, false);
+        assert_eq!(&rel.members[0].name, "action");
+        assert_eq!(&rel.members[0].type_, "Option<EndpointRelabelingsAction>");
+        // TODO: verify rel.members[0].field_annot uses correct default
+
+        // action enum member
+        let act = &structs[2];
+        assert_eq!(act.name, "EndpointRelabelingsAction");
+        assert_eq!(act.is_enum, true);
+
+        // should have enum members:
+        assert_eq!(&act.members[0].name, "replace");
+        assert_eq!(&act.members[0].type_, "");
+        assert_eq!(&act.members[1].name, "keep");
+        assert_eq!(&act.members[1].type_, "");
+        assert_eq!(&act.members[2].name, "drop");
+        assert_eq!(&act.members[2].type_, "");
+        assert_eq!(&act.members[3].name, "hashmod");
+        assert_eq!(&act.members[3].type_, "");
+    }
+
+    #[test]
+    #[ignore] // oneof support not done
+    fn enum_oneof() {
+        init();
+        let schema_str = r#"
+    description: "Auto-generated derived type for ServerSpec via `CustomResource`"
+    properties:
+      spec:
+        properties:
+          podSelector:
+            oneOf:
+              - required:
+                  - matchExpressions
+              - required:
+                  - matchLabels
+            properties:
+              matchExpressions:
+                items:
+                  properties:
+                    key:
+                      type: string
+                    operator:
+                      enum:
+                        - In
+                        - NotIn
+                        - Exists
+                        - DoesNotExists
+                      type: string
+                    values:
+                      items:
+                        type: string
+                      nullable: true
+                      type: array
+                  required:
+                    - key
+                    - operator
+                  type: object
+                type: array
+              matchLabels:
+                additionalProperties:
+                  type: string
+                type: object
+            type: object
+        required:
+          - podSelector
+        type: object
+    required:
+      - spec
+    title: Server
+    type: object"#;
+
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        let mut structs = vec![];
+        analyze(schema, "", "ServerSpec", 0, &mut structs).unwrap();
+        println!("got {:?}", structs);
+        let root = &structs[0];
+        assert_eq!(root.name, "ServerSpec");
+        assert_eq!(root.level, 0);
+
+        // should have a required selector
+        let member = &root.members[0];
+        assert_eq!(member.name, "pod_selector");
+        assert_eq!(member.type_, "ServerPodSelector");
+
+        // and this should be an enum
+        let ps = &structs[1]; // TODO: encode as struct?
+        assert_eq!(ps.name, "ServerPodSelector");
+        assert_eq!(ps.level, 1);
+
+        // should have enum members: TODO: encode inner type as type_?
+        assert_eq!(&ps.members[0].name, "MatchExpressions");
+        assert_eq!(&ps.members[0].type_, "Vec<ServerPodSelectorMatchExpressions");
+        assert_eq!(&ps.members[1].name, "MatchLabels");
+        assert_eq!(&ps.members[1].type_, "BTreeMap<String, String>");
+
+        // should have the inner struct match expressions
+        let me = &structs[2];
+        assert_eq!(me.name, "ServerPodSelectorMatchExpressions");
+        assert_eq!(me.level, 2);
+
+        // which should have 3 members
+        assert_eq!(&me.members[0].name, "key");
+        assert_eq!(&me.members[0].type_, "String");
+        assert_eq!(&me.members[1].name, "operator");
+        assert_eq!(&me.members[1].type_, "ServerPodSelectorMatchExpressionsOperator");
+        assert_eq!(&me.members[2].name, "values");
+        assert_eq!(&me.members[2].type_, " Option<Vec<String>>");
+
+        // last struct being the innermost enum operator:
+        let op = &structs[3];
+        assert_eq!(op.name, "ServerPodSelectorMatchExpressionsOperator");
+        assert_eq!(op.level, 3);
+
+        // with enum members:
+        assert_eq!(&op.members[0].name, "In");
+        assert_eq!(&op.members[1].name, "In");
+        assert_eq!(&op.members[2].name, "In");
+        assert_eq!(&op.members[3].name, "In");
+    }
+
 
     #[test]
     fn service_monitor_params() {
+        init();
         let schema_str = r#"
         properties:
           endpoints:
@@ -522,7 +799,6 @@ type: object
         type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        env_logger::init();
         let mut structs = vec![];
         analyze(schema, "Endpoints", "ServiceMonitor", 0, &mut structs).unwrap();
         println!("got {:?}", structs);
@@ -548,6 +824,7 @@ type: object
 
     #[test]
     fn integer_handling_in_maps() {
+        init();
         // via https://istio.io/latest/docs/reference/config/networking/destination-rule/
         // distribute:
         // - from: us-west/zone1/*
