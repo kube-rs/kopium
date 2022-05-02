@@ -154,7 +154,7 @@ fn analyze_enum_properties(
         members.push(OutputMember {
             type_: rust_type,
             name: name.to_string(),
-            field_annot: None,
+            serde_annot: vec![],
             docs: member_doc,
         })
     }
