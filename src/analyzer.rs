@@ -434,9 +434,20 @@ mod test {
     use crate::analyze;
     use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::JSONSchemaProps;
     use serde_yaml;
+    use std::sync::Once;
+
+    static START: Once = Once::new();
+    fn init() {
+        START.call_once(|| {
+            env_logger::init();
+        });
+    }
+    // To debug individual tests:
+    // RUST_LOG=debug cargo test --lib -- --nocapture testname
 
     #[test]
     fn map_of_struct() {
+        init();
         // validationsInfo from agent test
         let schema_str = r#"
         description: AgentStatus defines the observed state of Agent
@@ -464,7 +475,6 @@ mod test {
         type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        //env_logger::init();
         //println!("schema: {}", serde_json::to_string_pretty(&schema).unwrap());
 
         let mut structs = vec![];
@@ -491,6 +501,7 @@ mod test {
 
     #[test]
     fn empty_preserve_unknown_fields() {
+        init();
         let schema_str = r#"
 description: |-
   Identifies servers in the same namespace for which this authorization applies.
@@ -531,6 +542,7 @@ type: object
 
     #[test]
     fn int_or_string() {
+        init();
         let schema_str = r#"
             properties:
               port:
@@ -556,6 +568,7 @@ type: object
 
     #[test]
     fn enum_string() {
+        init();
         let schema_str = r#"
       properties:
         operator:
@@ -571,7 +584,6 @@ type: object
 "#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        //env_logger::init();
         let mut structs = vec![];
         analyze(schema, "", "MatchExpressions", 0, &mut structs).unwrap();
         println!("got {:?}", structs);
@@ -599,6 +611,7 @@ type: object
 
     #[test]
     fn enum_string_within_container() {
+        init();
         let schema_str = r#"
       description: Endpoint
       properties:
@@ -607,8 +620,6 @@ type: object
             properties:
               action:
                 default: replace
-                description: Action to perform based on regex matching.
-                  Default is 'replace'
                 enum:
                 - replace
                 - keep
@@ -627,7 +638,6 @@ type: object
         "#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        //env_logger::init();
         let mut structs = vec![];
         analyze(schema, "", "Endpoint", 0, &mut structs).unwrap();
         println!("got {:?}", structs);
@@ -664,6 +674,7 @@ type: object
     #[test]
     #[ignore] // oneof support not done
     fn enum_oneof() {
+        init();
         let schema_str = r#"
     description: "Auto-generated derived type for ServerSpec via `CustomResource`"
     properties:
@@ -712,7 +723,6 @@ type: object
     type: object"#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        //env_logger::init();
         let mut structs = vec![];
         analyze(schema, "", "ServerSpec", 0, &mut structs).unwrap();
         println!("got {:?}", structs);
@@ -764,6 +774,7 @@ type: object
 
     #[test]
     fn service_monitor_params() {
+        init();
         let schema_str = r#"
         properties:
           endpoints:
@@ -785,7 +796,6 @@ type: object
         type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        //env_logger::init();
         let mut structs = vec![];
         analyze(schema, "Endpoints", "ServiceMonitor", 0, &mut structs).unwrap();
         println!("got {:?}", structs);
@@ -811,6 +821,7 @@ type: object
 
     #[test]
     fn integer_handling_in_maps() {
+        init();
         // via https://istio.io/latest/docs/reference/config/networking/destination-rule/
         // distribute:
         // - from: us-west/zone1/*
