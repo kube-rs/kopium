@@ -36,6 +36,11 @@ pub struct Member {
     ///
     /// The `rename` attribute is only set if `Container::rename` is called.
     pub serde_annot: Vec<String>,
+    /// Additional field level annotations
+    ///
+    /// This is currently used by optional builders.
+    pub extra_annot: Vec<String>,
+    /// Documentation properties extracted from the property
     pub docs: Option<String>,
 }
 
@@ -77,6 +82,18 @@ impl Container {
             }
         }
     }
+
+    /// Add builder annotations
+    pub fn builder_fields(&mut self) {
+        for m in &mut self.members {
+            if m.type_.starts_with("Option<") {
+                m.extra_annot
+                    .push("#[builder(default, setter(strip_option))]".to_string());
+            } else if m.type_.starts_with("Vec<") || m.type_.starts_with("BTreeMap<") {
+                m.extra_annot.push("#[builder(default)]".to_string());
+            }
+        }
+    }
 }
 
 impl Output {
@@ -84,9 +101,24 @@ impl Output {
     ///
     /// Converts [*].members[*].name to snake_case for structs, PascalCase for enums,
     /// and adds a serde(rename = "orig_name") annotation to `serde_annot`.
-    pub fn rename(mut self) -> Self {
-        for c in &mut self.0 {
-            c.rename()
+    pub fn rename(mut self, rust_case: bool) -> Self {
+        if rust_case {
+            for c in &mut self.0 {
+                c.rename()
+            }
+        }
+        self
+    }
+
+    /// Add builders to all output members
+    ///
+    /// Adds #[builder(default, setter(strip_option))] to all option types.
+    /// Adds #[builder(default)] to required vec and btreemaps.
+    pub fn builder_fields(mut self, builders: bool) -> Self {
+        if builders {
+            for c in &mut self.0 {
+                c.builder_fields()
+            }
         }
         self
     }

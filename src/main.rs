@@ -184,11 +184,10 @@ impl Kopium {
 
         if let Some(schema) = data {
             log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
-            let mut output = analyze(schema, &kind)?;
-            if self.rust_case {
-                output = output.rename();
-            }
-            let structs = output.0;
+            let structs = analyze(schema, &kind)?
+                .rename(self.rust_case)
+                .builder_fields(self.builders)
+                .0;
 
             if !self.hide_prelude {
                 self.print_prelude(&structs);
@@ -243,16 +242,10 @@ impl Kopium {
                         } else {
                             format_ident!("{}", m.name)
                         };
-                        let spec_trimmed_type = m.type_.as_str().replace(&format!("{}Spec", kind), &kind);
-                        if self.builders {
-                            if spec_trimmed_type.starts_with("Option<") {
-                                println!("#[builder(default, setter(strip_option))]");
-                            } else if spec_trimmed_type.starts_with("Vec<")
-                                || spec_trimmed_type.starts_with("BTreeMap<")
-                            {
-                                println!("#[builder(default)]");
-                            }
+                        for annot in m.extra_annot {
+                            println!("    {}", annot);
                         }
+                        let spec_trimmed_type = m.type_.as_str().replace(&format!("{}Spec", kind), &kind);
                         if s.is_enum {
                             // NB: only supporting plain enumerations atm, not oneOf
                             println!("    {},", safe_name);

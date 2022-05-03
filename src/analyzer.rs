@@ -165,6 +165,7 @@ fn analyze_enum_properties(
             type_: rust_type,
             name: name.to_string(),
             serde_annot: vec![],
+            extra_annot: vec![],
             docs: member_doc,
         })
     }
@@ -308,6 +309,7 @@ fn analyze_object_properties(
                 type_: rust_type,
                 name: key.to_string(),
                 serde_annot: vec![],
+                extra_annot: vec![],
                 docs: member_doc,
             })
         } else {
@@ -320,6 +322,7 @@ fn analyze_object_properties(
                     "default".into(),
                     "skip_serializing_if = \"Option::is_none\"".into(),
                 ],
+                extra_annot: vec![],
                 docs: member_doc,
             })
             // TODO: must capture `default` key here instead of blindly using serde default
