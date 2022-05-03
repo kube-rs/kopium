@@ -1,42 +1,62 @@
 #[macro_use] extern crate log;
 
-/// Output struct from analysis
-#[derive(Default, Debug)]
-pub struct OutputStruct {
-    // The short name of the struct (kind + capitalized suffix)
-    pub name: String,
-    pub level: u8,
-    pub members: Vec<OutputMember>,
-    pub docs: Option<String>,
-    pub is_enum: bool,
-}
-
-/// Output member belonging to an OutputStruct
-#[derive(Default, Debug)]
-pub struct OutputMember {
-    pub name: String,
-    pub type_: String,
-    pub serde_annot: Vec<String>,
-    pub docs: Option<String>,
-}
-
-impl OutputStruct {
-    pub fn uses_btreemaps(&self) -> bool {
-        self.members.iter().any(|m| m.type_.contains("BTreeMap"))
-    }
-
-    pub fn uses_datetime(&self) -> bool {
-        self.members.iter().any(|m| m.type_.contains("DateTime"))
-    }
-
-    pub fn uses_date(&self) -> bool {
-        self.members.iter().any(|m| m.type_.contains("NaiveDate"))
-    }
-
-    pub fn uses_int_or_string(&self) -> bool {
-        self.members.iter().any(|m| m.type_.contains("IntOrString"))
-    }
-}
-
 mod analyzer;
 pub use analyzer::analyze;
+mod output;
+pub use output::{Container, Member, Output};
+
+// synced from https://doc.rust-lang.org/reference/keywords.html feb 2022
+pub const KEYWORDS: [&str; 52] = [
+    "as",
+    "break",
+    "const",
+    "continue",
+    "crate",
+    "else",
+    "enum",
+    "extern",
+    "false",
+    "fn",
+    "for",
+    "if",
+    "impl",
+    "in",
+    "let",
+    "loop",
+    "match",
+    "mod",
+    "move",
+    "mut",
+    "pub",
+    "ref",
+    "return",
+    "self",
+    "Self",
+    "static",
+    "struct",
+    "super",
+    "trait",
+    "true",
+    "type",
+    "unsafe",
+    "use",
+    "where",
+    "while",
+    "async",
+    "await",
+    "dyn",
+    "abstract",
+    "become",
+    "box",
+    "do",
+    "final",
+    "macro",
+    "override",
+    "priv",
+    "typeof",
+    "unsized",
+    "virtual",
+    "yield",
+    "try",
+    "macro_rules",
+];
