@@ -238,9 +238,8 @@ impl Kopium {
         let scope = &crd.spec.scope;
 
         if let Some(schema) = data {
-            let mut structs = vec![];
             log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
-            analyze(schema, "", &kind, 0, &mut structs)?;
+            let structs = analyze(schema, &kind)?;
 
             if !self.hide_prelude {
                 self.print_prelude(&structs);

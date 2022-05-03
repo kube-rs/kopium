@@ -10,12 +10,22 @@ const IGNORED_KEYS: [&str; 3] = ["metadata", "apiVersion", "kind"];
 
 /// Scan a schema for structs and members, and recurse to find all structs
 ///
+/// All found output structs will have its names prefixed by the kind it is for
+pub fn analyze(schema: JSONSchemaProps, kind: &str) -> Result<Vec<OutputStruct>> {
+    let mut res = vec![];
+    analyze_(schema, "", kind, 0, &mut res)?;
+    Ok(res)
+}
+
+
+/// Scan a schema for structs and members, and recurse to find all structs
+///
 /// schema: root schema / sub schema
 /// current: current key name (or empty string for first call) - must capitalize first letter
 /// stack: stacked concat of kind + current_{n-1} + ... + current (used to create dedup names/types)
 /// level: recursion level (start at 0)
 /// results: multable list of generated structs (not deduplicated)
-pub fn analyze(
+fn analyze_(
     schema: JSONSchemaProps,
     current: &str,
     stack: &str,
@@ -74,7 +84,7 @@ pub fn analyze(
                     if dict_type == "array" {
                         // unpack the inner object from the array wrap
                         if let Some(JSONSchemaPropsOrArray::Schema(items)) = &s.as_ref().items {
-                            analyze(*items.clone(), &next_key, &next_stack, level + 1, results)?;
+                            analyze_(*items.clone(), &next_key, &next_stack, level + 1, results)?;
                             handled_inner = true;
                         }
                     }
@@ -82,13 +92,13 @@ pub fn analyze(
                     //if let Some(extra_props) = &s.properties {
                     //    for (_key, value) in extra_props {
                     //        debug!("nested recurse into {} {} - key: {}", next_key, next_stack, _key);
-                    //        analyze(value.clone(), &next_key, &next_stack, level +1, results)?;
+                    //        analyze_(value.clone(), &next_key, &next_stack, level +1, results)?;
                     //    }
                     //}
                 }
                 if !handled_inner {
                     // normal object recurse
-                    analyze(value, &next_key, &next_stack, level + 1, results)?;
+                    analyze_(value, &next_key, &next_stack, level + 1, results)?;
                 }
             }
             "array" => {
@@ -108,7 +118,7 @@ pub fn analyze(
                             bail!("could not recurse into vec");
                         }
                     }
-                    analyze(inner, &next_key, &next_stack, level + 1, results)?;
+                    analyze_(inner, &next_key, &next_stack, level + 1, results)?;
                 }
             }
             "" => {
@@ -480,8 +490,7 @@ mod test {
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
         //println!("schema: {}", serde_json::to_string_pretty(&schema).unwrap());
 
-        let mut structs = vec![];
-        analyze(schema, "ValidationsInfo", "Agent", 0, &mut structs).unwrap();
+        let structs = analyze(schema, "Agent").unwrap();
         //println!("{:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "Agent");
@@ -525,8 +534,7 @@ type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
         //println!("schema: {}", serde_json::to_string_pretty(&schema).unwrap());
-        let mut structs = vec![];
-        analyze(schema, "Selector", "Server", 0, &mut structs).unwrap();
+        let structs = analyze(schema, "Server").unwrap();
         //println!("{:#?}", structs);
 
         let root = &structs[0];
@@ -557,16 +565,15 @@ type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
 
-        let mut structs = vec![];
-        analyze(schema, "ServerSpec", "Server", 0, &mut structs).unwrap();
+        let structs = analyze(schema, "Server").unwrap();
         let root = &structs[0];
         assert_eq!(root.name, "Server");
-        assert_eq!(root.level, 0);
         // should have an IntOrString member:
         let member = &root.members[0];
         assert_eq!(member.name, "port");
         assert_eq!(member.type_, "IntOrString");
         assert!(root.uses_int_or_string());
+        // TODO: check that anyOf: [type: integer, type: string] also works
     }
 
     #[test]
@@ -587,8 +594,7 @@ type: object
 "#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let mut structs = vec![];
-        analyze(schema, "", "MatchExpressions", 0, &mut structs).unwrap();
+        let structs = analyze(schema, "MatchExpressions").unwrap();
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "MatchExpressions");
@@ -641,8 +647,7 @@ type: object
         "#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let mut structs = vec![];
-        analyze(schema, "", "Endpoint", 0, &mut structs).unwrap();
+        let structs = analyze(schema, "Endpoint").unwrap();
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "Endpoint");
@@ -726,8 +731,7 @@ type: object
     type: object"#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let mut structs = vec![];
-        analyze(schema, "", "ServerSpec", 0, &mut structs).unwrap();
+        let structs = analyze(schema, "ServerSpec").unwrap();
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "ServerSpec");
@@ -799,8 +803,7 @@ type: object
         type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let mut structs = vec![];
-        analyze(schema, "Endpoints", "ServiceMonitor", 0, &mut structs).unwrap();
+        let structs = analyze(schema, "ServiceMonitor").unwrap();
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "ServiceMonitor");
@@ -864,14 +867,12 @@ type: object
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
 
         //println!("schema: {}", serde_json::to_string_pretty(&schema).unwrap());
-        let mut structs = vec![];
-        analyze(schema, "LocalityLbSetting", "DestinationRule", 1, &mut structs).unwrap();
+        let structs = analyze(schema, "DestinationRule").unwrap();
         //println!("{:#?}", structs);
 
         // this should produce the root struct struct
         let root = &structs[0];
         assert_eq!(root.name, "DestinationRule");
-        assert_eq!(root.level, 1);
         // which contains the distribute member:
         let distmember = &root.members[0];
         assert_eq!(distmember.name, "distribute");
