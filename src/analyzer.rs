@@ -154,7 +154,7 @@ fn analyze_enum_properties(
         members.push(OutputMember {
             type_: rust_type,
             name: name.to_string(),
-            field_annot: None,
+            serde_annot: vec![],
             docs: member_doc,
         })
     }
@@ -297,7 +297,7 @@ fn analyze_object_properties(
             members.push(OutputMember {
                 type_: rust_type,
                 name: key.to_string(),
-                field_annot: None,
+                serde_annot: vec![],
                 docs: member_doc,
             })
         } else {
@@ -306,7 +306,10 @@ fn analyze_object_properties(
             members.push(OutputMember {
                 type_: format!("Option<{}>", rust_type),
                 name: key.to_string(),
-                field_annot: Some(r#"#[serde(default , skip_serializing_if = "Option::is_none")]"#.into()),
+                serde_annot: vec![
+                    "default".into(),
+                    "skip_serializing_if = \"Option::is_none\"".into(),
+                ],
                 docs: member_doc,
             })
             // TODO: must capture `default` key here instead of blindly using serde default

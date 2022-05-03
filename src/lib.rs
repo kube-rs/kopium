@@ -16,7 +16,7 @@ pub struct OutputStruct {
 pub struct OutputMember {
     pub name: String,
     pub type_: String,
-    pub field_annot: Option<String>,
+    pub serde_annot: Vec<String>,
     pub docs: Option<String>,
 }
 
