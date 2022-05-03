@@ -3,7 +3,7 @@
 mod analyzer;
 pub use analyzer::analyze;
 mod output;
-pub use output::{OutputMember, OutputStruct, Output};
+pub use output::{Container, Member, Output};
 
 // synced from https://doc.rust-lang.org/reference/keywords.html feb 2022
 pub const KEYWORDS: [&str; 52] = [

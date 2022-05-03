@@ -1,5 +1,5 @@
 //! Deals entirely with schema analysis for the purpose of creating output structs + members
-use crate::{OutputMember, OutputStruct, Output};
+use crate::{Container, Member, Output};
 use anyhow::{bail, Result};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     JSONSchemaProps, JSONSchemaPropsOrArray, JSONSchemaPropsOrBool, JSON,
@@ -30,7 +30,7 @@ fn analyze_(
     current: &str,
     stack: &str,
     level: u8,
-    results: &mut Vec<OutputStruct>,
+    results: &mut Vec<Container>,
 ) -> Result<()> {
     let props = schema.properties.clone().unwrap_or_default();
     let mut array_recurse_level: HashMap<String, u8> = Default::default();
@@ -148,7 +148,7 @@ fn analyze_enum_properties(
     stack: &str,
     level: u8,
     schema: &JSONSchemaProps,
-) -> Result<OutputStruct, anyhow::Error> {
+) -> Result<Container, anyhow::Error> {
     let mut members = vec![];
     debug!("analyzing enum {}", serde_json::to_string(&schema).unwrap());
     for en in items {
@@ -161,14 +161,14 @@ fn analyze_enum_properties(
         // Create member and wrap types correctly
         let member_doc = None;
         debug!("with enum member {} of type {}", name, rust_type);
-        members.push(OutputMember {
+        members.push(Member {
             type_: rust_type,
             name: name.to_string(),
             serde_annot: vec![],
             docs: member_doc,
         })
     }
-    Ok(OutputStruct {
+    Ok(Container {
         name: stack.to_string(),
         members,
         level,
@@ -185,7 +185,7 @@ fn analyze_object_properties(
     array_recurse_level: &mut HashMap<String, u8>,
     level: u8,
     schema: &JSONSchemaProps,
-) -> Result<Vec<OutputStruct>, anyhow::Error> {
+) -> Result<Vec<Container>, anyhow::Error> {
     let mut results = vec![];
     let mut members = vec![];
     //debug!("analyzing object {}", serde_json::to_string(&schema).unwrap());
@@ -304,7 +304,7 @@ fn analyze_object_properties(
         let member_doc = value.description.clone();
         if reqs.contains(key) {
             debug!("with required member {} of type {}", key, &rust_type);
-            members.push(OutputMember {
+            members.push(Member {
                 type_: rust_type,
                 name: key.to_string(),
                 serde_annot: vec![],
@@ -313,7 +313,7 @@ fn analyze_object_properties(
         } else {
             // option wrapping needed if not required
             debug!("with optional member {} of type {}", key, rust_type);
-            members.push(OutputMember {
+            members.push(Member {
                 type_: format!("Option<{}>", rust_type),
                 name: key.to_string(),
                 serde_annot: vec![
@@ -328,7 +328,7 @@ fn analyze_object_properties(
             // probably better to do impl Default to avoid having to make custom fns
         }
     }
-    results.push(OutputStruct {
+    results.push(Container {
         name: stack.to_string(),
         members,
         level,

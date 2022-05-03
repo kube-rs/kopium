@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion, CustomResourceSubresources,
 };
-use kopium::{analyze, OutputStruct, KEYWORDS};
+use kopium::{analyze, Container, KEYWORDS};
 use kube::{api, core::Version, Api, Client, ResourceExt};
 use quote::format_ident;
 use std::path::PathBuf;
@@ -318,7 +318,7 @@ impl Kopium {
         println!("#[derive({})]", derives.join(", "));
     }
 
-    fn print_prelude(&self, results: &[OutputStruct]) {
+    fn print_prelude(&self, results: &[Container]) {
         if !self.rust_case && !self.hide_inner_attr {
             println!("#![allow(non_snake_case)]");
             // NB: we cannot allow warnings for bad enum names see #69
