@@ -97,7 +97,7 @@ struct Kopium {
     ///
     /// It contains an unstable set of of features and may get expanded in the future.
     ///
-    /// Setting --auto enables: --schema=derived --derive=JsonSchema --snake-case --docs
+    /// Setting --auto enables: --schema=derived --derive=JsonSchema --rust-case --docs
     #[structopt(long, short = "A")]
     auto: bool,
 }
