@@ -1,5 +1,5 @@
 //! Deals entirely with schema analysis for the purpose of creating output structs + members
-use crate::{OutputMember, OutputStruct};
+use crate::{OutputMember, OutputStruct, Output};
 use anyhow::{bail, Result};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     JSONSchemaProps, JSONSchemaPropsOrArray, JSONSchemaPropsOrBool, JSON,
@@ -11,10 +11,10 @@ const IGNORED_KEYS: [&str; 3] = ["metadata", "apiVersion", "kind"];
 /// Scan a schema for structs and members, and recurse to find all structs
 ///
 /// All found output structs will have its names prefixed by the kind it is for
-pub fn analyze(schema: JSONSchemaProps, kind: &str) -> Result<Vec<OutputStruct>> {
+pub fn analyze(schema: JSONSchemaProps, kind: &str) -> Result<Output> {
     let mut res = vec![];
     analyze_(schema, "", kind, 0, &mut res)?;
-    Ok(res)
+    Ok(Output(res))
 }
 
 
@@ -490,7 +490,7 @@ mod test {
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
         //println!("schema: {}", serde_json::to_string_pretty(&schema).unwrap());
 
-        let structs = analyze(schema, "Agent").unwrap();
+        let structs = analyze(schema, "Agent").unwrap().0;
         //println!("{:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "Agent");
@@ -534,7 +534,7 @@ type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
         //println!("schema: {}", serde_json::to_string_pretty(&schema).unwrap());
-        let structs = analyze(schema, "Server").unwrap();
+        let structs = analyze(schema, "Server").unwrap().0;
         //println!("{:#?}", structs);
 
         let root = &structs[0];
@@ -565,7 +565,7 @@ type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
 
-        let structs = analyze(schema, "Server").unwrap();
+        let structs = analyze(schema, "Server").unwrap().0;
         let root = &structs[0];
         assert_eq!(root.name, "Server");
         // should have an IntOrString member:
@@ -594,7 +594,7 @@ type: object
 "#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let structs = analyze(schema, "MatchExpressions").unwrap();
+        let structs = analyze(schema, "MatchExpressions").unwrap().0;
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "MatchExpressions");
@@ -647,7 +647,7 @@ type: object
         "#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let structs = analyze(schema, "Endpoint").unwrap();
+        let structs = analyze(schema, "Endpoint").unwrap().0;
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "Endpoint");
@@ -731,7 +731,7 @@ type: object
     type: object"#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let structs = analyze(schema, "ServerSpec").unwrap();
+        let structs = analyze(schema, "ServerSpec").unwrap().0;
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "ServerSpec");
@@ -803,7 +803,7 @@ type: object
         type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let structs = analyze(schema, "ServiceMonitor").unwrap();
+        let structs = analyze(schema, "ServiceMonitor").unwrap().0;
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "ServiceMonitor");
@@ -867,7 +867,7 @@ type: object
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
 
         //println!("schema: {}", serde_json::to_string_pretty(&schema).unwrap());
-        let structs = analyze(schema, "DestinationRule").unwrap();
+        let structs = analyze(schema, "DestinationRule").unwrap().0;
         //println!("{:#?}", structs);
 
         // this should produce the root struct struct

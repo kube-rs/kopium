@@ -1,69 +1,12 @@
 use anyhow::{anyhow, Context, Result};
-use heck::ToSnakeCase;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion, CustomResourceSubresources,
 };
-use kopium::{analyze, OutputStruct};
+use kopium::{analyze, OutputStruct, KEYWORDS};
 use kube::{api, core::Version, Api, Client, ResourceExt};
 use quote::format_ident;
 use std::path::PathBuf;
 use structopt::{clap, StructOpt};
-
-// synced from https://doc.rust-lang.org/reference/keywords.html feb 2022
-const KEYWORDS: [&str; 52] = [
-    "as",
-    "break",
-    "const",
-    "continue",
-    "crate",
-    "else",
-    "enum",
-    "extern",
-    "false",
-    "fn",
-    "for",
-    "if",
-    "impl",
-    "in",
-    "let",
-    "loop",
-    "match",
-    "mod",
-    "move",
-    "mut",
-    "pub",
-    "ref",
-    "return",
-    "self",
-    "Self",
-    "static",
-    "struct",
-    "super",
-    "trait",
-    "true",
-    "type",
-    "unsafe",
-    "use",
-    "where",
-    "while",
-    "async",
-    "await",
-    "dyn",
-    "abstract",
-    "become",
-    "box",
-    "do",
-    "final",
-    "macro",
-    "override",
-    "priv",
-    "typeof",
-    "unsized",
-    "virtual",
-    "yield",
-    "try",
-    "macro_rules",
-];
 
 #[derive(StructOpt)]
 #[structopt(
@@ -136,15 +79,17 @@ struct Kopium {
     #[structopt(subcommand)]
     command: Option<Command>,
 
-    /// Convert struct members to snake_case
+    /// Convert container members to rust casing conventions
     ///
-    /// This will run all members through heck::ToSnakeCase, and if different,
+    /// This will run all struct members through heck::ToSnakeCase, and if different,
     /// produce a #[serde(rename = "originalName")] attribute on the member.
+    ///
+    /// For enum members, heck::ToPascalCase is performed instead.
     ///
     /// This operation is safe because names are preserved through attributes.
     /// However, while not needing the #![allow(non_snake_case)] inner attribute; your code will be longer.
     #[structopt(long, short = "z")]
-    snake_case: bool,
+    rust_case: bool,
 
     /// Enable all automatation features
     ///
@@ -174,7 +119,7 @@ async fn main() -> Result<()> {
     let mut args = Kopium::from_args();
     if args.auto {
         args.docs = true;
-        args.snake_case = true;
+        args.rust_case = true;
         args.schema = "derived".into();
     }
     if args.schema == "derived" && !args.derive.contains(&"JsonSchema".to_string()) {
@@ -239,7 +184,11 @@ impl Kopium {
 
         if let Some(schema) = data {
             log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
-            let structs = analyze(schema, &kind)?;
+            let mut output = analyze(schema, &kind)?;
+            if self.rust_case {
+                output = output.rename();
+            }
+            let structs = output.0;
 
             if !self.hide_prelude {
                 self.print_prelude(&structs);
@@ -286,23 +235,13 @@ impl Kopium {
                     }
                     for m in s.members {
                         self.print_docstr(m.docs, "    ");
-                        let mut serda = m.serde_annot;
-                        let name = if self.snake_case && !s.is_enum {
-                            let converted = m.name.to_snake_case();
-                            if converted != m.name {
-                                serda.push(format!("rename = \"{}\"", m.name));
-                            }
-                            converted
-                        } else {
-                            m.name
-                        };
-                        if !serda.is_empty() {
-                            println!("    #[serde({})]", serda.join(", "));
+                        if !m.serde_annot.is_empty() {
+                            println!("    #[serde({})]", m.serde_annot.join(", "));
                         }
-                        let safe_name = if KEYWORDS.contains(&name.as_ref()) {
-                            format_ident!("r#{}", name)
+                        let safe_name = if KEYWORDS.contains(&m.name.as_ref()) {
+                            format_ident!("r#{}", m.name)
                         } else {
-                            format_ident!("{}", name)
+                            format_ident!("{}", m.name)
                         };
                         let spec_trimmed_type = m.type_.as_str().replace(&format!("{}Spec", kind), &kind);
                         if self.builders {
@@ -380,8 +319,9 @@ impl Kopium {
     }
 
     fn print_prelude(&self, results: &[OutputStruct]) {
-        if !self.snake_case && !self.hide_inner_attr {
+        if !self.rust_case && !self.hide_inner_attr {
             println!("#![allow(non_snake_case)]");
+            // NB: we cannot allow warnings for bad enum names see #69
             println!();
         }
         if !self.hide_kube {
