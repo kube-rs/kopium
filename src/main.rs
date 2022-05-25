@@ -184,7 +184,7 @@ impl Kopium {
 
         if let Some(schema) = data {
             log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
-            let structs = analyze(schema, &kind)?
+            let structs = analyze(schema, kind)?
                 .rename(self.rust_case)
                 .builder_fields(self.builders)
                 .0;
@@ -225,7 +225,7 @@ impl Kopium {
                         }
                     } else {
                         self.print_derives(false);
-                        let spec_trimmed_name = s.name.as_str().replace(&format!("{}Spec", kind), &kind);
+                        let spec_trimmed_name = s.name.as_str().replace(&format!("{}Spec", kind), kind);
                         if s.is_enum {
                             println!("pub enum {} {{", spec_trimmed_name);
                         } else {
@@ -245,7 +245,7 @@ impl Kopium {
                         for annot in m.extra_annot {
                             println!("    {}", annot);
                         }
-                        let spec_trimmed_type = m.type_.as_str().replace(&format!("{}Spec", kind), &kind);
+                        let spec_trimmed_type = m.type_.as_str().replace(&format!("{}Spec", kind), kind);
                         if s.is_enum {
                             // NB: only supporting plain enumerations atm, not oneOf
                             println!("    {},", safe_name);

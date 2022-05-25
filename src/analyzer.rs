@@ -46,7 +46,7 @@ fn analyze_(
                 // map values is an object with properties
                 debug!("Generating map struct for {} (under {})", current, stack);
                 let new_result =
-                    analyze_object_properties(&extra_props, stack, &mut array_recurse_level, level, &schema)?;
+                    analyze_object_properties(extra_props, stack, &mut array_recurse_level, level, &schema)?;
                 results.extend(new_result);
             } else if !dict_type.is_empty() {
                 warn!("not generating type {} - using {} map", current, dict_type);
