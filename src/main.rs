@@ -1,55 +1,56 @@
+use std::path::PathBuf;
+
 use anyhow::{anyhow, Context, Result};
+use clap::{CommandFactory, Parser, Subcommand};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion, CustomResourceSubresources,
 };
 use kopium::{analyze, Container, KEYWORDS};
 use kube::{api, core::Version, Api, Client, ResourceExt};
 use quote::format_ident;
-use std::path::PathBuf;
-use structopt::{clap, StructOpt};
 
-#[derive(StructOpt)]
-#[structopt(
+#[derive(Parser)]
+#[clap(
     version = clap::crate_version!(),
     author = "clux <sszynrae@gmail.com>",
     about = "Kubernetes OPenapI UnMangler",
 )]
 struct Kopium {
     /// Give the name of the input CRD to use e.g. prometheusrules.monitoring.coreos.com
-    #[structopt(conflicts_with("file"))]
+    #[clap(conflicts_with("file"))]
     crd: Option<String>,
 
     /// Point to the location of a CRD to use on disk
-    #[structopt(parse(from_os_str), long = "--filename", short = "f", conflicts_with("crsd"))]
+    #[clap(long = "filename", short, conflicts_with("crd"))]
     file: Option<PathBuf>,
 
     /// Use this CRD version if multiple versions are present
-    #[structopt(long)]
+    #[clap(long)]
     api_version: Option<String>,
 
     /// Do not emit prelude
-    #[structopt(long)]
+    #[clap(long)]
     hide_prelude: bool,
 
     /// Do not emit kube derive instructions; structs only
     ///
     /// If this is set, it makes any kube-derive specific options such as `--schema` unnecessary.
-    #[structopt(long)]
+    #[clap(long)]
     hide_kube: bool,
 
     /// Do not emit inner attributes such as #![allow(non_snake_case)]
     ///
     /// This is useful if you need to consume the code within an include! macro
     /// which does not support inner attributes: https://github.com/rust-lang/rust/issues/47995
-    #[structopt(long, short = "i")]
+    #[clap(long, short = 'i')]
     hide_inner_attr: bool,
 
     /// Emit doc comments from descriptions
-    #[structopt(long, short = "d")]
+    #[clap(long, short)]
     docs: bool,
 
     /// Emit builder derives via the typed_builder crate
-    #[structopt(long, short = "b")]
+    #[clap(long, short)]
     builders: bool,
 
     /// Schema mode to use for kube-derive
@@ -62,7 +63,7 @@ struct Kopium {
     ///
     /// --schema=derived implies `--derive JsonSchema`. The resulting schema will compile without external user action.
     /// The crd via `CustomResourceExt::crd()` can be applied into Kubernetes directly.
-    #[structopt(
+    #[clap(
         long,
         default_value = "disabled",
         possible_values = &["disabled", "manual", "derived"],
@@ -70,13 +71,13 @@ struct Kopium {
     schema: String,
 
     /// Derive these extra traits on generated structs
-    #[structopt(long,
-        short = "D",
+    #[clap(long,
+        short = 'D',
         possible_values = &["Copy", "Default", "PartialEq", "Eq", "PartialOrd", "Ord", "Hash", "JsonSchema"],
     )]
     derive: Vec<String>,
 
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     command: Option<Command>,
 
     /// Convert container members to rust casing conventions
@@ -88,7 +89,7 @@ struct Kopium {
     ///
     /// This operation is safe because names are preserved through attributes.
     /// However, while not needing the #![allow(non_snake_case)] inner attribute; your code will be longer.
-    #[structopt(long, short = "z")]
+    #[clap(long, short = 'z')]
     rust_case: bool,
 
     /// Enable all automatation features
@@ -98,25 +99,26 @@ struct Kopium {
     /// It contains an unstable set of of features and may get expanded in the future.
     ///
     /// Setting --auto enables: --schema=derived --derive=JsonSchema --rust-case --docs
-    #[structopt(long, short = "A")]
+    #[clap(long, short = 'A')]
     auto: bool,
 }
 
-#[derive(StructOpt, Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Subcommand)]
+#[clap(args_conflicts_with_subcommands = true)]
 enum Command {
-    #[structopt(about = "List available CRDs", setting(clap::AppSettings::Hidden))]
+    #[clap(about = "List available CRDs", hide = true)]
     ListCrds,
-    #[structopt(about = "Generate completions", setting(clap::AppSettings::Hidden))]
+    #[clap(about = "Generate completions", hide = true)]
     Completions {
-        #[structopt(about = "The shell to generate completions for", possible_values = &clap::Shell::variants())]
-        shell: clap::Shell,
+        #[clap(help = "The shell to generate completions for", possible_values = supported_shells())]
+        shell: clap_complete::Shell,
     },
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::init();
-    let mut args = Kopium::from_args();
+    let mut args = Kopium::parse();
     if args.auto {
         args.docs = true;
         args.rust_case = true;
@@ -154,17 +156,18 @@ impl Kopium {
 
             let crd: CustomResourceDefinition = serde_yaml::from_str(&data)?;
             self.generate(crd).await
-        } else {
-            match self.command {
-                Some(Command::ListCrds) => {
+        } else if let Some(command) = self.command {
+            match command {
+                Command::ListCrds => {
                     let api = Client::try_default()
                         .await
                         .map(Api::<CustomResourceDefinition>::all)?;
                     self.list_crds(api).await
                 }
-                Some(Command::Completions { shell }) => self.completions(shell),
-                None => self.help(),
+                Command::Completions { shell } => self.completions(shell),
             }
+        } else {
+            self.help()
         }
     }
 
@@ -184,7 +187,7 @@ impl Kopium {
 
         if let Some(schema) = data {
             log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
-            let structs = analyze(schema, &kind)?
+            let structs = analyze(schema, kind)?
                 .rename(self.rust_case)
                 .builder_fields(self.builders)
                 .0;
@@ -225,7 +228,7 @@ impl Kopium {
                         }
                     } else {
                         self.print_derives(false);
-                        let spec_trimmed_name = s.name.as_str().replace(&format!("{}Spec", kind), &kind);
+                        let spec_trimmed_name = s.name.as_str().replace(&format!("{}Spec", kind), kind);
                         if s.is_enum {
                             println!("pub enum {} {{", spec_trimmed_name);
                         } else {
@@ -245,7 +248,7 @@ impl Kopium {
                         for annot in m.extra_annot {
                             println!("    {}", annot);
                         }
-                        let spec_trimmed_type = m.type_.as_str().replace(&format!("{}Spec", kind), &kind);
+                        let spec_trimmed_type = m.type_.as_str().replace(&format!("{}Spec", kind), kind);
                         if s.is_enum {
                             // NB: only supporting plain enumerations atm, not oneOf
                             println!("    {},", safe_name);
@@ -272,16 +275,14 @@ impl Kopium {
         Ok(())
     }
 
-    fn completions(&self, shell: clap::Shell) -> Result<()> {
-        let mut completions = Vec::new();
-        Self::clap().gen_completions_to("kopium", shell, &mut completions);
-        let completions = String::from_utf8(completions)?;
-        println!("{}", completions);
+    fn completions(&self, shell: clap_complete::Shell) -> Result<()> {
+        let mut command = Self::command();
+        clap_complete::generate(shell, &mut command, "kopium", &mut std::io::stdout());
         Ok(())
     }
 
     fn help(&self) -> Result<()> {
-        Self::clap().print_help().map(|_| println!())?;
+        Self::command().print_help()?;
         Ok(())
     }
 
@@ -380,4 +381,8 @@ fn all_versions(crd: &CustomResourceDefinition) -> String {
         .collect::<Vec<_>>();
     vers.sort_by_cached_key(|v| std::cmp::Reverse(Version::parse(v).priority()));
     vers.join(", ")
+}
+
+fn supported_shells() -> Vec<clap::PossibleValue<'static>> {
+    clap_complete::Shell::possible_values().collect()
 }
