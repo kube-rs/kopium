@@ -294,6 +294,8 @@ fn analyze_object_properties(
             "" => {
                 if value.x_kubernetes_int_or_string.is_some() {
                     "IntOrString".into()
+                } else if value.x_kubernetes_preserve_unknown_fields == Some(true) {
+                    "serde_json::Value".into()
                 } else {
                     bail!("unknown empty dict type for {}", key)
                 }
@@ -352,6 +354,9 @@ fn array_recurse_for_type(
     if let Some(items) = &value.items {
         match items {
             JSONSchemaPropsOrArray::Schema(s) => {
+                if s.type_.is_none() && s.x_kubernetes_preserve_unknown_fields == Some(true) {
+                    return Ok(("Vec<serde_json::Value>".into(), level));
+                }
                 let inner_array_type = s.type_.clone().unwrap_or_default();
                 return match inner_array_type.as_ref() {
                     "object" => {
@@ -364,8 +369,8 @@ fn array_recurse_for_type(
                     "number" => Ok((format!("Vec<{}>", extract_number_type(value)?), level)),
                     "integer" => Ok((format!("Vec<{}>", extract_integer_type(value)?), level)),
                     "array" => Ok(array_recurse_for_type(s, stack, key, level + 1)?),
-                    x => {
-                        bail!("unsupported recursive array type {} for {}", x, key)
+                    unknown => {
+                        bail!("unsupported recursive array type \"{unknown}\" for {key}")
                     }
                 };
             }
