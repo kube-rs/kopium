@@ -295,7 +295,7 @@ fn analyze_object_properties(
                 if value.x_kubernetes_int_or_string.is_some() {
                     "IntOrString".into()
                 } else if value.x_kubernetes_preserve_unknown_fields == Some(true) {
-                    "serde_json::Value".into()
+                    "HashMap<String, serde_json::Value>".into()
                 } else {
                     bail!("unknown empty dict type for {}", key)
                 }
@@ -355,7 +355,7 @@ fn array_recurse_for_type(
         match items {
             JSONSchemaPropsOrArray::Schema(s) => {
                 if s.type_.is_none() && s.x_kubernetes_preserve_unknown_fields == Some(true) {
-                    return Ok(("Vec<serde_json::Value>".into(), level));
+                    return Ok(("Vec<HashMap<String, serde_json::Value>>".into(), level));
                 }
                 let inner_array_type = s.type_.clone().unwrap_or_default();
                 return match inner_array_type.as_ref() {
@@ -895,5 +895,34 @@ type: object
         assert_eq!(to.name, "to");
         assert_eq!(from.type_, "Option<String>");
         assert_eq!(to.type_, "Option<BTreeMap<String, i32>>");
+    }
+
+
+    #[test]
+    fn array_of_preserve_unknown_objects() {
+        init();
+        // example from flux kustomization crd
+        let schema_str = r#"
+        properties:
+          patchesStrategicMerge:
+            description: Strategic merge patches, defined as inline YAML objects.
+            items:
+              x-kubernetes-preserve-unknown-fields: true
+            type: array
+        type: object
+        "#;
+
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        let structs = analyze(schema, "KustomizationSpec").unwrap().0;
+        println!("got {:?}", structs);
+        let root = &structs[0];
+        assert_eq!(root.name, "KustomizationSpec");
+        assert_eq!(root.level, 0);
+        assert_eq!(root.is_enum, false);
+        assert_eq!(&root.members[0].name, "patchesStrategicMerge");
+        assert_eq!(
+            &root.members[0].type_,
+            "Option<Vec<HashMap<String, serde_json::Value>>>"
+        );
     }
 }

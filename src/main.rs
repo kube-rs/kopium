@@ -331,6 +331,9 @@ impl Kopium {
         if results.iter().any(|o| o.uses_btreemaps()) {
             println!("use std::collections::BTreeMap;");
         }
+        if results.iter().any(|o| o.uses_hashmaps()) {
+            println!("use std::collections::HashMap;");
+        }
         if results.iter().any(|o| o.uses_datetime()) {
             println!("use chrono::{{DateTime, Utc}};");
         }
