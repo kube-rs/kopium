@@ -49,6 +49,10 @@ impl Container {
         self.members.iter().any(|m| m.type_.contains("BTreeMap"))
     }
 
+    pub fn uses_hashmaps(&self) -> bool {
+        self.members.iter().any(|m| m.type_.contains("HashMap"))
+    }
+
     pub fn uses_datetime(&self) -> bool {
         self.members.iter().any(|m| m.type_.contains("DateTime"))
     }

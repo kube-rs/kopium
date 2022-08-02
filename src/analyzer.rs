@@ -261,7 +261,7 @@ fn analyze_object_properties(
                 } else if value.properties.is_none()
                     && value.x_kubernetes_preserve_unknown_fields.unwrap_or(false)
                 {
-                    dict_key = Some("HashMap<String, serde_json::Value>".into());
+                    dict_key = Some("serde_json::Value".into());
                 }
                 if let Some(dict) = dict_key {
                     format!("BTreeMap<String, {}>", dict)
@@ -556,7 +556,7 @@ type: object
         assert_eq!(server_selector.level, 1);
         let match_labels = &server_selector.members[0];
         assert_eq!(match_labels.name, "matchLabels");
-        assert_eq!(match_labels.type_, "HashMap<String, serde_json::Value>");
+        assert_eq!(match_labels.type_, "BTreeMap<String, serde_json::Value>");
     }
 
     #[test]
