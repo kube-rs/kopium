@@ -105,11 +105,11 @@ impl Output {
     ///
     /// Converts [*].members[*].name to snake_case for structs, PascalCase for enums,
     /// and adds a serde(rename = "orig_name") annotation to `serde_annot`.
-    pub fn rename(mut self, rust_case: bool) -> Self {
-        if rust_case {
-            for c in &mut self.0 {
-                c.rename()
-            }
+    ///
+    /// It is unsound to skip this step. Some CRDs use kebab-cased members is invalid in Rust.
+    pub fn rename(mut self) -> Self {
+        for c in &mut self.0 {
+            c.rename()
         }
         self
     }
