@@ -110,7 +110,7 @@ enum Command {
     ListCrds,
     #[clap(about = "Generate completions", hide = true)]
     Completions {
-        #[clap(help = "The shell to generate completions for", possible_values = supported_shells())]
+        #[clap(help = "The shell to generate completions for", arg_enum)]
         shell: clap_complete::Shell,
     },
 }
@@ -270,7 +270,7 @@ impl Kopium {
     async fn list_crds(&self, api: Api<CustomResourceDefinition>) -> Result<()> {
         let lp = api::ListParams::default();
         api.list(&lp).await?.items.iter().for_each(|crd| {
-            println!("{}", crd.name());
+            println!("{}", crd.name_any());
         });
         Ok(())
     }
@@ -361,7 +361,7 @@ fn find_crd_version<'a>(
                 anyhow!(
                     "Version '{}' not found in CRD '{}'\navailable versions are '{}'",
                     version,
-                    crd.name(),
+                    crd.name_any(),
                     all_versions(crd)
                 )
             })
@@ -371,7 +371,7 @@ fn find_crd_version<'a>(
             .versions
             .iter()
             .max_by_key(|v| Version::parse(&v.name).priority())
-            .ok_or_else(|| anyhow!("CRD '{}' has no versions", crd.name()))
+            .ok_or_else(|| anyhow!("CRD '{}' has no versions", crd.name_any()))
     }
 }
 
@@ -384,8 +384,4 @@ fn all_versions(crd: &CustomResourceDefinition) -> String {
         .collect::<Vec<_>>();
     vers.sort_by_cached_key(|v| std::cmp::Reverse(Version::parse(v).priority()));
     vers.join(", ")
-}
-
-fn supported_shells() -> Vec<clap::PossibleValue<'static>> {
-    clap_complete::Shell::possible_values().collect()
 }
