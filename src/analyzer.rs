@@ -920,7 +920,9 @@ type: object
         assert_eq!(root.level, 0);
         assert_eq!(root.is_enum, false);
         assert_eq!(&root.members[0].name, "patchesStrategicMerge");
-        assert_eq!(&root.members[0].type_, "Option<Vec<HashMap<String, serde_json::Value>>>");
+        assert_eq!(
+            &root.members[0].type_,
+            "Option<Vec<HashMap<String, serde_json::Value>>>"
+        );
     }
-
 }
