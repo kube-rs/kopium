@@ -38,13 +38,6 @@ struct Kopium {
     #[clap(long)]
     hide_kube: bool,
 
-    /// Do not emit inner attributes such as #![allow(non_snake_case)]
-    ///
-    /// This is useful if you need to consume the code within an include! macro
-    /// which does not support inner attributes: https://github.com/rust-lang/rust/issues/47995
-    #[clap(long, short = 'i')]
-    hide_inner_attr: bool,
-
     /// Emit doc comments from descriptions
     #[clap(long, short)]
     docs: bool,
@@ -80,25 +73,13 @@ struct Kopium {
     #[clap(subcommand)]
     command: Option<Command>,
 
-    /// Convert container members to rust casing conventions
-    ///
-    /// This will run all struct members through heck::ToSnakeCase, and if different,
-    /// produce a #[serde(rename = "originalName")] attribute on the member.
-    ///
-    /// For enum members, heck::ToPascalCase is performed instead.
-    ///
-    /// This operation is safe because names are preserved through attributes.
-    /// However, while not needing the #![allow(non_snake_case)] inner attribute; your code will be longer.
-    #[clap(long, short = 'z')]
-    rust_case: bool,
-
     /// Enable all automatation features
     ///
     /// This is a recommended, but early set of features that generates the most rust native code.
     ///
     /// It contains an unstable set of of features and may get expanded in the future.
     ///
-    /// Setting --auto enables: --schema=derived --derive=JsonSchema --rust-case --docs
+    /// Setting --auto enables: --schema=derived --derive=JsonSchema --docs
     #[clap(long, short = 'A')]
     auto: bool,
 }
@@ -121,7 +102,6 @@ async fn main() -> Result<()> {
     let mut args = Kopium::parse();
     if args.auto {
         args.docs = true;
-        args.rust_case = true;
         args.schema = "derived".into();
     }
     if args.schema == "derived" && !args.derive.contains(&"JsonSchema".to_string()) {
@@ -187,10 +167,7 @@ impl Kopium {
 
         if let Some(schema) = data {
             log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
-            let structs = analyze(schema, kind)?
-                .rename(self.rust_case)
-                .builder_fields(self.builders)
-                .0;
+            let structs = analyze(schema, kind)?.rename().builder_fields(self.builders).0;
 
             if !self.hide_prelude {
                 self.print_prelude(&structs);
@@ -313,11 +290,6 @@ impl Kopium {
     }
 
     fn print_prelude(&self, results: &[Container]) {
-        if !self.rust_case && !self.hide_inner_attr {
-            println!("#![allow(non_snake_case)]");
-            // NB: we cannot allow warnings for bad enum names see #69
-            println!();
-        }
         if !self.hide_kube {
             println!("use kube::CustomResource;");
         }
