@@ -59,14 +59,14 @@ struct Kopium {
     #[clap(
         long,
         default_value = "disabled",
-        possible_values = &["disabled", "manual", "derived"],
+        value_parser = ["disabled", "manual", "derived"],
     )]
     schema: String,
 
     /// Derive these extra traits on generated structs
     #[clap(long,
         short = 'D',
-        possible_values = &["Copy", "Default", "PartialEq", "Eq", "PartialOrd", "Ord", "Hash", "JsonSchema"],
+        value_parser = ["Copy", "Default", "PartialEq", "Eq", "PartialOrd", "Ord", "Hash", "JsonSchema"],
     )]
     derive: Vec<String>,
 
