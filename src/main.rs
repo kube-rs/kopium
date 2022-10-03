@@ -10,40 +10,40 @@ use kube::{api, core::Version, Api, Client, ResourceExt};
 use quote::format_ident;
 
 #[derive(Parser)]
-#[clap(
+#[command(
     version = clap::crate_version!(),
     author = "clux <sszynrae@gmail.com>",
     about = "Kubernetes OPenapI UnMangler",
 )]
 struct Kopium {
     /// Give the name of the input CRD to use e.g. prometheusrules.monitoring.coreos.com
-    #[clap(conflicts_with("file"))]
+    #[arg(conflicts_with("file"))]
     crd: Option<String>,
 
     /// Point to the location of a CRD to use on disk
-    #[clap(long = "filename", short, conflicts_with("crd"))]
+    #[arg(long = "filename", short, conflicts_with("crd"))]
     file: Option<PathBuf>,
 
     /// Use this CRD version if multiple versions are present
-    #[clap(long)]
+    #[arg(long)]
     api_version: Option<String>,
 
     /// Do not emit prelude
-    #[clap(long)]
+    #[arg(long)]
     hide_prelude: bool,
 
     /// Do not emit kube derive instructions; structs only
     ///
     /// If this is set, it makes any kube-derive specific options such as `--schema` unnecessary.
-    #[clap(long)]
+    #[arg(long)]
     hide_kube: bool,
 
     /// Emit doc comments from descriptions
-    #[clap(long, short)]
+    #[arg(long, short)]
     docs: bool,
 
     /// Emit builder derives via the typed_builder crate
-    #[clap(long, short)]
+    #[arg(long, short)]
     builders: bool,
 
     /// Schema mode to use for kube-derive
@@ -56,7 +56,7 @@ struct Kopium {
     ///
     /// --schema=derived implies `--derive JsonSchema`. The resulting schema will compile without external user action.
     /// The crd via `CustomResourceExt::crd()` can be applied into Kubernetes directly.
-    #[clap(
+    #[arg(
         long,
         default_value = "disabled",
         value_parser = ["disabled", "manual", "derived"],
@@ -64,13 +64,13 @@ struct Kopium {
     schema: String,
 
     /// Derive these extra traits on generated structs
-    #[clap(long,
+    #[arg(long,
         short = 'D',
         value_parser = ["Copy", "Default", "PartialEq", "Eq", "PartialOrd", "Ord", "Hash", "JsonSchema"],
     )]
     derive: Vec<String>,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     command: Option<Command>,
 
     /// Enable all automatation features
@@ -80,18 +80,18 @@ struct Kopium {
     /// It contains an unstable set of of features and may get expanded in the future.
     ///
     /// Setting --auto enables: --schema=derived --derive=JsonSchema --docs
-    #[clap(long, short = 'A')]
+    #[arg(long, short = 'A')]
     auto: bool,
 }
 
 #[derive(Clone, Copy, Debug, Subcommand)]
-#[clap(args_conflicts_with_subcommands = true)]
+#[command(args_conflicts_with_subcommands = true)]
 enum Command {
-    #[clap(about = "List available CRDs", hide = true)]
+    #[command(about = "List available CRDs", hide = true)]
     ListCrds,
-    #[clap(about = "Generate completions", hide = true)]
+    #[command(about = "Generate completions", hide = true)]
     Completions {
-        #[clap(help = "The shell to generate completions for", arg_enum)]
+        #[arg(help = "The shell to generate completions for")]
         shell: clap_complete::Shell,
     },
 }
