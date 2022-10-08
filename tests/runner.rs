@@ -36,7 +36,7 @@ mod tests {
             canonical.spec.names.kind, canonical.spec.group, "gen"
         );
         let instance = cr.get("gen").await?;
-        assert_eq!(instance.name(), "gen");
+        assert_eq!(instance.name_unchecked(), "gen");
 
         // extra verification for status types - replace_status manually
         let filename = format!("./tests/{}.yaml", CR::kind(&()).to_string().to_ascii_lowercase());
