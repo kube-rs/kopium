@@ -175,13 +175,13 @@ impl Kopium {
                 self.print_prelude(&structs);
             }
 
-            for s in structs {
+            for s in &structs {
                 if s.level == 0 {
                     continue; // ignoring root struct
                 } else {
-                    self.print_docstr(s.docs, "");
-                    if s.level == 1 && s.name.ends_with("Spec") {
-                        self.print_derives(true);
+                    self.print_docstr(&s.docs, "");
+                    if s.is_main_container() {
+                        self.print_derives(&s);
                         //root struct gets kube derives unless opted out
                         if !self.hide_kube {
                             println!(
@@ -206,7 +206,7 @@ impl Kopium {
                             println!("pub struct {} {{", s.name);
                         }
                     } else {
-                        self.print_derives(false);
+                        self.print_derives(&s);
                         let spec_trimmed_name = s.name.as_str().replace(&format!("{}Spec", kind), kind);
                         if s.is_enum {
                             println!("pub enum {} {{", spec_trimmed_name);
@@ -214,8 +214,8 @@ impl Kopium {
                             println!("pub struct {} {{", spec_trimmed_name);
                         }
                     }
-                    for m in s.members {
-                        self.print_docstr(m.docs, "    ");
+                    for m in &s.members {
+                        self.print_docstr(&m.docs, "    ");
                         if !m.serde_annot.is_empty() {
                             println!("    #[serde({})]", m.serde_annot.join(", "));
                         }
@@ -224,7 +224,7 @@ impl Kopium {
                         } else {
                             format_ident!("{}", m.name)
                         };
-                        for annot in m.extra_annot {
+                        for annot in &m.extra_annot {
                             println!("    {}", annot);
                         }
                         let spec_trimmed_type = m.type_.as_str().replace(&format!("{}Spec", kind), kind);
@@ -265,7 +265,7 @@ impl Kopium {
         Ok(())
     }
 
-    fn print_docstr(&self, doc: Option<String>, indent: &str) {
+    fn print_docstr(&self, doc: &Option<String>, indent: &str) {
         // print doc strings if requested in arguments
         if self.docs {
             if let Some(d) = doc {
@@ -275,19 +275,28 @@ impl Kopium {
         }
     }
 
-    fn print_derives(&self, is_root: bool) {
+    fn print_derives(&self, s: &Container) {
         let mut derives: Vec<String> = vec!["Serialize", "Deserialize", "Clone", "Debug"]
             .into_iter()
             .map(String::from)
             .collect();
-        if is_root {
+        if s.is_main_container() {
             // CustomResource first for root struct
             derives.insert(0, "CustomResource".to_string());
         }
         if self.builders {
             derives.push("TypedBuilder".to_string());
         }
-        derives.extend(self.derive.clone()); // user derives last in user order
+        // add user derives last in order
+        for d in &self.derive {
+            if s.is_enum && d == "Default" {
+                // Need to drop Default from enum as this cannot be derived.
+                // Enum defaults need to either be manually derived
+                // or we can insert enum defaults
+                continue;
+            }
+            derives.push(d.clone());
+        }
         println!("#[derive({})]", derives.join(", "));
     }
 

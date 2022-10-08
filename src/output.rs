@@ -64,6 +64,14 @@ impl Container {
     pub fn uses_int_or_string(&self) -> bool {
         self.members.iter().any(|m| m.type_.contains("IntOrString"))
     }
+
+    pub fn is_root(&self) -> bool {
+        self.level == 0
+    }
+
+    pub fn is_main_container(&self) -> bool {
+        self.level == 1 && self.name.ends_with("Spec")
+    }
 }
 
 impl Container {
