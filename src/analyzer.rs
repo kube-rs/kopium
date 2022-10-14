@@ -36,6 +36,7 @@ fn analyze_(
     let mut array_recurse_level: HashMap<String, u8> = Default::default();
     // first generate the object if it is one
     let current_type = schema.type_.clone().unwrap_or_default();
+    debug!("in main analyze with {} + {}", current, stack);
     if current_type == "object" {
         // we can have additionalProperties XOR properties
         // https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation
@@ -65,9 +66,11 @@ fn analyze_(
             results.extend(new_result);
         }
     }
+    debug!("done analyzing, now for recursing for structs: {}", serde_yaml::to_string(&props).unwrap());
+    debug!("full schema here: {}", serde_yaml::to_string(&schema).unwrap());
 
     // Start recursion for properties
-    for (key, value) in props {
+    for (key, value) in props.clone() {
         if level == 0 && IGNORED_KEYS.contains(&(key.as_ref())) {
             debug!("not recursing into ignored {}", key); // handled elsewhere
             continue;
@@ -77,10 +80,13 @@ fn analyze_(
         let value_type = value.type_.clone().unwrap_or_default();
         match value_type.as_ref() {
             "object" => {
+                debug!("obj recurse for {}", key);
                 // objects, maps
                 let mut handled_inner = false;
                 if let Some(JSONSchemaPropsOrBool::Schema(s)) = &value.additional_properties {
+                    debug!("got props {}", serde_yaml::to_string(s).unwrap());
                     let dict_type = s.type_.clone().unwrap_or_default();
+                    debug!("dict type is {}", dict_type);
                     if dict_type == "array" {
                         // unpack the inner object from the array wrap
                         if let Some(JSONSchemaPropsOrArray::Schema(items)) = &s.as_ref().items {
@@ -98,6 +104,7 @@ fn analyze_(
                 }
                 if !handled_inner {
                     // normal object recurse
+                    debug!("regular recurse for {}", next_key);
                     analyze_(value, &next_key, &next_stack, level + 1, results)?;
                 }
             }
@@ -139,6 +146,92 @@ fn analyze_(
             }
         }
     }
+    // also recurse into additionalProperties
+    if let Some(JSONSchemaPropsOrBool::Schema(s)) = schema.additional_properties.as_ref() {
+        let props = s.properties.clone().unwrap_or_default();
+        // TODO: body here the same as above. fn wrap this.
+
+        for (key, value) in props {
+            if level == 0 && IGNORED_KEYS.contains(&(key.as_ref())) {
+                debug!("not recursing into ignored {}", key); // handled elsewhere
+                continue;
+            }
+            debug!("found additional key {}", key);
+            let next_key = uppercase_first_letter(&key);
+            let next_stack = format!("{}{}", stack, next_key);
+            let value_type = value.type_.clone().unwrap_or_default();
+            match value_type.as_ref() {
+                "object" => {
+                    debug!("obj recurse for {}", key);
+                    // objects, maps
+                    let mut handled_inner = false;
+                    if let Some(JSONSchemaPropsOrBool::Schema(s)) = &value.additional_properties {
+                        debug!("got props {}", serde_yaml::to_string(s).unwrap());
+                        let dict_type = s.type_.clone().unwrap_or_default();
+                        debug!("dict type is {}", dict_type);
+                        if dict_type == "array" {
+                            // unpack the inner object from the array wrap
+                            if let Some(JSONSchemaPropsOrArray::Schema(items)) = &s.as_ref().items {
+                                analyze_(*items.clone(), &next_key, &next_stack, level + 1, results)?;
+                                handled_inner = true;
+                            }
+                        }
+                        // TODO: not sure if these nested recurses are necessary - cluster test case does not have enough data
+                        //if let Some(extra_props) = &s.properties {
+                        //    for (_key, value) in extra_props {
+                        //        debug!("nested recurse into {} {} - key: {}", next_key, next_stack, _key);
+                        //        analyze_(value.clone(), &next_key, &next_stack, level +1, results)?;
+                        //    }
+                        //}
+                    }
+                    if !handled_inner {
+                        // normal object recurse
+                        debug!("regular recurse for {}", next_key);
+                        analyze_(value, &next_key, &next_stack, level + 1, results)?;
+                    }
+                }
+                "array" => {
+                    if let Some(recurse) = array_recurse_level.get(&key).cloned() {
+                        let mut inner = value.clone();
+                        for _i in 0..recurse {
+                            debug!("recursing into props for {}", key);
+                            if let Some(sub) = inner.items {
+                                match sub {
+                                    JSONSchemaPropsOrArray::Schema(s) => {
+                                        //info!("got inner: {}", serde_json::to_string_pretty(&s)?);
+                                        inner = *s.clone();
+                                    }
+                                    _ => bail!("only handling single type in arrays"),
+                                }
+                            } else {
+                                bail!("could not recurse into vec");
+                            }
+                        }
+                        analyze_(inner, &next_key, &next_stack, level + 1, results)?;
+                    }
+                }
+                "" => {
+                    if value.x_kubernetes_int_or_string.is_some() {
+                        debug!("not recursing into IntOrString {}", key)
+                    } else {
+                        debug!("not recursing into unknown empty type {}", key)
+                    }
+                }
+                x => {
+                    if let Some(en) = value.enum_ {
+                        // plain enums do not need to recurse, can collect it here
+                        let new_result = analyze_enum_properties(&en, &next_stack, level, &schema)?;
+                        results.push(new_result);
+                    } else {
+                        debug!("not recursing into {} ('{}' is not a container)", key, x)
+                    }
+                }
+            }
+        }
+
+
+    }
+
     Ok(())
 }
 
@@ -243,6 +336,7 @@ fn analyze_object_properties(
                                 }
                             }
                             "object" => {
+                                // look for nested items first
                                 // cluster test with `failureDomains` uses this spec format
                                 Some(format!("{}{}", stack, uppercase_first_letter(key)))
                             }
@@ -289,6 +383,7 @@ fn analyze_object_properties(
                     array_type, key, recurse_level
                 );
                 array_recurse_level.insert(key.clone(), recurse_level);
+                // TODO: where is the struct for the inline array generated?
                 array_type
             }
             "" => {
@@ -302,6 +397,7 @@ fn analyze_object_properties(
             }
             x => bail!("unknown type {}", x),
         };
+        debug!("analyze end type: {}", rust_type);
 
         // Create member and wrap types correctly
         let member_doc = value.description.clone();
@@ -924,5 +1020,56 @@ type: object
             &root.members[0].type_,
             "Option<Vec<HashMap<String, serde_json::Value>>>"
         );
+    }
+
+
+    #[test]
+    fn nested_properties_in_additional_properties() {
+        init();
+        // example from flux kustomization crd
+        let schema_str = r#"
+        properties:
+          jwtTokensByRole:
+            additionalProperties:
+              description: JWTTokens represents a list of JWT tokens
+              properties:
+                items:
+                  items:
+                    properties:
+                      exp:
+                        format: int64
+                        type: integer
+                      iat:
+                        format: int64
+                        type: integer
+                      id:
+                        type: string
+                    required:
+                    - iat
+                    type: object
+                  type: array
+              type: object
+            type: object
+        type: object"#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        let structs = analyze(schema, "AppProjectStatus").unwrap().0;
+        println!("got {:?}", structs);
+        let root = &structs[0];
+        assert_eq!(root.name, "AppProjectStatus");
+        assert_eq!(root.level, 0);
+        assert_eq!(root.is_enum, false);
+        assert_eq!(&root.members[0].name, "jwtTokensByRole");
+        assert_eq!(
+            &root.members[0].type_,
+            "Option<BTreeMap<String, AppProjectStatusJwtTokensByRole>>"
+        );
+        let role = &structs[1];
+        assert_eq!(role.name, "AppProjectStatusJwtTokensByRole");
+        assert_eq!(&role.members[0].name, "items");
+        let items = &structs[2];
+        assert_eq!(items.name, "AppProjectStatusJwtTokensByRoleItems");
+        assert_eq!(&items.members[0].name, "exp");
+        assert_eq!(&items.members[1].name, "iat");
+        assert_eq!(&items.members[2].name, "id");
     }
 }
