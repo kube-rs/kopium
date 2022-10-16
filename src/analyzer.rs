@@ -36,7 +36,7 @@ fn analyze_(
     let mut array_recurse_level: HashMap<String, u8> = Default::default();
 
     // create a Container if we have a container type:
-    debug!("in main analyze with {} + {}", current, stack);
+    //trace!("analyze_ with {} + {}", current, stack);
     if schema.type_.clone().unwrap_or_default() == "object" {
         // we can have additionalProperties XOR properties
         // https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation
@@ -115,9 +115,7 @@ fn find_containers(
                 // objects, maps
                 let mut handled_inner = false;
                 if let Some(JSONSchemaPropsOrBool::Schema(s)) = &value.additional_properties {
-                    debug!("got props {}", serde_yaml::to_string(s).unwrap());
                     let dict_type = s.type_.clone().unwrap_or_default();
-                    debug!("dict type is {}", dict_type);
                     if dict_type == "array" {
                         // unpack the inner object from the array wrap
                         if let Some(JSONSchemaPropsOrArray::Schema(items)) = &s.as_ref().items {
@@ -135,7 +133,6 @@ fn find_containers(
                 }
                 if !handled_inner {
                     // normal object recurse
-                    debug!("regular recurse for {}", next_key);
                     analyze_(value, &next_key, &next_stack, level + 1, &mut results)?;
                 }
             }
@@ -281,7 +278,6 @@ fn extract_container(
                                 }
                             }
                             "object" => {
-                                // look for nested items first
                                 // cluster test with `failureDomains` uses this spec format
                                 Some(format!("{}{}", stack, uppercase_first_letter(key)))
                             }
@@ -328,7 +324,6 @@ fn extract_container(
                     array_type, key, recurse_level
                 );
                 array_recurse_level.insert(key.clone(), recurse_level);
-                // TODO: where is the struct for the inline array generated?
                 array_type
             }
             "" => {
@@ -342,7 +337,6 @@ fn extract_container(
             }
             x => bail!("unknown type {}", x),
         };
-        debug!("analyze end type: {}", rust_type);
 
         // Create member and wrap types correctly
         let member_doc = value.description.clone();
