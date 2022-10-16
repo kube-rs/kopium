@@ -73,9 +73,8 @@ fn analyze_(
     //
     // again; additionalProperties XOR properties
     let extras = if let Some(JSONSchemaPropsOrBool::Schema(s)) = schema.additional_properties.as_ref() {
-        let props2 = s.properties.clone().unwrap_or_default();
-        // NB: bumping level here as a precaution to disambiguate
-        find_containers(&props2, stack, &mut array_recurse_level, level + 1, &schema)?
+        let extra_props = s.properties.clone().unwrap_or_default();
+        find_containers(&extra_props, stack, &mut array_recurse_level, level, &schema)?
     } else {
         // regular properties only
         find_containers(&props, stack, &mut array_recurse_level, level, &schema)?
