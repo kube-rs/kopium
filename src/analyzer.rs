@@ -64,7 +64,7 @@ fn analyze_(
             results.push(c);
         }
     }
-    debug!("full schema here: {}", serde_yaml::to_string(&schema).unwrap());
+    //trace!("full schema here: {}", serde_yaml::to_string(&schema).unwrap());
 
     // If the container has members, we recurse through these members to find more containers.
     // NB: find_containers initiates recursion **for this container** and will end up invoking this fn,
@@ -104,13 +104,11 @@ fn find_containers(
             debug!("not recursing into ignored {}", key); // handled elsewhere
             continue;
         }
-        debug!("found additional key {}", key);
         let next_key = uppercase_first_letter(&key);
         let next_stack = format!("{}{}", stack, next_key);
         let value_type = value.type_.clone().unwrap_or_default();
         match value_type.as_ref() {
             "object" => {
-                debug!("obj recurse for {}", key);
                 // objects, maps
                 let mut handled_inner = false;
                 if let Some(JSONSchemaPropsOrBool::Schema(s)) = &value.additional_properties {
@@ -118,6 +116,7 @@ fn find_containers(
                     if dict_type == "array" {
                         // unpack the inner object from the array wrap
                         if let Some(JSONSchemaPropsOrArray::Schema(items)) = &s.as_ref().items {
+                            debug!("..recursing into object member {}", key);
                             analyze_(items, &next_key, &next_stack, level + 1, &mut results)?;
                             handled_inner = true;
                         }
@@ -125,7 +124,7 @@ fn find_containers(
                     // TODO: not sure if these nested recurses are necessary - cluster test case does not have enough data
                     //if let Some(extra_props) = &s.properties {
                     //    for (_key, value) in extra_props {
-                    //        debug!("nested recurse into {} {} - key: {}", next_key, next_stack, _key);
+                    //        debug!("..nested recurse into {} {} - key: {}", next_key, next_stack, _key);
                     //        analyze_(value.clone(), &next_key, &next_stack, level +1, results)?;
                     //    }
                     //}
@@ -139,7 +138,7 @@ fn find_containers(
                 if let Some(recurse) = array_recurse_level.get(key).cloned() {
                     let mut inner = value.clone();
                     for _i in 0..recurse {
-                        debug!("recursing into props for {}", key);
+                        debug!("..recursing into props for {}", key);
                         if let Some(sub) = inner.items {
                             match sub {
                                 JSONSchemaPropsOrArray::Schema(s) => {
@@ -157,9 +156,9 @@ fn find_containers(
             }
             "" => {
                 if value.x_kubernetes_int_or_string.is_some() {
-                    debug!("not recursing into IntOrString {}", key)
+                    debug!("..not recursing into IntOrString {}", key)
                 } else {
-                    debug!("not recursing into unknown empty type {}", key)
+                    debug!("..not recursing into unknown empty type {}", key)
                 }
             }
             x => {
@@ -168,7 +167,7 @@ fn find_containers(
                     let new_result = analyze_enum_properties(&en, &next_stack, level, &schema)?;
                     results.push(new_result);
                 } else {
-                    debug!("not recursing into {} ('{}' is not a container)", key, x)
+                    debug!("..not recursing into {} ('{}' is not a container)", key, x)
                 }
             }
         }
@@ -224,10 +223,8 @@ fn extract_container(
 ) -> Result<Container, anyhow::Error> {
     let mut members = vec![];
     //debug!("analyzing object {}", serde_json::to_string(&schema).unwrap());
-    debug!("analyze object props in {}", stack);
     let reqs = schema.required.clone().unwrap_or_default();
     for (key, value) in props {
-        debug!("analyze key {}", key);
         let value_type = value.type_.clone().unwrap_or_default();
         let rust_type = match value_type.as_ref() {
             "object" => {
@@ -305,7 +302,7 @@ fn extract_container(
             }
             "string" => {
                 if let Some(_en) = &value.enum_ {
-                    debug!("got enum string: {}", serde_json::to_string(&schema).unwrap());
+                    trace!("got enum string: {}", serde_json::to_string(&schema).unwrap());
                     format!("{}{}", stack, uppercase_first_letter(key))
                 } else {
                     "String".to_string()
@@ -318,10 +315,7 @@ fn extract_container(
             "array" => {
                 // recurse through repeated arrays until we find a concrete type (keep track of how deep we went)
                 let (array_type, recurse_level) = array_recurse_for_type(value, stack, key, 1)?;
-                debug!(
-                    "got array type {} for {} in level {}",
-                    array_type, key, recurse_level
-                );
+                trace!("got array {} for {} in level {}", array_type, key, recurse_level);
                 array_recurse_level.insert(key.clone(), recurse_level);
                 array_type
             }
@@ -1001,9 +995,11 @@ type: object
             "Option<BTreeMap<String, AppProjectStatusJwtTokensByRole>>"
         );
         let role = &structs[1];
+        assert_eq!(role.level, 1);
         assert_eq!(role.name, "AppProjectStatusJwtTokensByRole");
         assert_eq!(&role.members[0].name, "items");
         let items = &structs[2];
+        assert_eq!(items.level, 2);
         assert_eq!(items.name, "AppProjectStatusJwtTokensByRoleItems");
         assert_eq!(&items.members[0].name, "exp");
         assert_eq!(&items.members[1].name, "iat");
