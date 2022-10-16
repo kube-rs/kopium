@@ -5,7 +5,7 @@
 
 **K**ubernetes **op**enap**i** **u**n**m**angler.
 
-Generates rust structs from `customresourcedefinitions` in your kubernetes cluster follwing the spec/status model, by using their embedded openapi schema.
+Generates rust structs from `customresourcedefinitions` in your kubernetes cluster following the spec/status model, by using their embedded openapi schema.
 
 **⚠️ WARNING: [not feature complete](https://github.com/kube-rs/kopium/issues) ⚠️**
 
