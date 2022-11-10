@@ -280,7 +280,7 @@ impl Kopium {
             .into_iter()
             .map(String::from)
             .collect();
-        if s.is_main_container() {
+        if s.is_main_container() && !self.hide_kube {
             // CustomResource first for root struct
             derives.insert(0, "CustomResource".to_string());
         }
