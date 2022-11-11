@@ -164,6 +164,8 @@ fn find_containers(
             x => {
                 if let Some(en) = &value.enum_ {
                     // plain enums do not need to recurse, can collect it here
+                    // ....although this makes it impossible for us to handle enums at the top level
+                    // TODO: move this to the top level
                     let new_result = analyze_enum_properties(&en, &next_stack, level, &schema)?;
                     results.push(new_result);
                 } else {
@@ -186,15 +188,22 @@ fn analyze_enum_properties(
     let mut members = vec![];
     debug!("analyzing enum {}", serde_json::to_string(&schema).unwrap());
     for en in items {
-        //debug!("got enum {:?}", en);
+        debug!("got enum {:?}", en);
         // TODO: do we need to verify enum elements? only in oneOf only right?
-        let (name, rust_type) = match &en.0 {
-            serde_json::Value::String(name) => (name, "".to_string()),
-            _ => bail!("not handling non-string enum"),
+        let name = match &en.0 {
+            serde_json::Value::String(name) => name.to_string(),
+            serde_json::Value::Number(val) => {
+                if !val.is_u64() {
+                    bail!("enum member cannot have signed/floating discriminants");
+                }
+                val.to_string()
+            }
+            _ => bail!("not handling non-string/int enum outside oneOf block"),
         };
+        let rust_type = "".to_string();
         // Create member and wrap types correctly
         let member_doc = None;
-        debug!("with enum member {} of type {}", name, rust_type);
+        debug!("with enum member {}", name);
         members.push(Member {
             type_: rust_type,
             name: name.to_string(),
@@ -924,6 +933,30 @@ type: object
         assert_eq!(to.type_, "Option<BTreeMap<String, i32>>");
     }
 
+
+    #[test]
+    #[ignore] // currently do not handle top level enums, and this has an integration test
+    fn top_level_enum_with_integers() {
+        init();
+        let schema_str = r#"
+        default: 302
+        enum:
+        - 301
+        - 302
+        type: integer
+        "#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        println!("got schema {}", serde_yaml::to_string(&schema).unwrap());
+        let structs = analyze(schema, "StatusCode").unwrap().0;
+        println!("got {:?}", structs);
+        let root = &structs[0];
+        assert_eq!(root.name, "StatusCode");
+        assert_eq!(root.level, 0);
+        assert_eq!(root.is_enum, true);
+        assert_eq!(&root.members[0].name, "301");
+        assert_eq!(&root.members[0].name, "302");
+        assert_eq!(&root.members[0].type_, "");
+    }
 
     #[test]
     fn array_of_preserve_unknown_objects() {

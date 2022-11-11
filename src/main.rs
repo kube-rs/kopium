@@ -221,6 +221,9 @@ impl Kopium {
                         }
                         let safe_name = if KEYWORDS.contains(&m.name.as_ref()) {
                             format_ident!("r#{}", m.name)
+                        } else if s.is_enum && m.name.parse::<u64>().is_ok() {
+                            // sanitize numeric enum variant names from golang
+                            format_ident!("r#_{}", m.name)
                         } else {
                             format_ident!("{}", m.name)
                         };
