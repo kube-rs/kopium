@@ -5,7 +5,7 @@ use clap::{CommandFactory, Parser, Subcommand};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion, CustomResourceSubresources,
 };
-use kopium::{analyze, Container, KEYWORDS};
+use kopium::{analyze, Container};
 use kube::{api, core::Version, Api, Client, ResourceExt};
 use quote::format_ident;
 
@@ -230,23 +230,16 @@ impl Kopium {
                         if !m.serde_annot.is_empty() {
                             println!("    #[serde({})]", m.serde_annot.join(", "));
                         }
-                        let safe_name = if KEYWORDS.contains(&m.name.as_ref()) {
-                            format_ident!("r#{}", m.name)
-                        } else if s.is_enum && m.name.parse::<u64>().is_ok() {
-                            // sanitize numeric enum variant names from golang
-                            format_ident!("r#_{}", m.name)
-                        } else {
-                            format_ident!("{}", m.name)
-                        };
+                        let name = format_ident!("{}", m.name);
                         for annot in &m.extra_annot {
                             println!("    {}", annot);
                         }
                         let spec_trimmed_type = m.type_.as_str().replace(&format!("{}Spec", kind), kind);
                         if s.is_enum {
                             // NB: only supporting plain enumerations atm, not oneOf
-                            println!("    {},", safe_name);
+                            println!("    {},", name);
                         } else {
-                            println!("    pub {}: {},", safe_name, spec_trimmed_type);
+                            println!("    pub {}: {},", name, spec_trimmed_type);
                         }
                     }
                     println!("}}");

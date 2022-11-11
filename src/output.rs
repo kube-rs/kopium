@@ -77,20 +77,31 @@ impl Container {
 impl Container {
     /// Rename all struct members to rust conventions
     pub fn rename(&mut self) {
-        for m in &mut self.members {
-            if self.is_enum {
-                let pascald = m.name.to_pascal_case();
-                if pascald != m.name {
-                    m.serde_annot.push(format!("rename = \"{}\"", m.name));
-                }
-                m.name = pascald;
+        for (i, m) in self.members.iter_mut().enumerate() {
+            let new_name = if self.is_enum {
+                // There are no rust keywords that start uppercase,
+                // making this name always a valid identifier except if it contains
+                // or starts with an invalid character.
+                //
+                // `` -> `KopiumEmpty`
+                // `mod` -> `Mod`
+                // `301` -> `301` -> `r#301` -> `r#_301`
+                // `!=` -> `!=` -> `r#!=` -> `r#_!=` -> `KopiumVariant{i}`
+                let name = if m.name.is_empty() {
+                    "KopiumEmpty".to_owned()
+                } else {
+                    m.name.to_pascal_case()
+                };
+
+                Container::try_esacape_name(name).unwrap_or_else(|| format!("KopiumVariant{i}"))
             } else {
-                // regular container
-                let snaked = m.name.to_snake_case();
-                if snaked != m.name {
-                    m.serde_annot.push(format!("rename = \"{}\"", m.name));
-                }
-                m.name = snaked;
+                Container::try_esacape_name(m.name.to_snake_case())
+                    .unwrap_or_else(|| panic!("invalid field name '{}' could not be escaped", m.name))
+            };
+
+            if new_name != m.name {
+                m.serde_annot.push(format!("rename = \"{}\"", m.name));
+                m.name = new_name;
             }
         }
     }
@@ -105,6 +116,25 @@ impl Container {
                 m.extra_annot.push("#[builder(default)]".to_string());
             }
         }
+    }
+
+    /// Tries to escape a field or variant name into a valid Rust identifier.
+    fn try_esacape_name(name: String) -> Option<String> {
+        if syn::parse_str::<syn::Ident>(&name).is_ok() {
+            return Some(name);
+        }
+
+        let escaped_name = format!("r#{name}");
+        if syn::parse_str::<syn::Ident>(&escaped_name).is_ok() {
+            return Some(escaped_name);
+        }
+
+        let escaped_name = format!("r#_{name}");
+        if syn::parse_str::<syn::Ident>(&escaped_name).is_ok() {
+            return Some(escaped_name);
+        }
+
+        None
     }
 }
 
