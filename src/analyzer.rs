@@ -197,7 +197,7 @@ fn analyze_enum_properties(
                     bail!("enum member cannot have signed/floating discriminants");
                 }
                 val.to_string()
-            },
+            }
             _ => bail!("not handling non-string/int enum outside oneOf block"),
         };
         let rust_type = "".to_string();
