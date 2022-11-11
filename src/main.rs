@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-
+#[macro_use] extern crate log;
 use anyhow::{anyhow, Context, Result};
 use clap::{CommandFactory, Parser, Subcommand};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
@@ -82,6 +82,13 @@ struct Kopium {
     /// Setting --auto enables: --schema=derived --derive=JsonSchema --docs
     #[arg(long, short = 'A')]
     auto: bool,
+
+    /// Elide the following containers from the output
+    ///
+    /// This allows manual customization of structs from the output without having to remove it from
+    /// the output first.
+    #[arg(long, short = 'e')]
+    elide: Vec<String>,
 }
 
 #[derive(Clone, Copy, Debug, Subcommand)]
@@ -179,6 +186,10 @@ impl Kopium {
                 if s.level == 0 {
                     continue; // ignoring root struct
                 } else {
+                    if self.elide.contains(&s.name) {
+                        debug!("eliding {} from the output", s.name);
+                        continue;
+                    }
                     self.print_docstr(&s.docs, "");
                     if s.is_main_container() {
                         self.print_derives(&s);
