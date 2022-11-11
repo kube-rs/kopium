@@ -9,7 +9,7 @@ default:
 fmt:
   cargo +nightly fmt
 
-test: test-pr test-sm test-mv test-argo test-agent test-certmanager test-cluster test-linkerd-serverauth test-linkerd-server
+test: test-pr test-sm test-mv test-argo test-agent test-certmanager test-cluster test-gateway-route test-linkerd-serverauth test-linkerd-server
 
 test-pr:
   kubectl apply --force-conflicts --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.52.0/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml
@@ -59,6 +59,13 @@ test-cluster:
   echo "pub type CR = Cluster;" >> tests/gen.rs
   # No test instance for this crd
   cargo build --test runner
+
+test-gateway-route:
+  kubectl apply --server-side -f tests/httproute-crd.yaml
+  cargo run --bin kopium -- -f tests/httproute-crd.yaml > tests/gen.rs
+  echo "pub type CR = HTTPRoute;" >> tests/gen.rs
+  kubectl apply -f tests/httproute.yaml
+  cargo test --test runner -- --nocapture
 
 test-linkerd-serverauth:
   kubectl apply --server-side -f tests/serverauth-crd.yaml

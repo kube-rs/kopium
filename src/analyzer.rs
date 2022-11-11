@@ -164,6 +164,8 @@ fn find_containers(
             x => {
                 if let Some(en) = &value.enum_ {
                     // plain enums do not need to recurse, can collect it here
+                    // ....although this makes it impossible for us to handle enums at the top level
+                    // TODO: move this to the top level
                     let new_result = analyze_enum_properties(&en, &next_stack, level, &schema)?;
                     results.push(new_result);
                 } else {
@@ -933,7 +935,7 @@ type: object
 
 
     #[test]
-    fn integer_enum_discriminants() {
+    fn top_level_enum_with_integers() {
         init();
         let schema_str = r#"
         default: 302
@@ -952,11 +954,7 @@ type: object
         assert_eq!(root.is_enum, true);
         assert_eq!(&root.members[0].name, "r#_301");
         assert_eq!(&root.members[0].name, "r#_302");
-        assert_eq!(
-            &root.members[0].type_,
-            "Option<Vec<HashMap<String, serde_json::Value>>>"
-        );
-
+        assert_eq!(&root.members[0].type_, "");
     }
 
     #[test]
