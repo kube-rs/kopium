@@ -186,15 +186,22 @@ fn analyze_enum_properties(
     let mut members = vec![];
     debug!("analyzing enum {}", serde_json::to_string(&schema).unwrap());
     for en in items {
-        //debug!("got enum {:?}", en);
+        debug!("got enum {:?}", en);
         // TODO: do we need to verify enum elements? only in oneOf only right?
-        let (name, rust_type) = match &en.0 {
-            serde_json::Value::String(name) => (name, "".to_string()),
-            _ => bail!("not handling non-string enum"),
+        let name = match &en.0 {
+            serde_json::Value::String(name) => name.to_string(),
+            serde_json::Value::Number(val) => {
+                if !val.is_u64() {
+                    bail!("enum member cannot have signed/floating discriminants");
+                }
+                val.to_string()
+            },
+            _ => bail!("not handling non-string/int enum outside oneOf block"),
         };
+        let rust_type = "".to_string();
         // Create member and wrap types correctly
         let member_doc = None;
-        debug!("with enum member {} of type {}", name, rust_type);
+        debug!("with enum member {}", name);
         members.push(Member {
             type_: rust_type,
             name: name.to_string(),
@@ -924,6 +931,33 @@ type: object
         assert_eq!(to.type_, "Option<BTreeMap<String, i32>>");
     }
 
+
+    #[test]
+    fn integer_enum_discriminants() {
+        init();
+        let schema_str = r#"
+        default: 302
+        enum:
+        - 301
+        - 302
+        type: integer
+        "#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        println!("got schema {}", serde_yaml::to_string(&schema).unwrap());
+        let structs = analyze(schema, "StatusCode").unwrap().0;
+        println!("got {:?}", structs);
+        let root = &structs[0];
+        assert_eq!(root.name, "StatusCode");
+        assert_eq!(root.level, 0);
+        assert_eq!(root.is_enum, true);
+        assert_eq!(&root.members[0].name, "r#_301");
+        assert_eq!(&root.members[0].name, "r#_302");
+        assert_eq!(
+            &root.members[0].type_,
+            "Option<Vec<HashMap<String, serde_json::Value>>>"
+        );
+
+    }
 
     #[test]
     fn array_of_preserve_unknown_objects() {
