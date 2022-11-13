@@ -136,9 +136,9 @@ impl Kopium {
         } else if let Some(f) = self.file.as_deref() {
             // no cluster access needed in this case
             let data = if f.to_string_lossy() == "-" {
-                get_stdin_data().with_context(|| format!("Failed to read from stdin"))?
+                get_stdin_data().with_context(|| "Failed to read from stdin".to_string())?
             } else {
-                std::fs::read_to_string(&f).with_context(|| format!("Failed to read {}", f.display()))?
+                std::fs::read_to_string(f).with_context(|| format!("Failed to read {}", f.display()))?
             };
 
             let crd: CustomResourceDefinition = serde_yaml::from_str(&data)?;
@@ -192,7 +192,7 @@ impl Kopium {
                     }
                     self.print_docstr(&s.docs, "");
                     if s.is_main_container() {
-                        self.print_derives(&s);
+                        self.print_derives(s);
                         //root struct gets kube derives unless opted out
                         if !self.hide_kube {
                             println!(
@@ -217,7 +217,7 @@ impl Kopium {
                             println!("pub struct {} {{", s.name);
                         }
                     } else {
-                        self.print_derives(&s);
+                        self.print_derives(s);
                         let spec_trimmed_name = s.name.as_str().replace(&format!("{}Spec", kind), kind);
                         if s.is_enum {
                             println!("pub enum {} {{", spec_trimmed_name);
@@ -276,7 +276,7 @@ impl Kopium {
         // print doc strings if requested in arguments
         if self.docs {
             if let Some(d) = doc {
-                println!("{}/// {}", indent, d.replace("\n", &format!("\n{}/// ", indent)));
+                println!("{}/// {}", indent, d.replace('\n', &format!("\n{}/// ", indent)));
                 // TODO: logic to split doc strings by sentence / length here
             }
         }

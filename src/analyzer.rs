@@ -46,7 +46,7 @@ fn analyze_(
             if let Some(extra_props) = &s.properties {
                 // map values is an object with properties
                 debug!("Generating map struct for {} (under {})", current, stack);
-                let c = extract_container(extra_props, stack, &mut array_recurse_level, level, &schema)?;
+                let c = extract_container(extra_props, stack, &mut array_recurse_level, level, schema)?;
                 results.push(c);
             } else if !dict_type.is_empty() {
                 warn!("not generating type {} - using {} map", current, dict_type);
@@ -60,7 +60,7 @@ fn analyze_(
                 warn!("not generating type {} - using BTreeMap", current);
                 return Ok(());
             }
-            let c = extract_container(&props, stack, &mut array_recurse_level, level, &schema)?;
+            let c = extract_container(&props, stack, &mut array_recurse_level, level, schema)?;
             results.push(c);
         }
     }
@@ -74,10 +74,10 @@ fn analyze_(
     // again; additionalProperties XOR properties
     let extras = if let Some(JSONSchemaPropsOrBool::Schema(s)) = schema.additional_properties.as_ref() {
         let extra_props = s.properties.clone().unwrap_or_default();
-        find_containers(&extra_props, stack, &mut array_recurse_level, level, &schema)?
+        find_containers(&extra_props, stack, &mut array_recurse_level, level, schema)?
     } else {
         // regular properties only
-        find_containers(&props, stack, &mut array_recurse_level, level, &schema)?
+        find_containers(&props, stack, &mut array_recurse_level, level, schema)?
     };
     results.extend(extras);
 
@@ -104,7 +104,7 @@ fn find_containers(
             debug!("not recursing into ignored {}", key); // handled elsewhere
             continue;
         }
-        let next_key = uppercase_first_letter(&key);
+        let next_key = uppercase_first_letter(key);
         let next_stack = format!("{}{}", stack, next_key);
         let value_type = value.type_.clone().unwrap_or_default();
         match value_type.as_ref() {
@@ -166,7 +166,7 @@ fn find_containers(
                     // plain enums do not need to recurse, can collect it here
                     // ....although this makes it impossible for us to handle enums at the top level
                     // TODO: move this to the top level
-                    let new_result = analyze_enum_properties(&en, &next_stack, level, &schema)?;
+                    let new_result = analyze_enum_properties(en, &next_stack, level, schema)?;
                     results.push(new_result);
                 } else {
                     debug!("..not recursing into {} ('{}' is not a container)", key, x)
@@ -250,11 +250,9 @@ fn extract_container(
                             // https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation
                             "array" => {
                                 let mut simple_inner = None;
-                                if let Some(inner) = &s.items {
-                                    if let JSONSchemaPropsOrArray::Schema(ix) = inner {
-                                        simple_inner = ix.type_.clone();
-                                        debug!("additional simple inner  type: {:?}", simple_inner);
-                                    }
+                                if let Some(JSONSchemaPropsOrArray::Schema(ix)) = &s.items {
+                                    simple_inner = ix.type_.clone();
+                                    debug!("additional simple inner  type: {:?}", simple_inner);
                                 }
                                 // Simple case: additionalProperties contain: {items: {type: K}}
                                 // Then it's a simple map (service_monitor_params) - but key is useless
@@ -490,7 +488,7 @@ fn uppercase_first_letter(s: &str) -> String {
 mod test {
     use crate::analyze;
     use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::JSONSchemaProps;
-    use serde_yaml;
+
     use std::sync::Once;
 
     static START: Once = Once::new();
