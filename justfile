@@ -1,10 +1,6 @@
-NAME := "kopium"
-REPO := "kube-rs"
-VERSION := `git rev-parse HEAD`
-SEMVER_VERSION := `grep version Cargo.toml | awk -F"\"" '{print $2}' | head -n 1`
-
+[private]
 default:
-  @just --list --unsorted | grep -v "    default"
+  @just --list --unsorted
 
 fmt:
   cargo +nightly fmt
