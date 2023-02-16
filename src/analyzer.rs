@@ -1,6 +1,7 @@
 //! Deals entirely with schema analysis for the purpose of creating output structs + members
 use crate::{Container, Member, Output};
 use anyhow::{bail, Result};
+use heck::ToUpperCamelCase;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     JSONSchemaProps, JSONSchemaPropsOrArray, JSONSchemaPropsOrBool, JSON,
 };
@@ -16,7 +17,6 @@ pub fn analyze(schema: JSONSchemaProps, kind: &str) -> Result<Output> {
     analyze_(&schema, "", kind, 0, &mut res)?;
     Ok(Output(res))
 }
-
 
 /// Scan a schema for structs and members, and recurse to find all structs
 ///
@@ -84,7 +84,6 @@ fn analyze_(
     Ok(())
 }
 
-
 /// Dive into passed properties
 ///
 /// This will recursively invoke the analyzer from any new type that needs investigation.
@@ -104,7 +103,7 @@ fn find_containers(
             debug!("not recursing into ignored {}", key); // handled elsewhere
             continue;
         }
-        let next_key = uppercase_first_letter(key);
+        let next_key = key.to_upper_camel_case();
         let next_stack = format!("{}{}", stack, next_key);
         let value_type = value.type_.clone().unwrap_or_default();
         match value_type.as_ref() {
@@ -177,7 +176,6 @@ fn find_containers(
     Ok(results)
 }
 
-
 // helper to figure out what output enums and embedded members are contained in the current object schema
 fn analyze_enum_properties(
     items: &Vec<JSON>,
@@ -220,7 +218,6 @@ fn analyze_enum_properties(
         is_enum: true,
     })
 }
-
 
 // fully populate a Container with all its members given the current stack and schema position
 fn extract_container(
@@ -271,10 +268,8 @@ fn extract_container(
 
                                     // Harder case: inline structs under items (agent test with `validationInfo`)
                                     // key becomes the struct
-                                    Some("object") => {
-                                        Some(format!("{}{}", stack, uppercase_first_letter(key)))
-                                    }
-                                    None => Some(format!("{}{}", stack, uppercase_first_letter(key))),
+                                    Some("object") => Some(format!("{}{}", stack, key.to_upper_camel_case())),
+                                    None => Some(format!("{}{}", stack, key.to_upper_camel_case())),
 
                                     // leftovers, array of arrays?... need a better way to recurse probably
                                     Some(x) => bail!("unknown inner empty dict type {} for {}", x, key),
@@ -282,7 +277,7 @@ fn extract_container(
                             }
                             "object" => {
                                 // cluster test with `failureDomains` uses this spec format
-                                Some(format!("{}{}", stack, uppercase_first_letter(key)))
+                                Some(format!("{}{}", stack, key.to_upper_camel_case()))
                             }
                             "" => {
                                 if s.x_kubernetes_int_or_string.is_some() {
@@ -293,7 +288,7 @@ fn extract_container(
                             }
                             "integer" => Some(extract_integer_type(s)?),
                             // think the type we get is the value type
-                            x => Some(uppercase_first_letter(x)), // best guess
+                            x => Some(x.to_upper_camel_case()), // best guess
                         };
                     }
                 } else if value.properties.is_none()
@@ -304,13 +299,13 @@ fn extract_container(
                 if let Some(dict) = dict_key {
                     format!("BTreeMap<String, {}>", dict)
                 } else {
-                    format!("{}{}", stack, uppercase_first_letter(key))
+                    format!("{}{}", stack, key.to_upper_camel_case())
                 }
             }
             "string" => {
                 if let Some(_en) = &value.enum_ {
                     trace!("got enum string: {}", serde_json::to_string(&schema).unwrap());
-                    format!("{}{}", stack, uppercase_first_letter(key))
+                    format!("{}{}", stack, key.to_upper_camel_case())
                 } else {
                     "String".to_string()
                 }
@@ -394,7 +389,7 @@ fn array_recurse_for_type(
                 let inner_array_type = s.type_.clone().unwrap_or_default();
                 return match inner_array_type.as_ref() {
                     "object" => {
-                        let structsuffix = uppercase_first_letter(key);
+                        let structsuffix = key.to_upper_camel_case();
                         Ok((format!("Vec<{}{}>", stack, structsuffix), level))
                     }
                     "string" => Ok(("Vec<String>".into(), level)),
@@ -473,14 +468,6 @@ fn extract_integer_type(value: &JSONSchemaProps) -> Result<String> {
     } else {
         "i64".to_string()
     })
-}
-
-fn uppercase_first_letter(s: &str) -> String {
-    let mut c = s.chars();
-    match c.next() {
-        None => String::new(),
-        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-    }
 }
 
 // unit tests particular schema patterns
@@ -820,7 +807,6 @@ type: object
         assert_eq!(&op.members[3].name, "In");
     }
 
-
     #[test]
     fn service_monitor_params() {
         init();
@@ -865,7 +851,6 @@ type: object
         assert_eq!(member.name, "params");
         assert_eq!(member.type_, "Option<BTreeMap<String, String>>");
     }
-
 
     #[test]
     fn integer_handling_in_maps() {
@@ -931,7 +916,6 @@ type: object
         assert_eq!(to.type_, "Option<BTreeMap<String, i32>>");
     }
 
-
     #[test]
     #[ignore] // currently do not handle top level enums, and this has an integration test
     fn top_level_enum_with_integers() {
@@ -984,7 +968,6 @@ type: object
         );
     }
 
-
     #[test]
     fn nested_properties_in_additional_properties() {
         init();
@@ -1035,5 +1018,31 @@ type: object
         assert_eq!(&items.members[0].name, "exp");
         assert_eq!(&items.members[1].name, "iat");
         assert_eq!(&items.members[2].name, "id");
+    }
+
+    #[test]
+    fn underscore_to_camel_case() {
+        init();
+        let schema_str = r#"
+        properties:
+          validations_info:
+            type: object
+        type: object
+"#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+
+        let structs = analyze(schema, "Agent").unwrap().0;
+
+        let root = &structs[0];
+        assert_eq!(root.name, "Agent");
+        assert_eq!(root.level, 0);
+
+        let map = &root.members[0];
+        assert_eq!(map.name, "validations_info");
+        assert_eq!(map.type_, "Option<AgentValidationsInfo>");
+
+        let other = &structs[1];
+        assert_eq!(other.name, "AgentValidationsInfo");
+        assert_eq!(other.level, 1);
     }
 }
