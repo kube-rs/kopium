@@ -236,61 +236,7 @@ fn extract_container(
             "object" => {
                 let mut dict_key = None;
                 if let Some(additional) = &value.additional_properties {
-                    debug!("got additional: {}", serde_json::to_string(&additional)?);
-                    if let JSONSchemaPropsOrBool::Schema(s) = additional {
-                        // This case is for maps. It is generally String -> Something, depending on the type key:
-                        let dict_type = s.type_.clone().unwrap_or_default();
-                        dict_key = match dict_type.as_ref() {
-                            "string" => Some("String".into()),
-                            // We are not 100% sure the array and object subcases here are correct but they pass tests atm.
-                            // authoratative, but more detailed sources than crd validation docs below are welcome
-                            // https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation
-                            "array" => {
-                                let mut simple_inner = None;
-                                if let Some(JSONSchemaPropsOrArray::Schema(ix)) = &s.items {
-                                    simple_inner = ix.type_.clone();
-                                    debug!("additional simple inner  type: {:?}", simple_inner);
-                                }
-                                // Simple case: additionalProperties contain: {items: {type: K}}
-                                // Then it's a simple map (service_monitor_params) - but key is useless
-                                match simple_inner.as_deref() {
-                                    Some("string") => Some("String".into()),
-                                    Some("integer") => Some(extract_integer_type(s)?),
-                                    Some("date") => Some(extract_date_type(value)?),
-                                    Some("") => {
-                                        if s.x_kubernetes_int_or_string.is_some() {
-                                            Some("IntOrString".into())
-                                        } else {
-                                            bail!("unknown inner empty dict type for {}", key)
-                                        }
-                                    }
-                                    // can probably cover the regulars here as well
-
-                                    // Harder case: inline structs under items (agent test with `validationInfo`)
-                                    // key becomes the struct
-                                    Some("object") => Some(format!("{}{}", stack, key.to_upper_camel_case())),
-                                    None => Some(format!("{}{}", stack, key.to_upper_camel_case())),
-
-                                    // leftovers, array of arrays?... need a better way to recurse probably
-                                    Some(x) => bail!("unknown inner empty dict type {} for {}", x, key),
-                                }
-                            }
-                            "object" => {
-                                // cluster test with `failureDomains` uses this spec format
-                                Some(format!("{}{}", stack, key.to_upper_camel_case()))
-                            }
-                            "" => {
-                                if s.x_kubernetes_int_or_string.is_some() {
-                                    Some("IntOrString".into())
-                                } else {
-                                    bail!("unknown empty dict type for {}", key)
-                                }
-                            }
-                            "integer" => Some(extract_integer_type(s)?),
-                            // think the type we get is the value type
-                            x => Some(x.to_upper_camel_case()), // best guess
-                        };
-                    }
+                    dict_key = resolve_additional_properties(additional, stack, key, value)?;
                 } else if value.properties.is_none()
                     && value.x_kubernetes_preserve_unknown_fields.unwrap_or(false)
                 {
@@ -372,6 +318,71 @@ fn extract_container(
     })
 }
 
+fn resolve_additional_properties(
+    additional: &JSONSchemaPropsOrBool,
+    stack: &str,
+    key: &str,
+    value: &JSONSchemaProps,
+) -> Result<Option<String>, anyhow::Error> {
+    debug!("got additional: {}", serde_json::to_string(&additional)?);
+    let JSONSchemaPropsOrBool::Schema(s) = additional else { return Ok(None) };
+
+    // This case is for maps. It is generally String -> Something, depending on the type key:
+    let dict_type = s.type_.clone().unwrap_or_default();
+    let dict_key = match dict_type.as_ref() {
+        "string" => Some("String".into()),
+        // We are not 100% sure the array and object subcases here are correct but they pass tests atm.
+        // authoratative, but more detailed sources than crd validation docs below are welcome
+        // https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation
+        "array" => {
+            let mut simple_inner = None;
+            if let Some(JSONSchemaPropsOrArray::Schema(ix)) = &s.items {
+                simple_inner = ix.type_.clone();
+                debug!("additional simple inner  type: {:?}", simple_inner);
+            }
+            // Simple case: additionalProperties contain: {items: {type: K}}
+            // Then it's a simple map (service_monitor_params) - but key is useless
+            match simple_inner.as_deref() {
+                Some("string") => Some("String".into()),
+                Some("integer") => Some(extract_integer_type(s)?),
+                Some("date") => Some(extract_date_type(value)?),
+                Some("") => {
+                    if s.x_kubernetes_int_or_string.is_some() {
+                        Some("IntOrString".into())
+                    } else {
+                        bail!("unknown inner empty dict type for {}", key)
+                    }
+                }
+                // can probably cover the regulars here as well
+
+                // Harder case: inline structs under items (agent test with `validationInfo`)
+                // key becomes the struct
+                Some("object") => Some(format!("{}{}", stack, key.to_upper_camel_case())),
+                None => Some(format!("{}{}", stack, key.to_upper_camel_case())),
+
+                // leftovers, array of arrays?... need a better way to recurse probably
+                Some(x) => bail!("unknown inner empty dict type {} for {}", x, key),
+            }
+        }
+        "object" => {
+            // cluster test with `failureDomains` uses this spec format
+            Some(format!("{}{}", stack, key.to_upper_camel_case()))
+        }
+        "" => {
+            if s.x_kubernetes_int_or_string.is_some() {
+                Some("IntOrString".into())
+            } else {
+                bail!("unknown empty dict type for {}", key)
+            }
+        }
+        "integer" => Some(extract_integer_type(s)?),
+        // think the type we get is the value type
+        x => Some(x.to_upper_camel_case()), // best guess
+    };
+
+    Ok(dict_key)
+}
+
 // recurse into an array type to find its nested type
 // this recursion is intialised and ended within a single step of the outer recursion
 fn array_recurse_for_type(
@@ -389,8 +400,20 @@ fn array_recurse_for_type(
                 let inner_array_type = s.type_.clone().unwrap_or_default();
                 return match inner_array_type.as_ref() {
                     "object" => {
-                        let structsuffix = key.to_upper_camel_case();
-                        Ok((format!("Vec<{}{}>", stack, structsuffix), level))
+                        // Same logic as in `extract_container` to simplify types to maps.
+                        let mut dict_value = None;
+                        if let Some(additional) = &s.additional_properties {
+                            dict_value = resolve_additional_properties(additional, stack, key, s)?;
+                        }
+
+                        let vec_value = if let Some(dict_value) = dict_value {
+                            format!("BTreeMap<String, {dict_value}>")
+                        } else {
+                            let structsuffix = key.to_upper_camel_case();
+                            format!("{stack}{structsuffix}")
+                        };
+
+                        Ok((format!("Vec<{}>", vec_value), level))
                     }
                     "string" => Ok(("Vec<String>".into(), level)),
                     "boolean" => Ok(("Vec<bool>".into(), level)),
@@ -1044,5 +1067,31 @@ type: object
         let other = &structs[1];
         assert_eq!(other.name, "AgentValidationsInfo");
         assert_eq!(other.level, 1);
+    }
+
+    #[test]
+    fn skipped_type_as_map_nested_in_array() {
+        init();
+        let schema_str = r#"
+properties:
+  records:
+    items:
+      additionalProperties:
+        type: string
+      type: object
+    type: array
+type: object
+"#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+
+        let structs = analyze(schema, "Geoip").unwrap().0;
+
+        assert_eq!(structs.len(), 1);
+        assert_eq!(structs[0].members.len(), 1);
+        assert_eq!(structs[0].members[0].name, "records");
+        assert_eq!(
+            structs[0].members[0].type_,
+            "Option<Vec<BTreeMap<String, String>>>"
+        );
     }
 }
