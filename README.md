@@ -105,7 +105,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::try_default().await?;
     let pr: Api<PrometheusRule> = Api::default_namespaced(client);
     for p in pr.list(&Default::default()).await? {
-        println!("Found PrometheusRule {} in current namespace", p.name());
+        println!("Found PrometheusRule {} in current namespace", p.name_any());
     }
     Ok(())
 }
