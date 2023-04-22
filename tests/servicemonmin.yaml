@@ -1,0 +1,11 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: gen
+spec:
+  endpoints:
+  - relabelings:
+    - action: labelmap
+    - action: replace
+    - action: replace
+    - action: replace
