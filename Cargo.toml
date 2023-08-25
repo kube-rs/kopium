@@ -42,4 +42,4 @@ features = ["derive"]
 
 [dev-dependencies]
 schemars = "0.8.12"
-typed-builder = "0.10.0"
+typed-builder = "0.15.2"
