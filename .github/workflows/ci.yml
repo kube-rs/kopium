@@ -17,7 +17,7 @@ jobs:
           override: true
           toolchain: stable
           profile: minimal
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - uses: nolar/setup-k3d-k3s@v1
         with:
           version: v1.21
@@ -70,7 +70,7 @@ jobs:
           toolchain: nightly
           components: clippy
           override: true
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
