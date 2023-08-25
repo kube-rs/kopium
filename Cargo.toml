@@ -32,7 +32,7 @@ clap = { version = "4.0", features = ["cargo", "derive"] }
 clap_complete = "4.0"
 quote = "1.0.10"
 serde = { version = "1.0.130", features = ["derive"] }
-serde_yaml = "0.8.23"
+serde_yaml = "0.9.25"
 heck = "0.4.0"
 syn = "1.0.103"
 
