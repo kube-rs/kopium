@@ -14,3 +14,19 @@ updates:
         patterns:
           - kube
           - k8s-openapi
+      serde:
+        patterns:
+          - serde
+          - serde_*
+          - serde-*
+      misc:
+        patterns:
+          - anyhow
+          - thiserror
+          - log
+          - env_logger
+      clap:
+        patterns:
+          - clap
+          - clap-*
+          - clap_*
