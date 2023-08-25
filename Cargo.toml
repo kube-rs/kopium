@@ -22,7 +22,7 @@ name = "kopium"
 path = "src/lib.rs"
 
 [dependencies]
-k8s-openapi = { version = "0.16.0", features = ["v1_23"] }
+k8s-openapi = { version = "0.19.0", features = ["v1_23"] }
 tokio = { version = "1.14.0", features = ["full"] }
 anyhow = "1.0.75"
 log = "0.4.17"
@@ -37,7 +37,7 @@ heck = "0.4.0"
 syn = "1.0.103"
 
 [dependencies.kube]
-version = "0.76.0"
+version = "0.85.0"
 features = ["derive"]
 
 [dev-dependencies]
