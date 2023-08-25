@@ -325,7 +325,9 @@ fn resolve_additional_properties(
     value: &JSONSchemaProps,
 ) -> Result<Option<String>, anyhow::Error> {
     debug!("got additional: {}", serde_json::to_string(&additional)?);
-    let JSONSchemaPropsOrBool::Schema(s) = additional else { return Ok(None) };
+    let JSONSchemaPropsOrBool::Schema(s) = additional else {
+        return Ok(None);
+    };
 
     // This case is for maps. It is generally String -> Something, depending on the type key:
     let dict_type = s.type_.clone().unwrap_or_default();
