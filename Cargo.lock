@@ -732,7 +732,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "syn 1.0.109",
+ "syn 2.0.29",
  "tokio",
  "typed-builder",
 ]
