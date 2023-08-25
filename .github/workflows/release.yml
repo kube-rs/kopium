@@ -45,7 +45,7 @@ jobs:
           command: build
           args: --release --bin kopium --target ${{ matrix.target }}
       - name: Upload
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: kopium-${{ matrix.os }}-amd64
           path: target/${{ matrix.target }}/release/kopium
