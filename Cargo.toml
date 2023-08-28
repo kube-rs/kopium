@@ -41,5 +41,5 @@ version = "0.85.0"
 features = ["derive"]
 
 [dev-dependencies]
-schemars = "0.8.12"
+schemars = "0.8.13"
 typed-builder = "0.15.2"
