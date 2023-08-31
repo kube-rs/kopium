@@ -726,6 +726,7 @@ dependencies = [
  "heck",
  "k8s-openapi",
  "kube",
+ "libc",
  "log",
  "quote",
  "schemars",
