@@ -34,7 +34,7 @@ quote = "1.0.33"
 serde = { version = "1.0.188", features = ["derive"] }
 serde_yaml = "0.9.25"
 heck = "0.4.1"
-syn = "2.0.31"
+syn = "2.0.32"
 
 [dependencies.kube]
 version = "0.86.0"
