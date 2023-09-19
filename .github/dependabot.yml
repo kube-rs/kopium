@@ -14,19 +14,24 @@ updates:
         patterns:
           - kube
           - k8s-openapi
-      serde:
+      core:
         patterns:
           - serde
           - serde_*
           - serde-*
-      misc:
-        patterns:
           - anyhow
           - thiserror
           - log
           - env_logger
-      clap:
-        patterns:
+          - syn
+          - quote
+          - heck
+          - tokio
+          - typed-builder
           - clap
           - clap-*
           - clap_*
+          - schemars
+      rest:
+        patterns:
+          - .*
