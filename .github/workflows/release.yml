@@ -1,77 +1,183 @@
 name: Release
 
 on:
-  #pull_request:
+  workflow_dispatch:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
   build:
     strategy:
-      fail-fast: false
       matrix:
-        target:
-        - x86_64-unknown-linux-musl
-        - x86_64-apple-darwin
+        name:
+          - linux-x86-64-gnu
+          - linux-x86-64-musl
+          - linux-armhf-gnu
+          - linux-arm64-gnu
+          - mac-x86-64
+          - mac-arm64
+          - windows-x86-64
+          - windows-arm64
         include:
-          - target: x86_64-unknown-linux-musl
+          - name: linux-x86-64-gnu
+            os: ubuntu-20.04
+            target: x86_64-unknown-linux-gnu
+            cross: false
+            experimental: false
+
+          - name: linux-x86-64-musl
             os: ubuntu-latest
-          - target: x86_64-apple-darwin
+            target: x86_64-unknown-linux-musl
+            cross: true
+            experimental: false
+
+          - name: linux-armhf-gnu
+            os: ubuntu-20.04
+            target: armv7-unknown-linux-gnueabihf
+            cross: true
+            experimental: false
+
+          - name: linux-arm64-gnu
+            os: ubuntu-20.04
+            target: aarch64-unknown-linux-gnu
+            cross: true
+            experimental: false
+
+          - name: mac-x86-64
             os: macos-latest
+            target: x86_64-apple-darwin
+            cross: false
+            experimental: false
+
+          - name: mac-arm64
+            os: macos-11.0
+            target: aarch64-apple-darwin
+            cross: true
+            experimental: true
+
+          - name: windows-x86-64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            cross: false
+            experimental: false
+
+          - name: windows-arm64
+            os: windows-latest
+            target: aarch64-pc-windows-msvc
+            cross: true
+            experimental: true
+
+    name: Binaries for ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
+
     steps:
       - uses: actions/checkout@v4
-      - name: Build Linux
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          docker run --rm -t \
-            -v $HOME/.cargo/registry/:/root/.cargo/registry \
-            -v "$(pwd)":/volume \
-            clux/muslrust:stable \
-            cargo build --release --bin kopium --target ${{ matrix.target }}
-      - name: Prepare macOS
-        if: matrix.os == 'macos-latest'
-        uses: actions-rs/toolchain@v1
+      - uses: actions/cache@v3
         with:
-          toolchain: nightly
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('Cargo.lock') }}
+
+      - uses: actions/cache@v3
+        if: startsWith(matrix.name, 'linux-')
+        with:
+          path: ~/.cargo/bin
+          key: ${{ runner.os }}-cargo-bin-${{ hashFiles('.github/workflows/release.yml') }}
+
+      - uses: actions-rs/toolchain@v1
+        with:
           target: ${{ matrix.target }}
-          override: true
-      - name: Build macOS
-        if: matrix.os == 'macos-latest'
-        uses: actions-rs/cargo@v1
-        with:
           toolchain: stable
-          command: build
-          args: --release --bin kopium --target ${{ matrix.target }}
-      - name: Upload
-        uses: actions/upload-artifact@v3
-        with:
-          name: kopium-${{ matrix.os }}-amd64
-          path: target/${{ matrix.target }}/release/kopium
-          if-no-files-found: error
+          profile: minimal
+          override: true
 
-  release:
+      - uses: actions-rs/cargo@v1
+        name: Build
+        with:
+          use-cross: ${{ matrix.cross }}
+          command: build
+          args: --release --locked --target ${{ matrix.target }}
+
+      - name: Extract version
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          version=$(grep -m1 -F 'version =' Cargo.toml | cut -d\" -f2)
+
+          if [[ -z "$version" ]]; then
+            echo "Error: no version :("
+            exit 1
+          fi
+
+          echo "$version" > VERSION
+
+      - name: Package
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ext=""
+          [[ "${{ matrix.name }}" == windows-* ]] && ext=".exe"
+          bin="target/${{ matrix.target }}/release/kopium${ext}"
+          strip "$bin" || true
+          dst="kopium-${{ matrix.target }}"
+          mkdir "$dst"
+          cp "$bin" "$dst/"
+
+      - name: Archive (tar)
+        if: '! startsWith(matrix.name, ''windows-'')'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          dst="kopium-${{ matrix.target }}"
+          tar cavf "$dst.tar.xz" "$dst"
+      - name: Archive (zip)
+        if: startsWith(matrix.name, 'windows-')
+        shell: bash
+        run: |
+          set -euxo pipefail
+          dst="kopium-${{ matrix.target }}"
+          7z a "$dst.zip" "$dst"
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: builds
+          retention-days: 1
+          path: |
+            kopium-*.tar.xz
+            kopium-*.zip
+
+  sign:
     needs: build
+
+    name: Checksum and sign
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+
     steps:
       - uses: actions/checkout@v4
-      - name: Download
-        uses: actions/download-artifact@v3
-      - name: Layout
-        run: |
-          mv kopium-ubuntu-latest-amd64/kopium ./kopium-linux-amd64
-          mv kopium-macos-latest-amd64/kopium ./kopium-darwin-amd64
-          rm -rf kopium-ubuntu-latest-amd64 kopium-macos-latest-amd64
+      - uses: actions/cache@v3
+        with:
+          path: ~/.cargo/bin
+          key: sign-tools-${{ hashFiles('.github/workflows/release.yml') }}
 
-      - name: Release
-        uses: softprops/action-gh-release@v1
+      - uses: actions/download-artifact@v3
+        with:
+          name: builds
+
+      - name: Checksums with SHA512
+        run: sha512sum kopium-* | tee SHA512SUMS
+
+      - uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           generate_release_notes: true
-          draft: true
           fail_on_unmatched_files: true
           files: |
-            kopium-darwin-amd64
-            kopium-linux-amd64
+            kopium-*.tar.xz
+            kopium-*.zip
+            *SUMS*

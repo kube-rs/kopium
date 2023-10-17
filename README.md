@@ -23,10 +23,11 @@ Requirements:
 
 ## Installation
 
-Grab a prebuilt musl/darwin binary from the [latest release](https://github.com/kube-rs/kopium/releases), or install from [crates.io](https://crates.io/crates/kopium):
+Grab a prebuilt [directly](https://github.com/kube-rs/kopium/releases) / via [binstall](https://github.com/cargo-bins/cargo-binstall), or install from [crates.io](https://crates.io/crates/kopium):
 
 ```sh
-cargo install kopium
+cargo install kopium # from src
+cargo binstall kopium # from release
 ```
 
 ## Usage
