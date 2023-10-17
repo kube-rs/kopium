@@ -377,6 +377,7 @@ fn resolve_additional_properties(
                 bail!("unknown empty dict type for {}", key)
             }
         }
+        "boolean" => Some("bool".to_string()),
         "integer" => Some(extract_integer_type(s)?),
         // think the type we get is the value type
         x => Some(x.to_upper_camel_case()), // best guess
@@ -628,6 +629,30 @@ type: object
         assert_eq!(member.type_, "IntOrString");
         assert!(root.uses_int_or_string());
         // TODO: check that anyOf: [type: integer, type: string] also works
+    }
+
+    #[test]
+    fn boolean_in_additionals() {
+        // as found in argo-app
+        init();
+        let schema_str = r#"
+            properties:
+              options:
+                additionalProperties:
+                  type: boolean
+                type: object
+              patch:
+                type: string
+            type: object
+"#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        let structs = analyze(schema, "Options").unwrap().0;
+        println!("got {:?}", structs);
+        let root = &structs[0];
+        assert_eq!(root.name, "Options");
+        assert_eq!(root.level, 0);
+        assert_eq!(&root.members[0].name, "options");
+        assert_eq!(&root.members[0].type_, "Option<BTreeMap<String, bool>>");
     }
 
     #[test]
