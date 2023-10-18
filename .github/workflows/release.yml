@@ -17,8 +17,6 @@ jobs:
           - linux-arm64-gnu
           - mac-x86-64
           - mac-arm64
-          - windows-x86-64
-          - windows-arm64
         include:
           - name: linux-x86-64-gnu
             os: ubuntu-20.04
@@ -53,18 +51,6 @@ jobs:
           - name: mac-arm64
             os: macos-11.0
             target: aarch64-apple-darwin
-            cross: true
-            experimental: true
-
-          - name: windows-x86-64
-            os: windows-latest
-            target: x86_64-pc-windows-msvc
-            cross: false
-            experimental: false
-
-          - name: windows-arm64
-            os: windows-latest
-            target: aarch64-pc-windows-msvc
             cross: true
             experimental: true
 
@@ -132,13 +118,6 @@ jobs:
           set -euxo pipefail
           dst="kopium-${{ matrix.target }}"
           tar cavf "$dst.tar.xz" "$dst"
-      - name: Archive (zip)
-        if: startsWith(matrix.name, 'windows-')
-        shell: bash
-        run: |
-          set -euxo pipefail
-          dst="kopium-${{ matrix.target }}"
-          7z a "$dst.zip" "$dst"
 
       - uses: actions/upload-artifact@v3
         with:
@@ -146,7 +125,6 @@ jobs:
           retention-days: 1
           path: |
             kopium-*.tar.xz
-            kopium-*.zip
 
   sign:
     needs: build
@@ -179,5 +157,4 @@ jobs:
           fail_on_unmatched_files: true
           files: |
             kopium-*.tar.xz
-            kopium-*.zip
             *SUMS*
