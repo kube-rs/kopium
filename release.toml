@@ -1,0 +1,16 @@
+# Release process
+#
+# cargo release minor --execute
+#
+# This will bump version in Cargo.toml, create a corresponding git tag for it, and push it.
+# CI will run the release workflow, build binaries, and attach to a GH release for the tag.
+
+pre-release-commit-message = "{{version}}"
+push = true
+tag = true
+tag-name = "{{version}}"
+sign-tag = true
+sign-commit = true
+enable-all-features = true
+
+# Ref: https://github.com/crate-ci/cargo-release/blob/master/docs/reference.md

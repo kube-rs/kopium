@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/kube-rs/kopium/actions/workflows/release.yml/badge.svg)](https://github.com/kube-rs/kopium/actions/workflows/release.yml)
 [![Crates.io](https://img.shields.io/crates/v/kopium.svg)](https://crates.io/crates/kopium)
+[![dependency status](https://deps.rs/repo/github/kube-rs/kopium/status.svg)](https://deps.rs/repo/github/kube-rs/kopium)
 
 **K**ubernetes **op**enap**i** **u**n**m**angler.
 
@@ -23,10 +24,11 @@ Requirements:
 
 ## Installation
 
-Grab a prebuilt musl/darwin binary from the [latest release](https://github.com/kube-rs/kopium/releases), or install from [crates.io](https://crates.io/crates/kopium):
+Grab a prebuilt [directly](https://github.com/kube-rs/kopium/releases) / via [binstall](https://github.com/cargo-bins/cargo-binstall), or install from [crates.io](https://crates.io/crates/kopium):
 
 ```sh
-cargo install kopium
+cargo install kopium # from src
+cargo binstall kopium # from release
 ```
 
 ## Usage
