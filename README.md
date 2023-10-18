@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/kube-rs/kopium/actions/workflows/release.yml/badge.svg)](https://github.com/kube-rs/kopium/actions/workflows/release.yml)
 [![Crates.io](https://img.shields.io/crates/v/kopium.svg)](https://crates.io/crates/kopium)
+[![dependency status](https://deps.rs/repo/github/kube-rs/kopium/status.svg)](https://deps.rs/repo/github/kube-rs/kopium)
 
 **K**ubernetes **op**enap**i** **u**n**m**angler.
 
