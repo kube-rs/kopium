@@ -71,19 +71,17 @@ jobs:
           path: ~/.cargo/bin
           key: ${{ runner.os }}-cargo-bin-${{ hashFiles('.github/workflows/release.yml') }}
 
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          target: ${{ matrix.target }}
-          toolchain: stable
-          profile: minimal
-          override: true
+          targets: ${{ matrix.target }}
 
-      - uses: actions-rs/cargo@v1
-        name: Build
+      - uses: taiki-e/setup-cross-toolchain-action@v1
         with:
-          use-cross: ${{ matrix.cross }}
-          command: build
-          args: --release --locked --target ${{ matrix.target }}
+          # NB: sets CARGO_BUILD_TARGET evar - do not need --target flag in build
+          target: ${{ matrix.target }}
+        if: ${{ matrix.cross }}
+
+      - run: cargo build --release --locked
 
       - name: Extract version
         shell: bash
