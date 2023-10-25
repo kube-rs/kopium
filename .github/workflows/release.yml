@@ -79,6 +79,8 @@ jobs:
         with:
           # NB: sets CARGO_BUILD_TARGET evar - do not need --target flag in build
           target: ${{ matrix.target }}
+
+      - uses: taiki-e/install-action@cross
         if: ${{ matrix.cross }}
 
       - run: cargo build --release --locked
