@@ -14,11 +14,10 @@ jobs:
       - uses: extractions/setup-just@v1
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: nolar/setup-k3d-k3s@v1
+      - uses: AbsaOSS/k3d-action@v2
         with:
-          version: v1.21
-          k3d-name: kube
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cluster-name: "kube"
+          args: --agents 1 --no-lb
       # unit tests
       - run: cargo test --lib
       # integration tests
