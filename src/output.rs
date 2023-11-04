@@ -98,15 +98,13 @@ impl Container {
                 };
 
                 Container::try_escape_name(name).unwrap_or_else(|| format!("KopiumVariant{i}"))
+            } else if m.name == "-" {
+                "kopium_dash".to_owned()
+            } else if m.name == "_" {
+                "kopium_undescore".to_owned()
             } else {
-                if m.name == "-" {
-                    "kopium_dash".to_owned()
-                } else if m.name == "_" {
-                    "kopium_undescore".to_owned()
-                } else {
-                    Container::try_escape_name(m.name.to_snake_case())
-                        .unwrap_or_else(|| panic!("invalid field name '{}' could not be escaped", m.name))
-                }
+                Container::try_escape_name(m.name.to_snake_case())
+                    .unwrap_or_else(|| panic!("invalid field name '{}' could not be escaped", m.name))
             };
 
             if new_name != m.name {
