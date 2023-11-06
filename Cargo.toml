@@ -39,7 +39,7 @@ serde = { version = "1.0.190", features = ["derive"] }
 serde_yaml = "0.9.27"
 heck = "0.4.1"
 syn = "2.0.32"
-libc = "0.2.149"
+libc = "0.2.150"
 
 [dependencies.kube]
 version = "0.86.0"
