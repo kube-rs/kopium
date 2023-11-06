@@ -42,7 +42,7 @@ syn = "2.0.32"
 libc = "0.2.150"
 
 [dependencies.kube]
-version = "0.86.0"
+version = "0.87.1"
 features = ["derive"]
 
 [dev-dependencies]
