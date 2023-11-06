@@ -101,7 +101,7 @@ impl Container {
             } else if m.name == "-" {
                 "kopium_dash".to_owned()
             } else if m.name == "_" {
-                "kopium_undescore".to_owned()
+                "kopium_underscore".to_owned()
             } else {
                 Container::try_escape_name(m.name.to_snake_case())
                     .unwrap_or_else(|| panic!("invalid field name '{}' could not be escaped", m.name))
