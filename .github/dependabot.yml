@@ -4,9 +4,13 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    labels:
+      - "exclude"
 
   - package-ecosystem: "cargo"
     directory: "/"
+    labels:
+      - "dependencies"
     schedule:
       interval: "weekly"
     groups:

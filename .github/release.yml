@@ -1,0 +1,9 @@
+# https://docs.github.com/en/repositories/releasing-projects-on-github/automatically-generated-release-notes
+changelog:
+  exclude:
+    labels: [exclude]
+  categories:
+    - title: Dependencies
+      labels: [dependencies]
+    - title: Changes
+      labels: ["*"]
