@@ -89,13 +89,21 @@ impl Container {
                 // `!=` -> `!=` -> `r#!=` -> `r#_!=` -> `KopiumVariant{i}`
                 let name = if m.name.is_empty() {
                     "KopiumEmpty".to_owned()
+                } else if m.name == "-" {
+                    "KopiumDash".to_owned()
+                } else if m.name == "_" {
+                    "KopiumUnderscore".to_owned()
                 } else {
                     m.name.to_pascal_case()
                 };
 
-                Container::try_esacape_name(name).unwrap_or_else(|| format!("KopiumVariant{i}"))
+                Container::try_escape_name(name).unwrap_or_else(|| format!("KopiumVariant{i}"))
+            } else if m.name == "-" {
+                "kopium_dash".to_owned()
+            } else if m.name == "_" {
+                "kopium_underscore".to_owned()
             } else {
-                Container::try_esacape_name(m.name.to_snake_case())
+                Container::try_escape_name(m.name.to_snake_case())
                     .unwrap_or_else(|| panic!("invalid field name '{}' could not be escaped", m.name))
             };
 
@@ -119,7 +127,7 @@ impl Container {
     }
 
     /// Tries to escape a field or variant name into a valid Rust identifier.
-    fn try_esacape_name(name: String) -> Option<String> {
+    fn try_escape_name(name: String) -> Option<String> {
         if syn::parse_str::<syn::Ident>(&name).is_ok() {
             return Some(name);
         }
