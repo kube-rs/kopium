@@ -141,6 +141,17 @@ cargo test --test runner -- --nocapture
 
 test shortcuts available via `just` in the [`justfile`](./justfile) and run pre-merge.
 
+## Existing Bindings
+
+Certain binding libraries publish the `kopium` output up to crates.io for easier consumption, and this can avoid having to inline generated files in your repo (provided you do not need customization / patches to the output).
+
+The main catalogue library is [metio/kube-custom-resources-rs](https://github.com/metio/kube-custom-resources-rs) which selects crds via features ([don't use all-features](https://mastodon.online/@sebhoss/111356248593690997)).
+
+Specific group binding libraries:
+- [gateway-api-rs](https://github.com/kube-rs/gateway-api-rs)
+
+Feel free to [edit this file](https://github.com/kube-rs/kopium/edit/main/README.md) to add more.
+
 ## License
 
 Apache 2.0 licensed. See LICENSE for details.
