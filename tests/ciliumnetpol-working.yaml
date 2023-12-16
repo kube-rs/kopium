@@ -1,0 +1,13 @@
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: gen
+spec:
+  endpointSelector: {}
+  egress:
+  - toEndpoints:
+    - {}
+  ingress:
+  - fromEndpoints:
+    - {}

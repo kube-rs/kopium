@@ -89,7 +89,7 @@ test-cilium-netpol:
   kubectl apply --server-side -f tests/ciliumnetpol-crd.yaml
   cargo run --bin kopium -- -A ciliumnetworkpolicies.cilium.io > tests/gen.rs
   echo "pub type CR = CiliumNetworkPolicy;" >> tests/gen.rs
-  kubectl apply -f tests/ciliumnetpol.yaml
+  kubectl apply -f tests/ciliumnetpol-working.yaml
   cargo test --test runner -- --nocapture
 
 release:
