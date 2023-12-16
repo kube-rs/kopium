@@ -85,5 +85,12 @@ test-istio-destrule:
   # NB: this currently fails because of an empty status object with preserve-unknown-fields
   cargo test --test runner -- --nocapture
 
+test-cilium-netpol:
+  kubectl apply --server-side -f tests/ciliumnetpol-crd.yaml
+  cargo run --bin kopium -- -A ciliumnetworkpolicies.cilium.io > tests/gen.rs
+  echo "pub type CR = CiliumNetworkPolicy;" >> tests/gen.rs
+  kubectl apply -f tests/ciliumnetpol.yaml
+  cargo test --test runner -- --nocapture
+
 release:
   cargo release minor --execute
