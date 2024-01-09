@@ -108,6 +108,7 @@ async fn main() -> Result<()> {
     env_logger::init();
     // Ignore SIGPIPE errors to avoid having to use let _ = write! everywhere
     // See https://github.com/rust-lang/rust/issues/46016
+    #[cfg(unix)]
     unsafe {
         libc::signal(libc::SIGPIPE, libc::SIG_DFL);
     }
