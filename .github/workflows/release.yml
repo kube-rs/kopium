@@ -121,7 +121,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: builds-${{ matrix.os }}
+          name: builds-${{ matrix.target }}
           retention-days: 1
           path: |
             kopium-*.tar.xz
