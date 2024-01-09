@@ -121,7 +121,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: builds
+          name: builds-${{ matrix.os }}
           retention-days: 1
           path: |
             kopium-*.tar.xz
@@ -144,7 +144,8 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: builds
+          pattern: builds-*
+          merge-multiple: true
 
       - name: Checksums with SHA512
         run: sha512sum kopium-* | tee SHA512SUMS
