@@ -30,7 +30,7 @@ k8s-openapi = { version = "0.21.0", features = ["latest"] }
 tokio = { version = "1.26.0", features = ["full"] }
 anyhow = "1.0.79"
 log = "0.4.17"
-env_logger = "0.10.1"
+env_logger = "0.10.2"
 serde_json = "1.0.111"
 clap = { version = "4.4", features = ["cargo", "derive"] }
 clap_complete = "4.4"
@@ -47,4 +47,4 @@ features = ["derive"]
 
 [dev-dependencies]
 schemars = "0.8.16"
-typed-builder = "0.18.0"
+typed-builder = "0.18.1"
