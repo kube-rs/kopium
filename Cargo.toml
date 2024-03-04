@@ -29,7 +29,7 @@ path = "src/lib.rs"
 k8s-openapi = { version = "0.21.1", features = ["latest"] }
 tokio = { version = "1.26.0", features = ["full"] }
 anyhow = "1.0.80"
-log = "0.4.17"
+log = "0.4.21"
 env_logger = "0.10.2"
 serde_json = "1.0.114"
 clap = { version = "4.5", features = ["cargo", "derive"] }
@@ -38,7 +38,7 @@ quote = "1.0.35"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_yaml = "0.9.32"
 heck = "0.4.1"
-syn = "2.0.51"
+syn = "2.0.52"
 libc = "0.2.153"
 
 [dependencies.kube]
