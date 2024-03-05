@@ -25,6 +25,8 @@ jobs:
       # Test reasonably complicated CRDs; promethesurules and servicemonitors
       - run: just test-pr
       - run: just test-sm
+      # Cilium with a non/spec-status model
+      - run: just test-cilium-netpol
       # Test a fake CRD with multiple versions
       - run: just test-mv
       # Test argocd Application
