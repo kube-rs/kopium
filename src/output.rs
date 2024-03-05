@@ -42,6 +42,8 @@ pub struct Member {
     pub extra_annot: Vec<String>,
     /// Documentation properties extracted from the property
     pub docs: Option<String>,
+    /// Discriminant of an integer enum
+    pub discriminant: Option<u64>,
 }
 
 impl Container {

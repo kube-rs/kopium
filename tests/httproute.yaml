@@ -7,11 +7,10 @@ spec:
   parentRefs:
   - name: gateway
     namespace: istio-system
-    sectionName: foobar
-  - name: gateway
-    namespace: istio-system
-    sectionName: same-namespace
   rules:
-  - backendRefs:
-    - name: httpbin
-      port: 81
+  - filters:
+    - type: RequestRedirect
+      requestRedirect:
+        port: 8080
+        statusCode: 302
+        scheme: https
