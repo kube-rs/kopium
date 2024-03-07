@@ -272,7 +272,7 @@ fn extract_container(
                 // recurse through repeated arrays until we find a concrete type (keep track of how deep we went)
                 let (mut array_type, recurse_level) = array_recurse_for_type(value, stack, key, 1)?;
                 trace!("got array {} for {} in level {}", array_type, key, recurse_level);
-                if !cfg.no_condition && key == "conditions" && is_conditions(&value) {
+                if !cfg.no_condition && key == "conditions" && is_conditions(value) {
                     array_type = "Vec<k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition>".into();
                 } else {
                     array_recurse_level.insert(key.clone(), recurse_level);
@@ -452,23 +452,18 @@ fn array_recurse_for_type(
 // ----------------------------------------------------------------------------
 // helpers
 fn is_conditions(value: &JSONSchemaProps) -> bool {
-    if let Some(items) = &value.items {
-        if let JSONSchemaPropsOrArray::Schema(props) = &items {
-            if let Some(p) = &props.properties {
-                let type_ = p.get("type");
-                let status = p.get("status");
-                let reason = p.get("reason");
-                let message = p.get("message");
-                let ltt = p.get("lastTransitionTime");
-                if type_.is_some()
-                    && status.is_some()
-                    && reason.is_some()
-                    && message.is_some()
-                    && ltt.is_some()
-                {
-                    return true;
-                }
-            }
+    if let Some(JSONSchemaPropsOrArray::Schema(props)) = &value.items {
+        if let Some(p) = &props.properties {
+            let type_ = p.get("type");
+            let status = p.get("status");
+            let reason = p.get("reason");
+            let message = p.get("message");
+            let ltt = p.get("lastTransitionTime");
+            return type_.is_some()
+                && status.is_some()
+                && reason.is_some()
+                && message.is_some()
+                && ltt.is_some();
         }
     }
     false
