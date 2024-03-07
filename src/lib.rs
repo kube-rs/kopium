@@ -1,6 +1,7 @@
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 
 mod analyzer;
-pub use analyzer::analyze;
+pub use analyzer::Analyzer;
 mod output;
 pub use output::{Container, Member, Output};
