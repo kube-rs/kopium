@@ -1,12 +1,11 @@
 use std::path::PathBuf;
-#[macro_use]
-extern crate log;
+#[macro_use] extern crate log;
 use anyhow::{anyhow, Context, Result};
 use clap::{CommandFactory, Parser, Subcommand};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion, CustomResourceSubresources,
 };
-use kopium::{Analyzer, Container};
+use kopium::{analyze, Config, Container};
 use kube::{api, core::Version, Api, Client, ResourceExt};
 use quote::format_ident;
 
@@ -96,7 +95,7 @@ struct Kopium {
     /// This detects if a particular path is an array of Condition objects and uses a standard
     /// Condition API instead of generating a custom definition.
     #[arg(long)]
-    disable_condition_gen: bool,
+    no_condition: bool,
 }
 
 #[derive(Clone, Copy, Debug, Subcommand)]
@@ -191,9 +190,10 @@ impl Kopium {
 
         if let Some(schema) = data {
             log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
-            let analyzer = Analyzer::new(self.disable_condition_gen);
-            let structs = analyzer
-                .analyze(schema, kind)?
+            let cfg = Config {
+                no_condition: self.no_condition,
+            };
+            let structs = analyze(schema, kind, cfg)?
                 .rename()
                 .builder_fields(self.builders)
                 .0;
