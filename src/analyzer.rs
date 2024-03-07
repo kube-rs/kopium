@@ -273,7 +273,7 @@ fn extract_container(
                 let (mut array_type, recurse_level) = array_recurse_for_type(value, stack, key, 1)?;
                 trace!("got array {} for {} in level {}", array_type, key, recurse_level);
                 if !cfg.no_condition && key == "conditions" && is_conditions(value) {
-                    array_type = "Vec<k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition>".into();
+                    array_type = "Vec<Condition>".into();
                 } else {
                     array_recurse_level.insert(key.clone(), recurse_level);
                 }
@@ -1181,9 +1181,6 @@ type: object
         let structs = analyze(schema, "Gateway", Cfg::default()).unwrap().0;
         assert_eq!(structs.len(), 1);
         assert_eq!(structs[0].members.len(), 1);
-        assert_eq!(
-            structs[0].members[0].type_,
-            "Option<Vec<k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition>>"
-        );
+        assert_eq!(structs[0].members[0].type_, "Option<Vec<Condition>>");
     }
 }

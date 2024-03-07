@@ -53,6 +53,10 @@ impl Container {
         self.members.iter().any(|m| m.type_.contains("HashMap"))
     }
 
+    pub fn uses_conditions(&self) -> bool {
+        self.members.iter().any(|m| m.type_.contains("Vec<Condition>"))
+    }
+
     pub fn uses_datetime(&self) -> bool {
         self.members.iter().any(|m| m.type_.contains("DateTime"))
     }

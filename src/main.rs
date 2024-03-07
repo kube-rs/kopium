@@ -350,6 +350,9 @@ impl Kopium {
         if results.iter().any(|o| o.uses_date()) {
             println!("use chrono::naive::NaiveDate;");
         }
+        if results.iter().any(|o| o.uses_conditions()) {
+            println!("use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;");
+        }
         if results.iter().any(|o| o.uses_int_or_string()) {
             println!("use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;");
         }
