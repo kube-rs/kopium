@@ -5,7 +5,7 @@ use clap::{CommandFactory, Parser, Subcommand};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion, CustomResourceSubresources,
 };
-use kopium::{analyze, Container};
+use kopium::{analyze, Config, Container};
 use kube::{api, core::Version, Api, Client, ResourceExt};
 use quote::format_ident;
 
@@ -89,6 +89,13 @@ struct Kopium {
     /// the output first.
     #[arg(long, short = 'e')]
     elide: Vec<String>,
+
+    /// Enable generation of custom Condition APIs.
+    ///
+    /// If false, it detects if a particular path is an array of Condition objects and uses a standard
+    /// Condition API instead of generating a custom definition.
+    #[arg(long)]
+    no_condition: bool,
 }
 
 #[derive(Clone, Copy, Debug, Subcommand)]
@@ -183,7 +190,13 @@ impl Kopium {
 
         if let Some(schema) = data {
             log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
-            let structs = analyze(schema, kind)?.rename().builder_fields(self.builders).0;
+            let cfg = Config {
+                no_condition: self.no_condition,
+            };
+            let structs = analyze(schema, kind, cfg)?
+                .rename()
+                .builder_fields(self.builders)
+                .0;
 
             if !self.hide_prelude {
                 self.print_prelude(&structs);
@@ -339,6 +352,9 @@ impl Kopium {
         }
         if results.iter().any(|o| o.uses_int_or_string()) {
             println!("use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;");
+        }
+        if results.iter().any(|o| o.contains_conditions()) && !self.no_condition {
+            println!("use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;");
         }
         println!();
     }

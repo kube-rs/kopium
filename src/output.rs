@@ -72,6 +72,10 @@ impl Container {
     pub fn is_main_container(&self) -> bool {
         self.level == 1 && self.name.ends_with("Spec")
     }
+
+    pub fn contains_conditions(&self) -> bool {
+        self.members.iter().any(|m| m.type_.contains("Vec<Condition>"))
+    }
 }
 
 impl Container {

@@ -9,12 +9,17 @@ use std::collections::{BTreeMap, HashMap};
 
 const IGNORED_KEYS: [&str; 3] = ["metadata", "apiVersion", "kind"];
 
+#[derive(Default)]
+pub struct Config {
+    pub no_condition: bool,
+}
+
 /// Scan a schema for structs and members, and recurse to find all structs
 ///
 /// All found output structs will have its names prefixed by the kind it is for
-pub fn analyze(schema: JSONSchemaProps, kind: &str) -> Result<Output> {
+pub fn analyze(schema: JSONSchemaProps, kind: &str, cfg: Config) -> Result<Output> {
     let mut res = vec![];
-    analyze_(&schema, "", kind, 0, &mut res)?;
+    analyze_(&schema, "", kind, 0, &mut res, &cfg)?;
     Ok(Output(res))
 }
 
@@ -31,6 +36,7 @@ fn analyze_(
     stack: &str,
     level: u8,
     results: &mut Vec<Container>,
+    cfg: &Config,
 ) -> Result<()> {
     let props = schema.properties.clone().unwrap_or_default();
     let mut array_recurse_level: HashMap<String, u8> = Default::default();
@@ -46,7 +52,7 @@ fn analyze_(
             if let Some(extra_props) = &s.properties {
                 // map values is an object with properties
                 debug!("Generating map struct for {} (under {})", current, stack);
-                let c = extract_container(extra_props, stack, &mut array_recurse_level, level, schema)?;
+                let c = extract_container(extra_props, stack, &mut array_recurse_level, level, schema, cfg)?;
                 results.push(c);
             } else if !dict_type.is_empty() {
                 warn!("not generating type {} - using {} map", current, dict_type);
@@ -60,7 +66,7 @@ fn analyze_(
                 warn!("not generating type {} - using BTreeMap", current);
                 return Ok(());
             }
-            let c = extract_container(&props, stack, &mut array_recurse_level, level, schema)?;
+            let c = extract_container(&props, stack, &mut array_recurse_level, level, schema, cfg)?;
             results.push(c);
         }
     }
@@ -74,10 +80,10 @@ fn analyze_(
     // again; additionalProperties XOR properties
     let extras = if let Some(JSONSchemaPropsOrBool::Schema(s)) = schema.additional_properties.as_ref() {
         let extra_props = s.properties.clone().unwrap_or_default();
-        find_containers(&extra_props, stack, &mut array_recurse_level, level, schema)?
+        find_containers(&extra_props, stack, &mut array_recurse_level, level, schema, cfg)?
     } else {
         // regular properties only
-        find_containers(&props, stack, &mut array_recurse_level, level, schema)?
+        find_containers(&props, stack, &mut array_recurse_level, level, schema, cfg)?
     };
     results.extend(extras);
 
@@ -95,6 +101,7 @@ fn find_containers(
     array_recurse_level: &mut HashMap<String, u8>,
     level: u8,
     schema: &JSONSchemaProps,
+    cfg: &Config,
 ) -> Result<Vec<Container>> {
     //trace!("finding containers in: {}", serde_yaml::to_string(&props)?);
     let mut results = vec![];
@@ -116,7 +123,7 @@ fn find_containers(
                         // unpack the inner object from the array wrap
                         if let Some(JSONSchemaPropsOrArray::Schema(items)) = &s.as_ref().items {
                             debug!("..recursing into object member {}", key);
-                            analyze_(items, &next_key, &next_stack, level + 1, &mut results)?;
+                            analyze_(items, &next_key, &next_stack, level + 1, &mut results, cfg)?;
                             handled_inner = true;
                         }
                     }
@@ -130,7 +137,7 @@ fn find_containers(
                 }
                 if !handled_inner {
                     // normal object recurse
-                    analyze_(value, &next_key, &next_stack, level + 1, &mut results)?;
+                    analyze_(value, &next_key, &next_stack, level + 1, &mut results, cfg)?;
                 }
             }
             "array" => {
@@ -150,7 +157,7 @@ fn find_containers(
                             bail!("could not recurse into vec");
                         }
                     }
-                    analyze_(&inner, &next_key, &next_stack, level + 1, &mut results)?;
+                    analyze_(&inner, &next_key, &next_stack, level + 1, &mut results, cfg)?;
                 }
             }
             "" => {
@@ -226,6 +233,7 @@ fn extract_container(
     array_recurse_level: &mut HashMap<String, u8>,
     level: u8,
     schema: &JSONSchemaProps,
+    cfg: &Config,
 ) -> Result<Container, anyhow::Error> {
     let mut members = vec![];
     //debug!("analyzing object {}", serde_json::to_string(&schema).unwrap());
@@ -262,9 +270,13 @@ fn extract_container(
             "integer" => extract_integer_type(value)?,
             "array" => {
                 // recurse through repeated arrays until we find a concrete type (keep track of how deep we went)
-                let (array_type, recurse_level) = array_recurse_for_type(value, stack, key, 1)?;
+                let (mut array_type, recurse_level) = array_recurse_for_type(value, stack, key, 1)?;
                 trace!("got array {} for {} in level {}", array_type, key, recurse_level);
-                array_recurse_level.insert(key.clone(), recurse_level);
+                if !cfg.no_condition && key == "conditions" && is_conditions(value) {
+                    array_type = "Vec<Condition>".into();
+                } else {
+                    array_recurse_level.insert(key.clone(), recurse_level);
+                }
                 array_type
             }
             "" => {
@@ -439,6 +451,21 @@ fn array_recurse_for_type(
 
 // ----------------------------------------------------------------------------
 // helpers
+fn is_conditions(value: &JSONSchemaProps) -> bool {
+    if let Some(JSONSchemaPropsOrArray::Schema(props)) = &value.items {
+        if let Some(p) = &props.properties {
+            let type_ = p.get("type");
+            let status = p.get("status");
+            let reason = p.get("reason");
+            let message = p.get("message");
+            let ltt = p.get("lastTransitionTime");
+            if type_.is_some() && status.is_some() && reason.is_some() && message.is_some() && ltt.is_some() {
+                return true;
+            }
+        }
+    }
+    false
+}
 
 fn extract_date_type(value: &JSONSchemaProps) -> Result<String> {
     Ok(if let Some(f) = &value.format {
@@ -499,7 +526,7 @@ fn extract_integer_type(value: &JSONSchemaProps) -> Result<String> {
 // unit tests particular schema patterns
 #[cfg(test)]
 mod test {
-    use crate::analyze;
+    use super::{analyze, Config as Cfg};
     use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::JSONSchemaProps;
 
     use std::sync::Once;
@@ -545,7 +572,7 @@ mod test {
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
         //println!("schema: {}", serde_json::to_string_pretty(&schema).unwrap());
 
-        let structs = analyze(schema, "Agent").unwrap().0;
+        let structs = analyze(schema, "Agent", Cfg::default()).unwrap().0;
         //println!("{:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "Agent");
@@ -589,7 +616,7 @@ type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
         //println!("schema: {}", serde_json::to_string_pretty(&schema).unwrap());
-        let structs = analyze(schema, "Server").unwrap().0;
+        let structs = analyze(schema, "Server", Cfg::default()).unwrap().0;
         //println!("{:#?}", structs);
 
         let root = &structs[0];
@@ -620,7 +647,7 @@ type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
 
-        let structs = analyze(schema, "Server").unwrap().0;
+        let structs = analyze(schema, "Server", Cfg::default()).unwrap().0;
         let root = &structs[0];
         assert_eq!(root.name, "Server");
         // should have an IntOrString member:
@@ -646,7 +673,7 @@ type: object
             type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let structs = analyze(schema, "Options").unwrap().0;
+        let structs = analyze(schema, "Options", Cfg::default()).unwrap().0;
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "Options");
@@ -673,7 +700,7 @@ type: object
 "#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let structs = analyze(schema, "MatchExpressions").unwrap().0;
+        let structs = analyze(schema, "MatchExpressions", Cfg::default()).unwrap().0;
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "MatchExpressions");
@@ -726,7 +753,7 @@ type: object
         "#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let structs = analyze(schema, "Endpoint").unwrap().0;
+        let structs = analyze(schema, "Endpoint", Cfg::default()).unwrap().0;
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "Endpoint");
@@ -810,7 +837,7 @@ type: object
     type: object"#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let structs = analyze(schema, "ServerSpec").unwrap().0;
+        let structs = analyze(schema, "ServerSpec", Cfg::default()).unwrap().0;
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "ServerSpec");
@@ -881,7 +908,7 @@ type: object
         type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let structs = analyze(schema, "ServiceMonitor").unwrap().0;
+        let structs = analyze(schema, "ServiceMonitor", Cfg::default()).unwrap().0;
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "ServiceMonitor");
@@ -944,7 +971,7 @@ type: object
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
 
         //println!("schema: {}", serde_json::to_string_pretty(&schema).unwrap());
-        let structs = analyze(schema, "DestinationRule").unwrap().0;
+        let structs = analyze(schema, "DestinationRule", Cfg::default()).unwrap().0;
         //println!("{:#?}", structs);
 
         // this should produce the root struct struct
@@ -979,7 +1006,7 @@ type: object
         "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
         println!("got schema {}", serde_yaml::to_string(&schema).unwrap());
-        let structs = analyze(schema, "StatusCode").unwrap().0;
+        let structs = analyze(schema, "StatusCode", Cfg::default()).unwrap().0;
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "StatusCode");
@@ -1005,7 +1032,7 @@ type: object
         "#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let structs = analyze(schema, "KustomizationSpec").unwrap().0;
+        let structs = analyze(schema, "KustomizationSpec", Cfg::default()).unwrap().0;
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "KustomizationSpec");
@@ -1047,7 +1074,7 @@ type: object
             type: object
         type: object"#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let structs = analyze(schema, "AppProjectStatus").unwrap().0;
+        let structs = analyze(schema, "AppProjectStatus", Cfg::default()).unwrap().0;
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "AppProjectStatus");
@@ -1081,7 +1108,7 @@ type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
 
-        let structs = analyze(schema, "Agent").unwrap().0;
+        let structs = analyze(schema, "Agent", Cfg::default()).unwrap().0;
 
         let root = &structs[0];
         assert_eq!(root.name, "Agent");
@@ -1111,7 +1138,7 @@ type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
 
-        let structs = analyze(schema, "Geoip").unwrap().0;
+        let structs = analyze(schema, "Geoip", Cfg::default()).unwrap().0;
 
         assert_eq!(structs.len(), 1);
         assert_eq!(structs[0].members.len(), 1);
@@ -1120,5 +1147,38 @@ type: object
             structs[0].members[0].type_,
             "Option<Vec<BTreeMap<String, String>>>"
         );
+    }
+
+    #[test]
+    fn uses_k8s_openapi_conditions() {
+        init();
+        let schema_str = r#"
+properties:
+  conditions:
+    items:
+      properties:
+        lastTransitionTime:
+          type: string  
+        message:
+          type: string  
+        observedGeneration:
+          type: integer
+        reason:
+          type: string
+        status:
+          type: string
+        type:
+          type: string
+      type: object
+    type: array
+type: object
+"#;
+
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+
+        let structs = analyze(schema, "Gateway", Cfg::default()).unwrap().0;
+        assert_eq!(structs.len(), 1);
+        assert_eq!(structs[0].members.len(), 1);
+        assert_eq!(structs[0].members[0].type_, "Option<Vec<Condition>>");
     }
 }
