@@ -81,8 +81,9 @@ impl Container {
 impl Container {
     /// Rename all struct members to rust conventions
     pub fn rename(&mut self) {
+        let mut seen = vec![]; // track names we output to avoid generating duplicates
         for (i, m) in self.members.iter_mut().enumerate() {
-            let new_name = if self.is_enum {
+            let mut new_name = if self.is_enum {
                 // There are no rust keywords that start uppercase,
                 // making this name always a valid identifier except if it contains
                 // or starts with an invalid character.
@@ -110,26 +111,18 @@ impl Container {
                 Container::try_escape_name(m.name.to_snake_case())
                     .unwrap_or_else(|| panic!("invalid field name '{}' could not be escaped", m.name))
             };
+            // The new, Rust correct name MIGHT clash with existing names in degenerate cases
+            // such as those in https://github.com/kube-rs/kopium/issues/165
+            // so if duplicates are seen, we suffix an "X" to disamgiguate (repeatedly if needed)
+            while seen.contains(&new_name) {
+                new_name = format!("{new_name}X"); // force disambiguate
+            }
+            seen.push(new_name.clone());
 
             if new_name != m.name {
                 m.serde_annot.push(format!("rename = \"{}\"", m.name));
                 m.name = new_name;
             }
-        }
-    }
-
-    /// When two or more members have the same name after case-conversion, we deduplicate primitively
-    pub fn disambiguate_duplicates(&mut self) {
-        let mut seen = vec![];
-        for m in &mut self.members {
-            if seen.contains(&m.name) {
-                let mut new_name = m.name.clone();
-                while seen.contains(&new_name) {
-                    new_name = format!("{new_name}X"); // keep suffixing..
-                }
-                m.name = new_name;
-            }
-            seen.push(m.name.clone());
         }
     }
 
@@ -175,7 +168,6 @@ impl Output {
     pub fn rename(mut self) -> Self {
         for c in &mut self.0 {
             c.rename();
-            c.disambiguate_duplicates();
         }
         self
     }
@@ -229,7 +221,6 @@ mod test {
         };
 
         c.rename();
-        c.disambiguate_duplicates();
         assert_eq!(&c.members[0].name, "Replace");
         assert_eq!(&c.members[1].name, "ReplaceX");
         assert_eq!(&c.members[2].name, "Hashmod");
