@@ -16,6 +16,8 @@ pub struct Container {
     pub docs: Option<String>,
     /// Whether this container is an enum
     pub is_enum: bool,
+    /// Elide rename for this container (when passing no-rename)
+    pub no_rename: bool,
 }
 
 /// Output member belonging to an Container
@@ -111,7 +113,7 @@ impl Container {
                     .unwrap_or_else(|| panic!("invalid field name '{}' could not be escaped", m.name))
             };
 
-            if new_name != m.name {
+            if new_name != m.name && !self.no_rename {
                 m.serde_annot.push(format!("rename = \"{}\"", m.name));
                 m.name = new_name;
             }
@@ -175,5 +177,48 @@ impl Output {
             }
         }
         self
+    }
+}
+
+// unit tests
+#[cfg(test)]
+mod test {
+    use super::{Container, Member};
+    fn name_only_enum_member(name: &str) -> Member {
+        Member {
+            name: name.to_string(),
+            type_: "".to_string(),
+            serde_annot: vec![],
+            extra_annot: vec![],
+            docs: None,
+        }
+    }
+
+    #[test]
+    fn no_rename_is_respected() {
+        let mut c = Container {
+            name: "EndpointRelabelingsAction".to_string(),
+            level: 1,
+            members: vec![
+                name_only_enum_member("replace"),
+                name_only_enum_member("Replace"),
+                name_only_enum_member("keep"),
+                name_only_enum_member("Keep"),
+                name_only_enum_member("labelkeep"),
+                name_only_enum_member("LabelKeep"),
+            ],
+            docs: None,
+            is_enum: true,
+            no_rename: true,
+        };
+
+        c.rename();
+        // should have enum members with ORIGINAL names AFTER rename
+        assert_eq!(&c.members[0].name, "replace");
+        assert_eq!(&c.members[1].name, "Replace");
+        assert_eq!(&c.members[2].name, "keep");
+        assert_eq!(&c.members[3].name, "Keep");
+        assert_eq!(&c.members[4].name, "labelkeep");
+        assert_eq!(&c.members[5].name, "LabelKeep");
     }
 }

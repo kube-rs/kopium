@@ -199,7 +199,7 @@ impl Kopium {
             log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
             let cfg = Config {
                 no_condition: self.no_condition,
-                no_rename: self.no_rename,
+                no_rename: self.no_rename.clone(),
             };
             let structs = analyze(schema, kind, cfg)?
                 .rename()
