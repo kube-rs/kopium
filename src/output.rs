@@ -119,12 +119,18 @@ impl Container {
     }
 
     /// When two or more members have the same name after case-conversion, we deduplicate primitively
-    pub fn deduplicate(&mut self) {
-        self.members.dedup_by(|a, b| {
-            let lower_a = a.name.to_lowercase();
-            let lower_b = b.name.to_lowercase();
-            a.name == b.name || lower_a == lower_b
-        })
+    pub fn disambiguate_duplicates(&mut self) {
+        let mut seen = vec![];
+        for m in &mut self.members {
+            if seen.contains(&m.name) {
+                let mut new_name = m.name.clone();
+                while seen.contains(&new_name) {
+                    new_name = format!("{new_name}X"); // keep suffixing..
+                }
+                m.name = new_name;
+            }
+            seen.push(m.name.clone());
+        }
     }
 
     /// Add builder annotations
@@ -169,7 +175,7 @@ impl Output {
     pub fn rename(mut self) -> Self {
         for c in &mut self.0 {
             c.rename();
-            c.deduplicate();
+            c.disambiguate_duplicates();
         }
         self
     }
@@ -210,26 +216,28 @@ mod test {
             members: vec![
                 name_only_enum_member("replace"),
                 name_only_enum_member("Replace"),
-                name_only_enum_member("keep"),
-                name_only_enum_member("Keep"),
-                name_only_enum_member("labelkeep"),
-                name_only_enum_member("LabelKeep"),
                 name_only_enum_member("hashmod"),
                 name_only_enum_member("HashMod"),
+                // deliberately contrarian examples
+                name_only_enum_member("jwks_uri"),
+                name_only_enum_member("jwks-uri"),
+                name_only_enum_member("jwksUri"),
+                name_only_enum_member("JwksUri"),
             ],
             docs: None,
             is_enum: true,
         };
 
         c.rename();
-        c.deduplicate();
-        // should have dropped duplicate renum targetted enum members:
-        // NB: we are not guaranteed to get "the best one"
-        // e.g. for prom relabelings we have accidentally picked the deprecated one
+        c.disambiguate_duplicates();
         assert_eq!(&c.members[0].name, "Replace");
-        assert_eq!(&c.members[1].name, "Keep");
-        assert_eq!(&c.members[2].name, "Labelkeep");
-        assert_eq!(&c.members[3].name, "Hashmod");
-        assert_eq!(c.members.len(), 4);
+        assert_eq!(&c.members[1].name, "ReplaceX");
+        assert_eq!(&c.members[2].name, "Hashmod");
+        assert_eq!(&c.members[3].name, "HashMod");
+        assert_eq!(&c.members[4].name, "JwksUri");
+        assert_eq!(&c.members[5].name, "JwksUriX");
+        assert_eq!(&c.members[6].name, "JwksUriXX");
+        assert_eq!(&c.members[7].name, "JwksUriXXX");
+        assert_eq!(c.members.len(), 8);
     }
 }
