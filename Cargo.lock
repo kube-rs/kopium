@@ -725,6 +725,7 @@ checksum = "550f99d93aa4c2b25de527bce492d772caf5e21d7ac9bd4b508ba781c8d91e30"
 dependencies = [
  "base64",
  "chrono",
+ "schemars",
  "serde",
  "serde-value",
  "serde_json",
