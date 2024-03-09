@@ -16,8 +16,6 @@ pub struct Container {
     pub docs: Option<String>,
     /// Whether this container is an enum
     pub is_enum: bool,
-    /// Elide rename for this container (when passing no-rename)
-    pub no_rename: bool,
 }
 
 /// Output member belonging to an Container
@@ -113,11 +111,16 @@ impl Container {
                     .unwrap_or_else(|| panic!("invalid field name '{}' could not be escaped", m.name))
             };
 
-            if new_name != m.name && !self.no_rename {
+            if new_name != m.name {
                 m.serde_annot.push(format!("rename = \"{}\"", m.name));
                 m.name = new_name;
             }
         }
+    }
+
+    /// When two or more members have the same name after case-conversion, we deduplicate primitively
+    pub fn deduplicate(&mut self) {
+        self.members.dedup_by(|a, b| a.name == b.name)
     }
 
     /// Add builder annotations
@@ -161,7 +164,8 @@ impl Output {
     /// It is unsound to skip this step. Some CRDs use kebab-cased members is invalid in Rust.
     pub fn rename(mut self) -> Self {
         for c in &mut self.0 {
-            c.rename()
+            c.rename();
+            c.deduplicate();
         }
         self
     }
@@ -209,16 +213,13 @@ mod test {
             ],
             docs: None,
             is_enum: true,
-            no_rename: true,
         };
 
         c.rename();
-        // should have enum members with ORIGINAL names AFTER rename
-        assert_eq!(&c.members[0].name, "replace");
-        assert_eq!(&c.members[1].name, "Replace");
-        assert_eq!(&c.members[2].name, "keep");
-        assert_eq!(&c.members[3].name, "Keep");
-        assert_eq!(&c.members[4].name, "labelkeep");
-        assert_eq!(&c.members[5].name, "LabelKeep");
+        c.deduplicate();
+        // should have dropped duplicate renum targetted enum members:
+        assert_eq!(&c.members[0].name, "Replace");
+        assert_eq!(&c.members[1].name, "Keep");
+        assert_eq!(&c.members[2].name, "Labelkeep");
     }
 }

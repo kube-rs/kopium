@@ -90,12 +90,6 @@ struct Kopium {
     #[arg(long, short = 'e')]
     elide: Vec<String>,
 
-    /// Avoid renaming structs matching struct names
-    ///
-    /// This avoids awkward cases where certain CRDs contain duplicate names with the different case
-    #[arg(long)]
-    no_rename: Vec<String>,
-
     /// Enable generation of custom Condition APIs.
     ///
     /// If false, it detects if a particular path is an array of Condition objects and uses a standard
@@ -198,7 +192,6 @@ impl Kopium {
             log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
             let cfg = Config {
                 no_condition: self.no_condition,
-                no_rename: self.no_rename.clone(),
             };
             let structs = analyze(schema, kind, cfg)?
                 .rename()

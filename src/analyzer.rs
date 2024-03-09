@@ -12,7 +12,6 @@ const IGNORED_KEYS: [&str; 3] = ["metadata", "apiVersion", "kind"];
 #[derive(Default)]
 pub struct Config {
     pub no_condition: bool,
-    pub no_rename: Vec<String>,
 }
 
 /// Scan a schema for structs and members, and recurse to find all structs
@@ -173,7 +172,7 @@ fn find_containers(
                     // plain enums do not need to recurse, can collect it here
                     // ....although this makes it impossible for us to handle enums at the top level
                     // TODO: move this to the top level
-                    let new_result = analyze_enum_properties(en, &next_stack, level, schema, cfg)?;
+                    let new_result = analyze_enum_properties(en, &next_stack, level, schema)?;
                     results.push(new_result);
                 } else {
                     debug!("..not recursing into {} ('{}' is not a container)", key, x)
@@ -190,7 +189,6 @@ fn analyze_enum_properties(
     stack: &str,
     level: u8,
     schema: &JSONSchemaProps,
-    cfg: &Config,
 ) -> Result<Container, anyhow::Error> {
     let mut members = vec![];
     debug!("analyzing enum {}", serde_json::to_string(&schema).unwrap());
@@ -225,7 +223,6 @@ fn analyze_enum_properties(
         level,
         docs: schema.description.clone(),
         is_enum: true,
-        no_rename: cfg.no_rename.iter().any(|x| stack.contains(x)),
     })
 }
 
@@ -330,7 +327,6 @@ fn extract_container(
         level,
         docs: schema.description.clone(),
         is_enum: false,
-        no_rename: cfg.no_rename.iter().any(|x| stack.contains(x)),
     })
 }
 
@@ -726,59 +722,6 @@ type: object
         assert_eq!(&op.members[2].type_, "");
         assert_eq!(&op.members[3].name, "DoesNotExist");
         assert_eq!(&op.members[3].type_, "");
-    }
-
-    #[test]
-    fn avoid_rename_on_duplicated_value_containers() {
-        init();
-        let schema_str = r#"
-      properties:
-        relabelings:
-          items:
-            properties:
-              action:
-                default: replace
-                enum:
-                - replace
-                - Replace
-                - keep
-                - Keep
-                - labelkeep
-                - LabelKeep
-                type: string
-              modulus:
-                format: int64
-                type: integer
-            type: object
-          type: array
-      type: object
-        "#;
-        let cfg = Cfg {
-            no_rename: vec!["RelabelingsAction".into()],
-            ..Cfg::default()
-        };
-        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let structs = analyze(schema, "Endpoint", cfg).unwrap().0;
-        println!("got {:?}", structs);
-        let root = &structs[0];
-        assert_eq!(root.name, "Endpoint");
-        assert_eq!(&root.members[0].type_, "Option<Vec<EndpointRelabelings>>");
-        assert!(!root.no_rename); // no-rename NOT set on EP (string not similar)
-
-        let rel = &structs[1];
-        assert_eq!(rel.name, "EndpointRelabelings");
-        assert_eq!(rel.is_enum, false);
-        assert_eq!(&rel.members[0].name, "action");
-        assert_eq!(&rel.members[0].type_, "Option<EndpointRelabelingsAction>");
-        assert!(!rel.no_rename); // no-rename NOT set EPR (action not in string)
-
-        // action enum member
-        let act = &structs[2];
-        assert_eq!(act.name, "EndpointRelabelingsAction");
-        assert_eq!(act.is_enum, true);
-        // no-rename SET! contains partial struct name
-        assert!(act.no_rename);
-        // NB: we verify that this causes no renames in output.rs
     }
 
     #[test]
