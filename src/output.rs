@@ -221,5 +221,6 @@ mod test {
         assert_eq!(&c.members[0].name, "Replace");
         assert_eq!(&c.members[1].name, "Keep");
         assert_eq!(&c.members[2].name, "Labelkeep");
+        assert_eq!(&c.members[3].name, "LabelKeep"); // unfortunate
     }
 }
