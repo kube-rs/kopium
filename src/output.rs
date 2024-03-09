@@ -120,7 +120,11 @@ impl Container {
 
     /// When two or more members have the same name after case-conversion, we deduplicate primitively
     pub fn deduplicate(&mut self) {
-        self.members.dedup_by(|a, b| a.name == b.name)
+        self.members.dedup_by(|a, b| {
+            let lower_a = a.name.to_lowercase();
+            let lower_b = b.name.to_lowercase();
+            a.name == b.name || lower_a == lower_b
+        })
     }
 
     /// Add builder annotations
@@ -210,6 +214,8 @@ mod test {
                 name_only_enum_member("Keep"),
                 name_only_enum_member("labelkeep"),
                 name_only_enum_member("LabelKeep"),
+                name_only_enum_member("hashmod"),
+                name_only_enum_member("HashMod"),
             ],
             docs: None,
             is_enum: true,
@@ -218,9 +224,12 @@ mod test {
         c.rename();
         c.deduplicate();
         // should have dropped duplicate renum targetted enum members:
+        // NB: we are not guaranteed to get "the best one"
+        // e.g. for prom relabelings we have accidentally picked the deprecated one
         assert_eq!(&c.members[0].name, "Replace");
         assert_eq!(&c.members[1].name, "Keep");
         assert_eq!(&c.members[2].name, "Labelkeep");
-        assert_eq!(&c.members[3].name, "LabelKeep"); // unfortunate
+        assert_eq!(&c.members[3].name, "Hashmod");
+        assert_eq!(c.members.len(), 4);
     }
 }
