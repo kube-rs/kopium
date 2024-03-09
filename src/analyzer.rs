@@ -12,6 +12,7 @@ const IGNORED_KEYS: [&str; 3] = ["metadata", "apiVersion", "kind"];
 #[derive(Default)]
 pub struct Config {
     pub no_condition: bool,
+    pub no_rename: Vec<String>,
 }
 
 /// Scan a schema for structs and members, and recurse to find all structs
@@ -722,6 +723,58 @@ type: object
         assert_eq!(&op.members[2].type_, "");
         assert_eq!(&op.members[3].name, "DoesNotExist");
         assert_eq!(&op.members[3].type_, "");
+    }
+
+    #[test]
+    fn avoid_rename_on_duplicated_value_containers() {
+        init();
+        let schema_str = r#"
+      properties:
+        relabelings:
+          items:
+            properties:
+              action:
+                default: replace
+                enum:
+                - replace
+                - Replace
+                - keep
+                - Keep
+                - drop
+                - Drop
+                - labelkeep
+                - LabelKeep
+                type: string
+              modulus:
+                format: int64
+                type: integer
+            type: object
+          type: array
+      type: object
+        "#;
+        let cfg = Cfg {
+            no_rename: vec!["MetricsRelabelingsAction".into()],
+            ..Cfg::default()
+        };
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        let structs = analyze(schema, "MetricRelabelings", cfg).unwrap().0;
+        println!("got {:?}", structs);
+        let root = &structs[0];
+        assert_eq!(root.name, "MetricRelabelings");
+        assert_eq!(root.level, 0);
+        assert_eq!(&root.members[0].name, "action");
+        assert_eq!(&root.members[0].type_, "MetricRelabelingsAction");
+
+        // operator member
+        let op = &structs[1];
+        assert!(op.is_enum);
+        assert_eq!(op.name, "MetricRelabelingsAction");
+
+        // should have enum members that avoids the clashes
+        assert_eq!(&op.members[0].name, "replace");
+        assert_eq!(&op.members[0].type_, "");
+        assert_eq!(&op.members[0].name, "Replace");
+        assert_eq!(&op.members[0].type_, "");
     }
 
     #[test]

@@ -1,5 +1,6 @@
 use std::path::PathBuf;
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 use anyhow::{anyhow, Context, Result};
 use clap::{CommandFactory, Parser, Subcommand};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
@@ -89,6 +90,12 @@ struct Kopium {
     /// the output first.
     #[arg(long, short = 'e')]
     elide: Vec<String>,
+
+    /// Avoid renaming structs matching struct names
+    ///
+    /// This avoids awkward cases where certain CRDs contain duplicate names with the different case
+    #[arg(long)]
+    no_rename: Vec<String>,
 
     /// Enable generation of custom Condition APIs.
     ///
@@ -192,6 +199,7 @@ impl Kopium {
             log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
             let cfg = Config {
                 no_condition: self.no_condition,
+                no_rename: self.no_rename,
             };
             let structs = analyze(schema, kind, cfg)?
                 .rename()

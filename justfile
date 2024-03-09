@@ -85,5 +85,13 @@ test-istio-destrule:
   # NB: this currently fails because of an empty status object with preserve-unknown-fields
   cargo test --test runner -- --nocapture
 
+test-podmon:
+  curl -sSL https://github.com/prometheus-operator/prometheus-operator/raw/main/example/prometheus-operator-crd/monitoring.coreos.com_podmonitors.yaml  > tests/podmon-crd.yaml
+  kubectl apply --server-side -f tests/podmon-crd.yaml
+  cargo run --bin kopium -- podmonitors.monitoring.coreos.com > tests/gen.rs
+  echo "pub type CR = PodMonitor;" >> tests/gen.rs
+  kubectl apply -f tests/podmon.yaml
+  cargo test --test runner -- --nocapture
+
 release:
   cargo release minor --execute
