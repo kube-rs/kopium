@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: gen
+spec:
+  jobLabel: app
+  namespaceSelector:
+    matchNames:
+      - gen
+  selector:
+    matchLabels:
+      app: gen
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics

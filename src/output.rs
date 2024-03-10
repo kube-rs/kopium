@@ -81,8 +81,9 @@ impl Container {
 impl Container {
     /// Rename all struct members to rust conventions
     pub fn rename(&mut self) {
+        let mut seen = vec![]; // track names we output to avoid generating duplicates
         for (i, m) in self.members.iter_mut().enumerate() {
-            let new_name = if self.is_enum {
+            let mut new_name = if self.is_enum {
                 // There are no rust keywords that start uppercase,
                 // making this name always a valid identifier except if it contains
                 // or starts with an invalid character.
@@ -110,6 +111,14 @@ impl Container {
                 Container::try_escape_name(m.name.to_snake_case())
                     .unwrap_or_else(|| panic!("invalid field name '{}' could not be escaped", m.name))
             };
+            // The new, Rust correct name MIGHT clash with existing names in degenerate cases
+            // such as those in https://github.com/kube-rs/kopium/issues/165
+            // so if duplicates are seen, we suffix an "X" to disamgiguate (repeatedly if needed)
+            while seen.contains(&new_name) {
+                let disambiguation_suffix = if self.is_enum { "X" } else { "_x" };
+                new_name = format!("{new_name}{disambiguation_suffix}"); // force disambiguate
+            }
+            seen.push(new_name.clone());
 
             if new_name != m.name {
                 m.serde_annot.push(format!("rename = \"{}\"", m.name));
@@ -159,7 +168,7 @@ impl Output {
     /// It is unsound to skip this step. Some CRDs use kebab-cased members is invalid in Rust.
     pub fn rename(mut self) -> Self {
         for c in &mut self.0 {
-            c.rename()
+            c.rename();
         }
         self
     }
@@ -175,5 +184,80 @@ impl Output {
             }
         }
         self
+    }
+}
+
+// unit tests
+#[cfg(test)]
+mod test {
+    use super::{Container, Member};
+    fn name_only_enum_member(name: &str) -> Member {
+        Member {
+            name: name.to_string(),
+            type_: "".to_string(),
+            serde_annot: vec![],
+            extra_annot: vec![],
+            docs: None,
+        }
+    }
+    fn name_only_int_member(name: &str) -> Member {
+        Member {
+            name: name.to_string(),
+            type_: "u32".to_string(),
+            serde_annot: vec![],
+            extra_annot: vec![],
+            docs: None,
+        }
+    }
+
+    #[test]
+    fn rename_avoids_producing_name_clashes() {
+        let mut c = Container {
+            name: "EndpointRelabelingsAction".to_string(),
+            level: 1,
+            members: vec![
+                name_only_enum_member("replace"),
+                name_only_enum_member("Replace"),
+                name_only_enum_member("hashmod"),
+                name_only_enum_member("HashMod"),
+                // deliberately contrarian examples
+                name_only_enum_member("jwks_uri"),
+                name_only_enum_member("jwks-uri"),
+                name_only_enum_member("jwksUri"),
+                name_only_enum_member("JwksUri"),
+            ],
+            docs: None,
+            is_enum: true,
+        };
+
+        c.rename();
+        assert_eq!(&c.members[0].name, "Replace");
+        assert_eq!(&c.members[1].name, "ReplaceX");
+        assert_eq!(&c.members[2].name, "Hashmod");
+        assert_eq!(&c.members[3].name, "HashMod");
+        assert_eq!(&c.members[4].name, "JwksUri");
+        assert_eq!(&c.members[5].name, "JwksUriX");
+        assert_eq!(&c.members[6].name, "JwksUriXX");
+        assert_eq!(&c.members[7].name, "JwksUriXXX");
+        assert_eq!(c.members.len(), 8);
+        // ditto for a struct
+        let mut cs = Container {
+            name: "FakeStruct".to_string(),
+            level: 1,
+            members: vec![
+                // deliberately contrarian examples
+                name_only_int_member("jwks_uri"),
+                name_only_int_member("jwks-uri"),
+                name_only_int_member("jwksUri"),
+                name_only_int_member("JwksUri"),
+            ],
+            docs: None,
+            is_enum: false,
+        };
+        cs.rename();
+        assert_eq!(&cs.members[0].name, "jwks_uri");
+        assert_eq!(&cs.members[1].name, "jwks_uri_x");
+        assert_eq!(&cs.members[2].name, "jwks_uri_x_x");
+        assert_eq!(&cs.members[3].name, "jwks_uri_x_x_x");
     }
 }
