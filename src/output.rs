@@ -115,7 +115,8 @@ impl Container {
             // such as those in https://github.com/kube-rs/kopium/issues/165
             // so if duplicates are seen, we suffix an "X" to disamgiguate (repeatedly if needed)
             while seen.contains(&new_name) {
-                new_name = format!("{new_name}X"); // force disambiguate
+                let disambiguation_suffix = if self.is_enum { "X" } else { "_x" };
+                new_name = format!("{new_name}{disambiguation_suffix}"); // force disambiguate
             }
             seen.push(new_name.clone());
 
@@ -199,9 +200,18 @@ mod test {
             docs: None,
         }
     }
+    fn name_only_int_member(name: &str) -> Member {
+        Member {
+            name: name.to_string(),
+            type_: "u32".to_string(),
+            serde_annot: vec![],
+            extra_annot: vec![],
+            docs: None,
+        }
+    }
 
     #[test]
-    fn no_rename_is_respected() {
+    fn rename_avoids_producing_name_clashes() {
         let mut c = Container {
             name: "EndpointRelabelingsAction".to_string(),
             level: 1,
@@ -230,5 +240,24 @@ mod test {
         assert_eq!(&c.members[6].name, "JwksUriXX");
         assert_eq!(&c.members[7].name, "JwksUriXXX");
         assert_eq!(c.members.len(), 8);
+        // ditto for a struct
+        let mut cs = Container {
+            name: "FakeStruct".to_string(),
+            level: 1,
+            members: vec![
+                // deliberately contrarian examples
+                name_only_int_member("jwks_uri"),
+                name_only_int_member("jwks-uri"),
+                name_only_int_member("jwksUri"),
+                name_only_int_member("JwksUri"),
+            ],
+            docs: None,
+            is_enum: false,
+        };
+        cs.rename();
+        assert_eq!(&cs.members[0].name, "jwks_uri");
+        assert_eq!(&cs.members[1].name, "jwks_uri_x");
+        assert_eq!(&cs.members[2].name, "jwks_uri_x_x");
+        assert_eq!(&cs.members[3].name, "jwks_uri_x_x_x");
     }
 }
