@@ -12,7 +12,7 @@ updates:
     labels:
       - "dependencies"
     schedule:
-      interval: "daily"
+      interval: "weekly"
     groups:
       kube:
         patterns:
