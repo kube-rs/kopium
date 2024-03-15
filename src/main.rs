@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::{anyhow, Context, Result};
 use clap::{CommandFactory, Parser, Subcommand};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
-    CustomResourceDefinition, CustomResourceDefinitionVersion, CustomResourceSubresources,
+    CustomResourceDefinition, CustomResourceDefinitionVersion,
 };
 use kopium::{analyze, Config, Container};
 use kube::{api, core::Version, Api, Client, ResourceExt};
@@ -222,8 +222,8 @@ impl Kopium {
                             if scope == "Namespaced" {
                                 println!(r#"#[kube(namespaced)]"#);
                             }
-                            if let Some(CustomResourceSubresources { status: Some(_), .. }) =
-                                version.subresources
+                            if version.subresources.as_ref().is_some_and(|c| c.status.is_some())
+                                && self.has_status_resource(&structs)
                             {
                                 println!(r#"#[kube(status = "{}Status")]"#, kind);
                             }
@@ -325,6 +325,12 @@ impl Kopium {
             derives.push(d.clone());
         }
         println!("#[derive({})]", derives.join(", "));
+    }
+
+    fn has_status_resource(&self, results: &[Container]) -> bool {
+        results
+            .iter()
+            .any(|o| o.is_status_container() && !o.members.is_empty())
     }
 
     fn print_prelude(&self, results: &[Container]) {
