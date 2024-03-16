@@ -55,7 +55,11 @@ fn analyze_(
                 let c = extract_container(extra_props, stack, &mut array_recurse_level, level, schema, cfg)?;
                 results.push(c);
             } else if !dict_type.is_empty() {
-                warn!("not generating type {} - using {} map", current, dict_type);
+                if schema.x_kubernetes_preserve_unknown_fields.unwrap_or(false) {
+                    warn!("preserve map")
+                } else {
+                    warn!("not generating type {} - using {} map", current, dict_type);
+                }
                 return Ok(()); // no members here - it'll be inlined
             }
         } else {
@@ -1042,6 +1046,40 @@ type: object
         assert_eq!(
             &root.members[0].type_,
             "Option<Vec<HashMap<String, serde_json::Value>>>"
+        );
+    }
+
+    #[test]
+    fn map_of_preserve_unknown_objects() {
+        init();
+        // example from ceph cluster crd
+        let schema_str = r#"
+        properties:
+          annotations:
+            additionalProperties:
+              additionalProperties:
+                type: string
+              description: Annotations are annotations
+              type: object
+            description: The annotations-related configuration to add/set on each Pod related object.
+            nullable: true
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+        type: object
+        "#;
+
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        let structs = analyze(schema, "CephCluster", Cfg::default()).unwrap().0;
+        println!("got {:?}", structs);
+        let root = &structs[0];
+        assert_eq!(root.name, "CephCluster");
+        assert_eq!(root.level, 0);
+        assert_eq!(root.is_enum, false);
+        assert_eq!(&root.members[0].name, "annotations");
+        assert_eq!(
+            &root.members[0].type_,
+            // TODO: unclear what is the best type to have here
+            "Option<BTreeMap<String, BTreeMap<String, CephClusterAnnotations>>>"
         );
     }
 
