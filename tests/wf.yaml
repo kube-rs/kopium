@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: gen
+spec:
+  entrypoint: argo-cd-ci
+  arguments:
+    parameters:
+    - name: revision
+      value: master
+    - name: repo
+      value: https://github.com/argoproj/argo-cd.git
+  volumes:
+    - name: tmp
+      emptyDir: {}
+  templates:
+  - name: ci-builder
+    inputs:
+      parameters:
+      - name: cmd
+      artifacts:
+      - name: code
+        path: /go/src/github.com/argoproj/argo-cd
+        git:
+          repo: "{{workflow.parameters.repo}}"
+          revision: "{{workflow.parameters.revision}}"
+    container:
+      image: argoproj/argo-cd-ci-builder:v0.13.1
+      imagePullPolicy: Always
+      command: [bash, -c]
+      args: ["{{inputs.parameters.cmd}}"]
+      workingDir: /go/src/github.com/argoproj/argo-cd
+      resources:
+        requests:
+          memory: 1024Mi
+          cpu: 200m
+    archiveLocation:
+      archiveLogs: true
