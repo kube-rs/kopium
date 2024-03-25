@@ -35,9 +35,9 @@ clap = { version = "4.5", features = ["cargo", "derive"] }
 clap_complete = "4.5"
 quote = "1.0.35"
 serde = { version = "1.0.197", features = ["derive"] }
-serde_yaml = "0.9.33"
+serde_yaml = "0.9.34"
 heck = "0.5.0"
-syn = "2.0.53"
+syn = "2.0.55"
 libc = "0.2.153"
 
 [dependencies.k8s-openapi]
