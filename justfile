@@ -42,6 +42,11 @@ test-argo:
   kubectl apply -f tests/app.yaml
   cargo test --test runner -- --nocapture
 
+test-argo-wf:
+  # argo workflows are hard to test since the full crd are not supposed to be installed in k8s
+  ! cargo run --bin kopium -- --filename tests/argoproj.io_clusterworkflowtemplates.yaml > /dev/null
+  cargo run --bin kopium -- --relaxed --filename tests/argoproj.io_clusterworkflowtemplates.yaml > /dev/null
+
 test-certmanager:
   kubectl apply --force-conflicts --server-side -f https://github.com/jetstack/cert-manager/releases/download/v1.7.1/cert-manager.crds.yaml
   cargo run --bin kopium -- -d certificates.cert-manager.io > tests/gen.rs
