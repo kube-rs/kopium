@@ -93,7 +93,7 @@ struct Kopium {
     /// Elide the following containers from the output
     ///
     /// This allows manual customization of structs from the output without having to remove it from
-    /// the output first.
+    /// the output first. Takes precise generated struct names.
     #[arg(long, short = 'e')]
     elide: Vec<String>,
 
