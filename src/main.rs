@@ -90,6 +90,13 @@ struct Kopium {
     #[arg(long, short = 'e')]
     elide: Vec<String>,
 
+    /// Relaxed interpretation
+    ///
+    /// This allows certain invalid openapi specs to be interpreted as arbitrary objects as used by argo workflows for example.
+    /// the output first.
+    #[arg(long)]
+    relaxed: bool,
+
     /// Enable generation of custom Condition APIs.
     ///
     /// If false, it detects if a particular path is an array of Condition objects and uses a standard
@@ -199,6 +206,7 @@ impl Kopium {
             let cfg = Config {
                 no_condition: self.no_condition,
                 btreemap: self.btreemap,
+                relaxed: self.relaxed,
             };
             let structs = analyze(schema, kind, cfg)?
                 .rename()

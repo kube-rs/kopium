@@ -13,6 +13,7 @@ const IGNORED_KEYS: [&str; 3] = ["metadata", "apiVersion", "kind"];
 pub struct Config {
     pub no_condition: bool,
     pub btreemap: bool,
+    pub relaxed: bool,
 }
 
 /// Scan a schema for structs and members, and recurse to find all structs
@@ -286,6 +287,9 @@ fn extract_container(
                     "IntOrString".into()
                 } else if value.x_kubernetes_preserve_unknown_fields == Some(true) {
                     "HashMap<String, serde_json::Value>".into()
+                } else if cfg.relaxed {
+                    debug!("found empty object at {} key: {}", stack, key);
+                    "HashMap<String, serde_json::Value>".into()
                 } else {
                     bail!("unknown empty dict type for {}", key)
                 }
@@ -439,7 +443,16 @@ fn array_recurse_for_type(
                     "date" => Ok((format!("Vec<{}>", extract_date_type(value)?), level)),
                     "number" => Ok((format!("Vec<{}>", extract_number_type(value)?), level)),
                     "integer" => Ok((format!("Vec<{}>", extract_integer_type(value)?), level)),
-                    "array" => Ok(array_recurse_for_type(s, stack, key, level + 1, cfg)?),
+                    "array" => {
+                        if s.items.is_some() {
+                            Ok(array_recurse_for_type(s, stack, key, level + 1, cfg)?)
+                        } else if cfg.relaxed {
+                            warn!("Empty inner array in: {} key: {}", stack, key);
+                            Ok(("BTreeMap<String, serde_json::Value>".into(), level))
+                        } else {
+                            bail!("Empty inner array in: {} key: {}", stack, key);
+                        }
+                    },
                     unknown => {
                         bail!("unsupported recursive array type \"{unknown}\" for {key}")
                     }
