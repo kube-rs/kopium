@@ -193,6 +193,7 @@ impl Output {
 
 /// Type used for additionalProperties maps
 #[derive(clap::ValueEnum, Clone, Copy, Default, Debug)]
+#[clap(rename_all = "PascalCase")]
 pub enum MapType {
     #[default]
     BTreeMap,

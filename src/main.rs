@@ -105,8 +105,8 @@ struct Kopium {
     no_condition: bool,
 
     /// Type used to represent maps via additionalProperties
-    #[arg(long)]
-    map_type: Option<MapType>,
+    #[arg(long, value_enum, default_value_t)]
+    map_type: MapType,
 }
 
 #[derive(Clone, Copy, Debug, Subcommand)]
@@ -203,7 +203,7 @@ impl Kopium {
             log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
             let cfg = Config {
                 no_condition: self.no_condition,
-                map: self.map_type.unwrap_or_default(),
+                map: self.map_type,
                 relaxed: self.relaxed,
             };
             let structs = analyze(schema, kind, cfg)?
