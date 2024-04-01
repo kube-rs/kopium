@@ -452,7 +452,7 @@ fn array_recurse_for_type(
                         } else {
                             bail!("Empty inner array in: {} key: {}", stack, key);
                         }
-                    },
+                    }
                     unknown => {
                         bail!("unsupported recursive array type \"{unknown}\" for {key}")
                     }
