@@ -1,5 +1,5 @@
 //! Deals entirely with schema analysis for the purpose of creating output structs + members
-use crate::{Container, Member, Output};
+use crate::{Container, MapType, Member, Output};
 use anyhow::{bail, Result};
 use heck::ToUpperCamelCase;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
@@ -12,7 +12,7 @@ const IGNORED_KEYS: [&str; 3] = ["metadata", "apiVersion", "kind"];
 #[derive(Default)]
 pub struct Config {
     pub no_condition: bool,
-    pub btreemap: bool,
+    pub map: MapType,
     pub relaxed: bool,
 }
 
@@ -65,7 +65,7 @@ fn analyze_(
             debug!("Generating struct for {} (under {})", current, stack);
             // initial analysis of properties (we do not recurse here, we need to find members first)
             if props.is_empty() && schema.x_kubernetes_preserve_unknown_fields.unwrap_or(false) {
-                warn!("not generating type {} - using BTreeMap", current);
+                warn!("not generating type {} - using map", current);
                 return Ok(());
             }
             let c = extract_container(&props, stack, &mut array_recurse_level, level, schema, cfg)?;
@@ -253,8 +253,7 @@ fn extract_container(
                     dict_key = Some("serde_json::Value".into());
                 }
                 if let Some(dict) = dict_key {
-                    let map_type = if cfg.btreemap { "BTreeMap" } else { "HashMap" };
-                    format!("{}<String, {}>", map_type, dict)
+                    format!("{}<String, {}>", cfg.map.name(), dict)
                 } else {
                     format!("{}{}", stack, key.to_upper_camel_case())
                 }
@@ -283,13 +282,14 @@ fn extract_container(
                 array_type
             }
             "" => {
+                let map_type = cfg.map.name();
                 if value.x_kubernetes_int_or_string.is_some() {
                     "IntOrString".into()
                 } else if value.x_kubernetes_preserve_unknown_fields == Some(true) {
-                    "HashMap<String, serde_json::Value>".into()
+                    format!("{map_type}<String, serde_json::Value>")
                 } else if cfg.relaxed {
                     debug!("found empty object at {} key: {}", stack, key);
-                    "HashMap<String, serde_json::Value>".into()
+                    format!("{map_type}<String, serde_json::Value>")
                 } else {
                     bail!("unknown empty dict type for {}", key)
                 }
@@ -417,7 +417,8 @@ fn array_recurse_for_type(
         match items {
             JSONSchemaPropsOrArray::Schema(s) => {
                 if s.type_.is_none() && s.x_kubernetes_preserve_unknown_fields == Some(true) {
-                    return Ok(("Vec<HashMap<String, serde_json::Value>>".into(), level));
+                    let map_type = cfg.map.name();
+                    return Ok((format!("Vec<{}<String, serde_json::Value>>", map_type), level));
                 }
                 let inner_array_type = s.type_.clone().unwrap_or_default();
                 return match inner_array_type.as_ref() {
@@ -429,7 +430,7 @@ fn array_recurse_for_type(
                         }
 
                         let vec_value = if let Some(dict_value) = dict_value {
-                            let map_type = if cfg.btreemap { "BTreeMap" } else { "HashMap" };
+                            let map_type = cfg.map.name();
                             format!("{map_type}<String, {dict_value}>")
                         } else {
                             let structsuffix = key.to_upper_camel_case();
@@ -448,7 +449,8 @@ fn array_recurse_for_type(
                             Ok(array_recurse_for_type(s, stack, key, level + 1, cfg)?)
                         } else if cfg.relaxed {
                             warn!("Empty inner array in: {} key: {}", stack, key);
-                            Ok(("BTreeMap<String, serde_json::Value>".into(), level))
+                            let map_type = cfg.map.name();
+                            Ok((format!("{}<String, serde_json::Value>", map_type), level))
                         } else {
                             bail!("Empty inner array in: {} key: {}", stack, key);
                         }
@@ -597,7 +599,7 @@ mod test {
         // should have a member with a key to the map:
         let map = &root.members[0];
         assert_eq!(map.name, "validationsInfo");
-        assert_eq!(map.type_, "Option<HashMap<String, AgentValidationsInfo>>");
+        assert_eq!(map.type_, "Option<BTreeMap<String, AgentValidationsInfo>>");
         // should have a separate struct
         let other = &structs[1];
         assert_eq!(other.name, "AgentValidationsInfo");
@@ -647,7 +649,7 @@ type: object
         assert_eq!(server_selector.level, 1);
         let match_labels = &server_selector.members[0];
         assert_eq!(match_labels.name, "matchLabels");
-        assert_eq!(match_labels.type_, "HashMap<String, serde_json::Value>");
+        assert_eq!(match_labels.type_, "BTreeMap<String, serde_json::Value>");
     }
 
     #[test]
@@ -696,7 +698,7 @@ type: object
         assert_eq!(root.name, "Options");
         assert_eq!(root.level, 0);
         assert_eq!(&root.members[0].name, "options");
-        assert_eq!(&root.members[0].type_, "Option<HashMap<String, bool>>");
+        assert_eq!(&root.members[0].type_, "Option<BTreeMap<String, bool>>");
     }
 
     #[test]
@@ -874,7 +876,7 @@ type: object
         assert_eq!(&ps.members[0].name, "MatchExpressions");
         assert_eq!(&ps.members[0].type_, "Vec<ServerPodSelectorMatchExpressions");
         assert_eq!(&ps.members[1].name, "MatchLabels");
-        assert_eq!(&ps.members[1].type_, "HashMap<String, String>");
+        assert_eq!(&ps.members[1].type_, "BTreeMap<String, String>");
 
         // should have the inner struct match expressions
         let me = &structs[2];
@@ -943,7 +945,7 @@ type: object
         // should have an params member:
         let member = &eps.members[0];
         assert_eq!(member.name, "params");
-        assert_eq!(member.type_, "Option<HashMap<String, String>>");
+        assert_eq!(member.type_, "Option<BTreeMap<String, String>>");
     }
 
     #[test]
@@ -1007,7 +1009,7 @@ type: object
         assert_eq!(from.name, "from");
         assert_eq!(to.name, "to");
         assert_eq!(from.type_, "Option<String>");
-        assert_eq!(to.type_, "Option<HashMap<String, i32>>");
+        assert_eq!(to.type_, "Option<BTreeMap<String, i32>>");
     }
 
     #[test]
@@ -1058,7 +1060,7 @@ type: object
         assert_eq!(&root.members[0].name, "patchesStrategicMerge");
         assert_eq!(
             &root.members[0].type_,
-            "Option<Vec<HashMap<String, serde_json::Value>>>"
+            "Option<Vec<BTreeMap<String, serde_json::Value>>>"
         );
     }
 
@@ -1100,7 +1102,7 @@ type: object
         assert_eq!(&root.members[0].name, "jwtTokensByRole");
         assert_eq!(
             &root.members[0].type_,
-            "Option<HashMap<String, AppProjectStatusJwtTokensByRole>>"
+            "Option<BTreeMap<String, AppProjectStatusJwtTokensByRole>>"
         );
         let role = &structs[1];
         assert_eq!(role.level, 1);
@@ -1162,7 +1164,7 @@ type: object
         assert_eq!(structs[0].members[0].name, "records");
         assert_eq!(
             structs[0].members[0].type_,
-            "Option<Vec<HashMap<String, String>>>"
+            "Option<Vec<BTreeMap<String, String>>>"
         );
     }
 

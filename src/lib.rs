@@ -3,4 +3,4 @@
 mod analyzer;
 pub use analyzer::{analyze, Config};
 mod output;
-pub use output::{Container, Member, Output};
+pub use output::{Container, MapType, Member, Output};

@@ -5,7 +5,7 @@ use clap::{CommandFactory, Parser, Subcommand};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion,
 };
-use kopium::{analyze, Config, Container};
+use kopium::{analyze, Config, Container, MapType};
 use kube::{api, core::Version, Api, Client, ResourceExt};
 use quote::format_ident;
 
@@ -104,11 +104,9 @@ struct Kopium {
     #[arg(long)]
     no_condition: bool,
 
-    /// Use BTreeMap to represent the map (additionalProperties) types.
-    ///
-    /// If false, HashMap is defaulted in representing the map types.
-    #[arg(long)]
-    btreemap: bool,
+    /// Type used to represent maps via additionalProperties
+    #[arg(long, value_enum, default_value_t)]
+    map_type: MapType,
 }
 
 #[derive(Clone, Copy, Debug, Subcommand)]
@@ -205,7 +203,7 @@ impl Kopium {
             log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
             let cfg = Config {
                 no_condition: self.no_condition,
-                btreemap: self.btreemap,
+                map: self.map_type,
                 relaxed: self.relaxed,
             };
             let structs = analyze(schema, kind, cfg)?
