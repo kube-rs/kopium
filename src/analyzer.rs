@@ -1,5 +1,5 @@
 //! Deals entirely with schema analysis for the purpose of creating output structs + members
-use crate::{Container, Member, Output};
+use crate::{Container, MapType, Member, Output};
 use anyhow::{bail, Result};
 use heck::ToUpperCamelCase;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
@@ -12,7 +12,7 @@ const IGNORED_KEYS: [&str; 3] = ["metadata", "apiVersion", "kind"];
 #[derive(Default)]
 pub struct Config {
     pub no_condition: bool,
-    pub btreemap: bool,
+    pub map: MapType,
     pub relaxed: bool,
 }
 
@@ -65,7 +65,7 @@ fn analyze_(
             debug!("Generating struct for {} (under {})", current, stack);
             // initial analysis of properties (we do not recurse here, we need to find members first)
             if props.is_empty() && schema.x_kubernetes_preserve_unknown_fields.unwrap_or(false) {
-                warn!("not generating type {} - using BTreeMap", current);
+                warn!("not generating type {} - using map", current);
                 return Ok(());
             }
             let c = extract_container(&props, stack, &mut array_recurse_level, level, schema, cfg)?;
@@ -253,8 +253,7 @@ fn extract_container(
                     dict_key = Some("serde_json::Value".into());
                 }
                 if let Some(dict) = dict_key {
-                    let map_type = if cfg.btreemap { "BTreeMap" } else { "HashMap" };
-                    format!("{}<String, {}>", map_type, dict)
+                    format!("{}<String, {}>", cfg.map.name(), dict)
                 } else {
                     format!("{}{}", stack, key.to_upper_camel_case())
                 }
@@ -429,7 +428,7 @@ fn array_recurse_for_type(
                         }
 
                         let vec_value = if let Some(dict_value) = dict_value {
-                            let map_type = if cfg.btreemap { "BTreeMap" } else { "HashMap" };
+                            let map_type = cfg.map.name();
                             format!("{map_type}<String, {dict_value}>")
                         } else {
                             let structsuffix = key.to_upper_camel_case();
@@ -448,7 +447,8 @@ fn array_recurse_for_type(
                             Ok(array_recurse_for_type(s, stack, key, level + 1, cfg)?)
                         } else if cfg.relaxed {
                             warn!("Empty inner array in: {} key: {}", stack, key);
-                            Ok(("BTreeMap<String, serde_json::Value>".into(), level))
+                            let map_type = cfg.map.name();
+                            Ok((format!("{}<String, serde_json::Value>", map_type), level))
                         } else {
                             bail!("Empty inner array in: {} key: {}", stack, key);
                         }

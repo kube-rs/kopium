@@ -191,6 +191,22 @@ impl Output {
     }
 }
 
+/// Type used for additionalProperties maps
+#[derive(clap::ValueEnum, Clone, Copy, Default, Debug)]
+pub enum MapType {
+    #[default]
+    BTreeMap,
+    HashMap,
+}
+impl MapType {
+    pub fn name(&self) -> &str {
+        match self {
+            Self::BTreeMap => "BTreeMap",
+            Self::HashMap => "HashMap",
+        }
+    }
+}
+
 // unit tests
 #[cfg(test)]
 mod test {
