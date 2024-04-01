@@ -12,6 +12,7 @@ const IGNORED_KEYS: [&str; 3] = ["metadata", "apiVersion", "kind"];
 #[derive(Default)]
 pub struct Config {
     pub no_condition: bool,
+    pub btreemap: bool,
     pub relaxed: bool,
 }
 
@@ -252,7 +253,8 @@ fn extract_container(
                     dict_key = Some("serde_json::Value".into());
                 }
                 if let Some(dict) = dict_key {
-                    format!("BTreeMap<String, {}>", dict)
+                    let map_type = if cfg.btreemap { "BTreeMap" } else { "HashMap" };
+                    format!("{}<String, {}>", map_type, dict)
                 } else {
                     format!("{}{}", stack, key.to_upper_camel_case())
                 }
@@ -427,7 +429,8 @@ fn array_recurse_for_type(
                         }
 
                         let vec_value = if let Some(dict_value) = dict_value {
-                            format!("BTreeMap<String, {dict_value}>")
+                            let map_type = if cfg.btreemap { "BTreeMap" } else { "HashMap" };
+                            format!("{map_type}<String, {dict_value}>")
                         } else {
                             let structsuffix = key.to_upper_camel_case();
                             format!("{stack}{structsuffix}")
@@ -594,7 +597,7 @@ mod test {
         // should have a member with a key to the map:
         let map = &root.members[0];
         assert_eq!(map.name, "validationsInfo");
-        assert_eq!(map.type_, "Option<BTreeMap<String, AgentValidationsInfo>>");
+        assert_eq!(map.type_, "Option<HashMap<String, AgentValidationsInfo>>");
         // should have a separate struct
         let other = &structs[1];
         assert_eq!(other.name, "AgentValidationsInfo");
@@ -644,7 +647,7 @@ type: object
         assert_eq!(server_selector.level, 1);
         let match_labels = &server_selector.members[0];
         assert_eq!(match_labels.name, "matchLabels");
-        assert_eq!(match_labels.type_, "BTreeMap<String, serde_json::Value>");
+        assert_eq!(match_labels.type_, "HashMap<String, serde_json::Value>");
     }
 
     #[test]
@@ -693,7 +696,7 @@ type: object
         assert_eq!(root.name, "Options");
         assert_eq!(root.level, 0);
         assert_eq!(&root.members[0].name, "options");
-        assert_eq!(&root.members[0].type_, "Option<BTreeMap<String, bool>>");
+        assert_eq!(&root.members[0].type_, "Option<HashMap<String, bool>>");
     }
 
     #[test]
@@ -871,7 +874,7 @@ type: object
         assert_eq!(&ps.members[0].name, "MatchExpressions");
         assert_eq!(&ps.members[0].type_, "Vec<ServerPodSelectorMatchExpressions");
         assert_eq!(&ps.members[1].name, "MatchLabels");
-        assert_eq!(&ps.members[1].type_, "BTreeMap<String, String>");
+        assert_eq!(&ps.members[1].type_, "HashMap<String, String>");
 
         // should have the inner struct match expressions
         let me = &structs[2];
@@ -940,7 +943,7 @@ type: object
         // should have an params member:
         let member = &eps.members[0];
         assert_eq!(member.name, "params");
-        assert_eq!(member.type_, "Option<BTreeMap<String, String>>");
+        assert_eq!(member.type_, "Option<HashMap<String, String>>");
     }
 
     #[test]
@@ -1004,7 +1007,7 @@ type: object
         assert_eq!(from.name, "from");
         assert_eq!(to.name, "to");
         assert_eq!(from.type_, "Option<String>");
-        assert_eq!(to.type_, "Option<BTreeMap<String, i32>>");
+        assert_eq!(to.type_, "Option<HashMap<String, i32>>");
     }
 
     #[test]
@@ -1097,7 +1100,7 @@ type: object
         assert_eq!(&root.members[0].name, "jwtTokensByRole");
         assert_eq!(
             &root.members[0].type_,
-            "Option<BTreeMap<String, AppProjectStatusJwtTokensByRole>>"
+            "Option<HashMap<String, AppProjectStatusJwtTokensByRole>>"
         );
         let role = &structs[1];
         assert_eq!(role.level, 1);
@@ -1159,7 +1162,7 @@ type: object
         assert_eq!(structs[0].members[0].name, "records");
         assert_eq!(
             structs[0].members[0].type_,
-            "Option<Vec<BTreeMap<String, String>>>"
+            "Option<Vec<HashMap<String, String>>>"
         );
     }
 

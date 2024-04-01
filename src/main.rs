@@ -103,6 +103,12 @@ struct Kopium {
     /// Condition API instead of generating a custom definition.
     #[arg(long)]
     no_condition: bool,
+
+    /// Use BTreeMap to represent the map (additionalProperties) types.
+    ///
+    /// If false, HashMap is defaulted in representing the map types.
+    #[arg(long)]
+    btreemap: bool,
 }
 
 #[derive(Clone, Copy, Debug, Subcommand)]
@@ -199,6 +205,7 @@ impl Kopium {
             log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
             let cfg = Config {
                 no_condition: self.no_condition,
+                btreemap: self.btreemap,
                 relaxed: self.relaxed,
             };
             let structs = analyze(schema, kind, cfg)?
