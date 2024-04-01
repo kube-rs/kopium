@@ -5,7 +5,7 @@ use clap::{CommandFactory, Parser, Subcommand};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion,
 };
-use kopium::{analyze, Config, Container, MapType};
+use kopium::{analyze, Config, Container, Import, MapType};
 use kube::{api, core::Version, Api, Client, ResourceExt};
 use quote::format_ident;
 
@@ -32,9 +32,16 @@ struct Kopium {
     #[arg(long)]
     hide_prelude: bool,
 
-    /// Do not emit kube derive instructions; structs only
+    /// Omit specific imports from the prelude
     ///
-    /// If this is set, it makes any kube-derive specific options such as `--schema` unnecessary.
+    /// Comma separated list representing common prelude imports
+    /// Can be used to remove specific structs that you wish to override / alias.
+    #[arg(long, value_enum, value_delimiter = ',')]
+    no_import: Vec<Import>,
+
+    /// Do not derive CustomResource nor set kube-derive attributes
+    ///
+    /// If this is set, it makes any kube-derive specific options such as `--schema` and --no-import=Kube unnecessary
     #[arg(long)]
     hide_kube: bool,
 
@@ -97,10 +104,10 @@ struct Kopium {
     #[arg(long)]
     relaxed: bool,
 
-    /// Enable generation of custom Condition APIs.
+    /// Disable standardised Condition API
     ///
-    /// If false, it detects if a particular path is an array of Condition objects and uses a standard
-    /// Condition API instead of generating a custom definition.
+    /// By default, kopium detects Condition objects and uses a standard
+    /// Condition API from k8s_openapi instead of generating a custom definition.
     #[arg(long)]
     no_condition: bool,
 
@@ -347,32 +354,37 @@ impl Kopium {
     }
 
     fn print_prelude(&self, results: &[Container]) {
-        if !self.hide_kube {
+        if !self.hide_kube && !self.no_import.contains(&Import::Kube) {
             println!("use kube::CustomResource;");
         }
-        if self.builders {
+        if self.builders && !self.no_import.contains(&Import::Builder) {
             println!("use typed_builder::TypedBuilder;");
         }
-        if self.derive.contains(&"JsonSchema".to_string()) {
+        if self.derive.contains(&"JsonSchema".to_string()) && !self.no_import.contains(&Import::Schemars) {
             println!("use schemars::JsonSchema;");
         }
-        println!("use serde::{{Serialize, Deserialize}};");
-        if results.iter().any(|o| o.uses_btreemaps()) {
+        if !self.no_import.contains(&Import::Serde) {
+            println!("use serde::{{Serialize, Deserialize}};");
+        }
+        if results.iter().any(|o| o.uses_btreemaps()) && !self.no_import.contains(&Import::Maps) {
             println!("use std::collections::BTreeMap;");
         }
-        if results.iter().any(|o| o.uses_hashmaps()) {
+        if results.iter().any(|o| o.uses_hashmaps()) && !self.no_import.contains(&Import::Maps) {
             println!("use std::collections::HashMap;");
         }
-        if results.iter().any(|o| o.uses_datetime()) {
+        if results.iter().any(|o| o.uses_datetime()) && !self.no_import.contains(&Import::Chrono) {
             println!("use chrono::{{DateTime, Utc}};");
         }
-        if results.iter().any(|o| o.uses_date()) {
+        if results.iter().any(|o| o.uses_date()) && !self.no_import.contains(&Import::Chrono) {
             println!("use chrono::naive::NaiveDate;");
         }
-        if results.iter().any(|o| o.uses_int_or_string()) {
+        if results.iter().any(|o| o.uses_int_or_string()) && !self.no_import.contains(&Import::IntOrString) {
             println!("use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;");
         }
-        if results.iter().any(|o| o.contains_conditions()) && !self.no_condition {
+        if results.iter().any(|o| o.contains_conditions())
+            && !self.no_condition
+            && !self.no_import.contains(&Import::Condition)
+        {
             println!("use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;");
         }
         println!();
