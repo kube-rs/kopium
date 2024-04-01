@@ -92,7 +92,7 @@ struct Kopium {
 
     /// Relaxed interpretation
     ///
-    /// This allows certain invalid openapi specs to be interpreted as arbriray objects as used by argo workflows for example.
+    /// This allows certain invalid openapi specs to be interpreted as arbitrary objects as used by argo workflows for example.
     /// the output first.
     #[arg(long)]
     relaxed: bool,
