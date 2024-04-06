@@ -509,9 +509,7 @@ fn extract_number_type(value: &JSONSchemaProps) -> Result<String> {
         match f.as_ref() {
             "float" => "f32".to_string(),
             "double" => "f64".to_string(),
-            x => {
-                bail!("unknown number {}", x);
-            }
+            _ => "f64".to_string(),
         }
     } else {
         "f64".to_string()
@@ -520,7 +518,7 @@ fn extract_number_type(value: &JSONSchemaProps) -> Result<String> {
 
 fn extract_integer_type(value: &JSONSchemaProps) -> Result<String> {
     // Think kubernetes go types just do signed ints, but set a minimum to zero..
-    // rust will set uint, so emitting that when possbile
+    // rust will set uint, so emitting that when possible
     Ok(if let Some(f) = &value.format {
         match f.as_ref() {
             "int8" => "i8".to_string(),
@@ -533,9 +531,7 @@ fn extract_integer_type(value: &JSONSchemaProps) -> Result<String> {
             "uint32" => "u32".to_string(),
             "uint64" => "u64".to_string(),
             "uint128" => "u128".to_string(),
-            x => {
-                bail!("unknown integer {}", x);
-            }
+            _ => "i64".to_string(),
         }
     } else {
         "i64".to_string()
