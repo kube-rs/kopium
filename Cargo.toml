@@ -37,7 +37,7 @@ quote = "1.0.35"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_yaml = "0.9.34"
 heck = "0.5.0"
-syn = "2.0.57"
+syn = "2.0.58"
 libc = "0.2.153"
 
 [dependencies.k8s-openapi]
