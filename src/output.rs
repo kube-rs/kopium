@@ -208,20 +208,6 @@ impl MapType {
     }
 }
 
-/// Types we explicitly allow hiding from the prelude
-#[derive(clap::ValueEnum, Clone, Copy, Debug, PartialEq)]
-#[clap(rename_all = "PascalCase")]
-pub enum Import {
-    Serde,
-    Maps,
-    Chrono,
-    Builder,
-    Schemars,
-    IntOrString,
-    Condition,
-    Kube,
-}
-
 // unit tests
 #[cfg(test)]
 mod test {

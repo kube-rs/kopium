@@ -5,7 +5,7 @@ use clap::{CommandFactory, Parser, Subcommand};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion,
 };
-use kopium::{analyze, Config, Container, Import, MapType};
+use kopium::{analyze, Config, Container, MapType};
 use kube::{api, core::Version, Api, Client, ResourceExt};
 use quote::format_ident;
 
@@ -32,16 +32,9 @@ struct Kopium {
     #[arg(long)]
     hide_prelude: bool,
 
-    /// Omit specific imports from the prelude
-    ///
-    /// Comma separated list representing common prelude imports
-    /// Can be used to remove specific structs that you wish to override / alias.
-    #[arg(long, value_enum, value_delimiter = ',')]
-    no_import: Vec<Import>,
-
     /// Do not derive CustomResource nor set kube-derive attributes
     ///
-    /// If this is set, it makes any kube-derive specific options such as `--schema` and --no-import=Kube unnecessary
+    /// If this is set, it makes any kube-derive specific options such as `--schema` unnecessary
     #[arg(long)]
     hide_kube: bool,
 
@@ -354,40 +347,37 @@ impl Kopium {
     }
 
     fn print_prelude(&self, results: &[Container]) {
-        if !self.hide_kube && !self.no_import.contains(&Import::Kube) {
-            println!("use kube::CustomResource;");
+        println!("mod prelude {{");
+        if !self.hide_kube {
+            println!("    use kube::CustomResource;");
         }
-        if self.builders && !self.no_import.contains(&Import::Builder) {
-            println!("use typed_builder::TypedBuilder;");
+        if self.builders {
+            println!("    use typed_builder::TypedBuilder;");
         }
-        if self.derive.contains(&"JsonSchema".to_string()) && !self.no_import.contains(&Import::Schemars) {
-            println!("use schemars::JsonSchema;");
+        if self.derive.contains(&"JsonSchema".to_string()) {
+            println!("    use schemars::JsonSchema;");
         }
-        if !self.no_import.contains(&Import::Serde) {
-            println!("use serde::{{Serialize, Deserialize}};");
+        println!("    use serde::{{Serialize, Deserialize}};");
+        if results.iter().any(|o| o.uses_btreemaps()) {
+            println!("    use std::collections::BTreeMap;");
         }
-        if results.iter().any(|o| o.uses_btreemaps()) && !self.no_import.contains(&Import::Maps) {
-            println!("use std::collections::BTreeMap;");
+        if results.iter().any(|o| o.uses_hashmaps()) {
+            println!("    use std::collections::HashMap;");
         }
-        if results.iter().any(|o| o.uses_hashmaps()) && !self.no_import.contains(&Import::Maps) {
-            println!("use std::collections::HashMap;");
+        if results.iter().any(|o| o.uses_datetime()) {
+            println!("    use chrono::{{DateTime, Utc}};");
         }
-        if results.iter().any(|o| o.uses_datetime()) && !self.no_import.contains(&Import::Chrono) {
-            println!("use chrono::{{DateTime, Utc}};");
+        if results.iter().any(|o| o.uses_date()) {
+            println!("     use chrono::naive::NaiveDate;");
         }
-        if results.iter().any(|o| o.uses_date()) && !self.no_import.contains(&Import::Chrono) {
-            println!("use chrono::naive::NaiveDate;");
+        if results.iter().any(|o| o.uses_int_or_string()) {
+            println!("     use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;");
         }
-        if results.iter().any(|o| o.uses_int_or_string()) && !self.no_import.contains(&Import::IntOrString) {
-            println!("use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;");
+        if results.iter().any(|o| o.contains_conditions()) && !self.no_condition {
+            println!("    use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;");
         }
-        if results.iter().any(|o| o.contains_conditions())
-            && !self.no_condition
-            && !self.no_import.contains(&Import::Condition)
-        {
-            println!("use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;");
-        }
-        println!();
+        println!("}}");
+        println!("use self::prelude::*;")
     }
 
     fn print_generation_warning(&self) {
