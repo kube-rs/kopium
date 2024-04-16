@@ -347,6 +347,7 @@ impl Kopium {
     }
 
     fn print_prelude(&self, results: &[Container]) {
+        println!("#[allow(unused_imports)]");
         println!("mod prelude {{");
         if !self.hide_kube {
             println!("    pub use kube::CustomResource;");
