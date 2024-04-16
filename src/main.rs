@@ -349,35 +349,35 @@ impl Kopium {
     fn print_prelude(&self, results: &[Container]) {
         println!("mod prelude {{");
         if !self.hide_kube {
-            println!("    use kube::CustomResource;");
+            println!("    pub use kube::CustomResource;");
         }
         if self.builders {
-            println!("    use typed_builder::TypedBuilder;");
+            println!("    pub use typed_builder::TypedBuilder;");
         }
         if self.derive.contains(&"JsonSchema".to_string()) {
-            println!("    use schemars::JsonSchema;");
+            println!("    pub use schemars::JsonSchema;");
         }
-        println!("    use serde::{{Serialize, Deserialize}};");
+        println!("    pub use serde::{{Serialize, Deserialize}};");
         if results.iter().any(|o| o.uses_btreemaps()) {
-            println!("    use std::collections::BTreeMap;");
+            println!("    pub use std::collections::BTreeMap;");
         }
         if results.iter().any(|o| o.uses_hashmaps()) {
-            println!("    use std::collections::HashMap;");
+            println!("    pub use std::collections::HashMap;");
         }
         if results.iter().any(|o| o.uses_datetime()) {
-            println!("    use chrono::{{DateTime, Utc}};");
+            println!("    pub use chrono::{{DateTime, Utc}};");
         }
         if results.iter().any(|o| o.uses_date()) {
-            println!("     use chrono::naive::NaiveDate;");
+            println!("     pub use chrono::naive::NaiveDate;");
         }
         if results.iter().any(|o| o.uses_int_or_string()) {
-            println!("     use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;");
+            println!("     pub use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;");
         }
         if results.iter().any(|o| o.contains_conditions()) && !self.no_condition {
-            println!("    use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;");
+            println!("    pub use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;");
         }
         println!("}}");
-        println!("use self::prelude::*;")
+        println!("use self::prelude::*;\n");
     }
 
     fn print_generation_warning(&self) {
