@@ -86,7 +86,7 @@ struct Kopium {
     /// Elide the following containers from the output
     ///
     /// This allows manual customization of structs from the output without having to remove it from
-    /// the output first.
+    /// the output first. Takes precise generated struct names.
     #[arg(long, short = 'e')]
     elide: Vec<String>,
 
@@ -97,10 +97,10 @@ struct Kopium {
     #[arg(long)]
     relaxed: bool,
 
-    /// Enable generation of custom Condition APIs.
+    /// Disable standardised Condition API
     ///
-    /// If false, it detects if a particular path is an array of Condition objects and uses a standard
-    /// Condition API instead of generating a custom definition.
+    /// By default, kopium detects Condition objects and uses a standard
+    /// Condition API from k8s_openapi instead of generating a custom definition.
     #[arg(long)]
     no_condition: bool,
 
