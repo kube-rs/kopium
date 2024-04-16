@@ -1,6 +1,5 @@
 use std::path::PathBuf;
-#[macro_use]
-extern crate log;
+#[macro_use] extern crate log;
 use anyhow::{anyhow, Context, Result};
 use clap::{CommandFactory, Parser, Subcommand};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
