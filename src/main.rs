@@ -368,10 +368,10 @@ impl Kopium {
             println!("    pub use chrono::{{DateTime, Utc}};");
         }
         if results.iter().any(|o| o.uses_date()) {
-            println!("     pub use chrono::naive::NaiveDate;");
+            println!("    pub use chrono::naive::NaiveDate;");
         }
         if results.iter().any(|o| o.uses_int_or_string()) {
-            println!("     pub use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;");
+            println!("    pub use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;");
         }
         if results.iter().any(|o| o.contains_conditions()) && !self.no_condition {
             println!("    pub use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;");
