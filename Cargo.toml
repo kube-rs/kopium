@@ -30,14 +30,14 @@ tokio = { version = "1.37.0", features = ["full"] }
 anyhow = "1.0.82"
 log = "0.4.21"
 env_logger = "0.11.3"
-serde_json = "1.0.115"
+serde_json = "1.0.116"
 clap = { version = "4.5", features = ["cargo", "derive"] }
 clap_complete = "4.5"
 quote = "1.0.36"
-serde = { version = "1.0.197", features = ["derive"] }
+serde = { version = "1.0.198", features = ["derive"] }
 serde_yaml = "0.9.34"
 heck = "0.5.0"
-syn = "2.0.59"
+syn = "2.0.60"
 libc = "0.2.153"
 
 [dependencies.k8s-openapi]
@@ -50,7 +50,7 @@ features = ["derive"]
 
 [dev-dependencies]
 schemars = "0.8.16"
-typed-builder = "0.18.1"
+typed-builder = "0.18.2"
 
 [dev-dependencies.k8s-openapi]
 version = "0.21.1"
