@@ -286,7 +286,7 @@ fn extract_container(
                 if value.x_kubernetes_int_or_string.is_some() {
                     "IntOrString".into()
                 } else if value.x_kubernetes_preserve_unknown_fields == Some(true) {
-                    format!("{map_type}<String, serde_json::Value>")
+                    "serde_json::Value".into()
                 } else if cfg.relaxed {
                     debug!("found empty object at {} key: {}", stack, key);
                     format!("{map_type}<String, serde_json::Value>")
@@ -646,6 +646,61 @@ type: object
         let match_labels = &server_selector.members[0];
         assert_eq!(match_labels.name, "matchLabels");
         assert_eq!(match_labels.type_, "BTreeMap<String, serde_json::Value>");
+    }
+
+    #[test]
+    fn no_type_preserve_unknown_fields() {
+        init();
+        let schema_str = r#"
+description: Schema defines the schema of the variable.
+properties:
+  openAPIV3Schema:
+    description: |-
+      OpenAPIV3Schema defines the schema of a variable via OpenAPI v3
+      schema. The schema is a subset of the schema used in
+      Kubernetes CRDs.
+    properties:
+      items:
+        description: |-
+          Items specifies fields of an array.
+          NOTE: Can only be set if type is array.
+          NOTE: This field uses PreserveUnknownFields and Schemaless,
+          because recursive validation is not possible.
+        x-kubernetes-preserve-unknown-fields: true
+      requiredItems:
+        description: |-
+          Items specifies fields of an array.
+          NOTE: Can only be set if type is array.
+          NOTE: This field uses PreserveUnknownFields and Schemaless,
+          because recursive validation is not possible.
+        x-kubernetes-preserve-unknown-fields: true
+    required:
+    - requiredItems
+    type: object
+required:
+- openAPIV3Schema
+type: object
+"#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        // println!("schema: {}", serde_json::to_string_pretty(&schema).unwrap());
+        let structs = analyze(schema, "Variables", Cfg::default()).unwrap().0;
+        // println!("{:#?}", structs);
+
+        let root = &structs[0];
+        assert_eq!(root.name, "Variables");
+        assert_eq!(root.level, 0);
+        let root_member = &root.members[0];
+        assert_eq!(root_member.name, "openAPIV3Schema");
+        assert_eq!(root_member.type_, "VariablesOpenApiv3Schema");
+        let variables_schema = &structs[1];
+        assert_eq!(variables_schema.name, "VariablesOpenApiv3Schema");
+        assert_eq!(variables_schema.level, 1);
+        let items = &variables_schema.members[0];
+        assert_eq!(items.name, "items");
+        assert_eq!(items.type_, "Option<serde_json::Value>");
+        let required_items = &variables_schema.members[1];
+        assert_eq!(required_items.name, "requiredItems");
+        assert_eq!(required_items.type_, "serde_json::Value");
     }
 
     #[test]
