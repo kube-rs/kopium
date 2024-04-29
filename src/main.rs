@@ -327,6 +327,14 @@ impl Kopium {
         if self.builders {
             derives.push("TypedBuilder".to_string());
         }
+        if s.is_enum {
+            derives.extend(
+                ["PartialEq", "Eq", "PartialOrd", "Ord"]
+                    .into_iter()
+                    .map(String::from),
+            );
+        }
+
         // add user derives last in order
         for d in &self.derive {
             if s.is_enum && d == "Default" {
@@ -335,7 +343,9 @@ impl Kopium {
                 // or we can insert enum defaults
                 continue;
             }
-            derives.push(d.clone());
+            if !derives.contains(d) {
+                derives.push(d.clone());
+            }
         }
         println!("#[derive({})]", derives.join(", "));
     }
