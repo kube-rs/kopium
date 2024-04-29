@@ -327,7 +327,7 @@ impl Kopium {
         if self.builders {
             derives.push("TypedBuilder".to_string());
         }
-        if s.is_enum {
+        if s.is_enum && s.members.iter().all(|member| member.type_.is_empty()) {
             derives.extend(
                 ["PartialEq", "Eq", "PartialOrd", "Ord"]
                     .into_iter()
