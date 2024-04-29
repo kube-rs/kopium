@@ -44,7 +44,7 @@ fn analyze_(
     let mut array_recurse_level: HashMap<String, u8> = Default::default();
 
     // create a Container if we have a container type:
-    //trace!("analyze_ with {} + {}", current, stack);
+    trace!("analyze_ with {} + {}", current, stack);
     if schema.type_.clone().unwrap_or_default() == "object" {
         // we can have additionalProperties XOR properties
         // https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation
@@ -197,13 +197,13 @@ fn analyze_enum_properties(
     for en in items {
         debug!("got enum {:?}", en);
         // TODO: do we need to verify enum elements? only in oneOf only right?
-        let name = match &en.0 {
-            serde_json::Value::String(name) => name.to_string(),
+        let (name, disc) = match &en.0 {
+            serde_json::Value::String(name) => (name.to_string(), None),
             serde_json::Value::Number(val) => {
                 if !val.is_u64() {
                     bail!("enum member cannot have signed/floating discriminants");
                 }
-                val.to_string()
+                (val.to_string(), Some(val.as_u64().unwrap()))
             }
             _ => bail!("not handling non-string/int enum outside oneOf block"),
         };
@@ -217,6 +217,7 @@ fn analyze_enum_properties(
             serde_annot: vec![],
             extra_annot: vec![],
             docs: member_doc,
+            discriminant: disc,
         })
     }
     Ok(Container {
@@ -307,6 +308,7 @@ fn extract_container(
                 serde_annot: vec![],
                 extra_annot: vec![],
                 docs: member_doc,
+                discriminant: None,
             })
         } else {
             // option wrapping needed if not required
@@ -320,6 +322,7 @@ fn extract_container(
                 ],
                 extra_annot: vec![],
                 docs: member_doc,
+                discriminant: None,
             })
             // TODO: must capture `default` key here instead of blindly using serde default
             // this will require us storing default properties for the member in above loop

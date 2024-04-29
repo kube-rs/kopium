@@ -270,7 +270,11 @@ impl Kopium {
                         let spec_trimmed_type = m.type_.as_str().replace(&format!("{}Spec", kind), kind);
                         if s.is_enum {
                             // NB: only supporting plain enumerations atm, not oneOf
-                            println!("    {},", name);
+                            if let Some(d) = m.discriminant {
+                                println!("    {} = {},", name, d);
+                            } else {
+                                println!("    {},", name);
+                            }
                         } else {
                             println!("    pub {}: {},", name, spec_trimmed_type);
                         }
