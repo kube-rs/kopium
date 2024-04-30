@@ -68,7 +68,7 @@ struct Kopium {
     /// There are three different ways of specifying traits to derive:
     ///
     /// 1. A plain trait name will implement the trait for *all* objects generated from
-    ///    the custom resource definition: `--derive PartialEq --derive Eq`
+    ///    the custom resource definition: `--derive PartialEq`
     ///
     /// 2. Constraining the derivation to a singular struct or enum:
     ///    `--derive IssuerAcmeSolversDns01CnameStrategy=PartialEq`
