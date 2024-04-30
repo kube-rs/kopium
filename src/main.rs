@@ -5,7 +5,7 @@ use clap::{CommandFactory, Parser, Subcommand};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion,
 };
-use kopium::{analyze, Config, Container, MapType};
+use kopium::{analyze, Config, Container, Derive, MapType};
 use kube::{api, core::Version, Api, Client, ResourceExt};
 use quote::format_ident;
 
@@ -167,82 +167,6 @@ fn get_stdin_data() -> Result<String> {
     stdin().read_to_end(&mut buf)?;
     let input = String::from_utf8(buf)?;
     Ok(input)
-}
-
-/// Target object for which the trait must be derived.
-#[derive(Debug, Clone, PartialEq)]
-enum DeriveTarget {
-    /// Derive the trait for all types
-    All,
-    /// Derive the trait for a named type only.
-    Type(String),
-    /// Derive the trait for all structs.
-    Structs,
-    /// Derive the trait for enums, optionally only for simple
-    /// ([unit-only](https://doc.rust-lang.org/reference/items/enumerations.html)) enums.
-    Enums {
-        /// Limit trait derivation to *unit-only* enums.
-        unit_only: bool,
-    },
-}
-
-/// A trait to derive, as well as the object for which to derive it.
-#[derive(Debug, Clone, PartialEq)]
-struct Derive {
-    /// Target object (type, structs, enums) to derive the trait for.
-    pub target: DeriveTarget,
-    /// Trait to derive for the target.
-    pub derived_trait: String,
-}
-
-impl Derive {
-    pub fn all(derived_trait: &str) -> Self {
-        Derive {
-            target: DeriveTarget::All,
-            derived_trait: derived_trait.to_owned(),
-        }
-    }
-}
-
-impl FromStr for Derive {
-    type Err = anyhow::Error;
-
-    fn from_str(value: &str) -> std::prelude::v1::Result<Self, Self::Err> {
-        if let Some((target, derived_trait)) = value.split_once('=') {
-            if target.is_empty() {
-                return Err(anyhow!("derive target cannot be empty in '{value}'"));
-            };
-
-            if derived_trait.is_empty() {
-                return Err(anyhow!("derived trait cannot be empty in '{value}'"));
-            }
-
-            let target = if let Some(target) = target.strip_prefix('@') {
-                match target {
-                    "struct" | "structs" => DeriveTarget::Structs,
-                    "enum" | "enums" => DeriveTarget::Enums { unit_only: false },
-                    "enum:simple" | "enums:simple" => DeriveTarget::Enums { unit_only: true },
-                    other => {
-                        return Err(anyhow!(
-                            "unknown derive target @{other}, must be one of @struct, @enum, or @enum:simple"
-                        ))
-                    }
-                }
-            } else {
-                DeriveTarget::Type(target.to_owned())
-            };
-
-            Ok(Derive {
-                target,
-                derived_trait: derived_trait.to_owned(),
-            })
-        } else {
-            Ok(Derive {
-                target: DeriveTarget::All,
-                derived_trait: value.to_owned(),
-            })
-        }
-    }
 }
 
 impl Kopium {
@@ -415,43 +339,19 @@ impl Kopium {
     }
 
     fn print_derives(&self, s: &Container) {
-        let mut derives: Vec<String> = ["Serialize", "Deserialize", "Clone", "Debug"]
-            .into_iter()
-            .map(String::from)
-            .collect();
+        let mut derives = vec!["Serialize", "Deserialize", "Clone", "Debug"];
 
         if s.is_main_container() && !self.hide_kube {
             // CustomResource first for root struct
-            derives.insert(0, "CustomResource".to_string());
+            derives.insert(0, "CustomResource");
         }
         if self.builders {
-            derives.push("TypedBuilder".to_string());
+            derives.push("TypedBuilder");
         }
 
         for derive in &self.derive {
-            if s.is_enum && derive.derived_trait == "Default" {
-                // Need to drop Default from enum as this cannot be derived.
-                // Enum defaults need to either be manually derived
-                // or we can insert enum defaults
-                continue;
-            }
-
-            // Only insert the trait if the target matches our container.
-            if let Some(derived_trait) = match &derive.target {
-                DeriveTarget::All => Some(&derive.derived_trait),
-                DeriveTarget::Type(name) => (&s.name == name).then_some(&derive.derived_trait),
-                DeriveTarget::Structs => s.is_enum.then_some(&derive.derived_trait),
-                DeriveTarget::Enums { unit_only } => {
-                    if s.is_enum && (!unit_only || s.members.iter().all(|member| member.type_.is_empty())) {
-                        Some(&derive.derived_trait)
-                    } else {
-                        None
-                    }
-                }
-            } {
-                if !derives.contains(derived_trait) {
-                    derives.push(derived_trait.clone())
-                }
+            if derive.is_applicable_to(s) && !derives.contains(&derive.derived_trait.as_str()) {
+                derives.push(&derive.derived_trait)
             }
         }
 
