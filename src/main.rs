@@ -174,7 +174,7 @@ fn get_stdin_data() -> Result<String> {
 enum DeriveTarget {
     /// Derive the trait for all types
     All,
-    /// Derive the trait for a specific type only.
+    /// Derive the trait for a named type only.
     Type(String),
     /// Derive the trait for all structs.
     Structs,
