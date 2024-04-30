@@ -411,7 +411,7 @@ impl Kopium {
     }
 
     fn print_derives(&self, s: &Container) {
-        let mut derives: Vec<String> = vec!["Serialize", "Deserialize", "Clone", "Debug"]
+        let mut derives: Vec<String> = ["Serialize", "Deserialize", "Clone", "Debug"]
             .into_iter()
             .map(String::from)
             .collect();
