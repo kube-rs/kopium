@@ -245,6 +245,12 @@ impl Kopium {
                     if self.schema != "derived" {
                         println!(r#"#[kube(schema = "{}")]"#, self.schema);
                     }
+                    for trait_to_derive in &self.derive {
+                        if trait_to_derive == "JsonSchema" {
+                            continue;
+                        }
+                        println!(r#"#[kube(derive="{}")]"#, trait_to_derive);
+                    }
                 }
                 if s.is_enum {
                     println!("pub enum {} {{", s.name);
