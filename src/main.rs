@@ -421,7 +421,7 @@ impl Kopium {
         }
 
         for derive in &self.derive {
-            if derive.derived_trait == "Default" && s.is_enum {
+            if s.is_enum && derive.derived_trait == "Default" {
                 // Need to drop Default from enum as this cannot be derived.
                 // Enum defaults need to either be manually derived
                 // or we can insert enum defaults
