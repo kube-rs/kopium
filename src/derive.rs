@@ -196,3 +196,43 @@ fn derive_applicability() {
     assert!(named_struct_trait.is_applicable_to(&named_structure));
     assert!(!named_struct_trait.is_applicable_to(&named_enum));
 }
+
+#[test]
+fn test_derive_parsing() {
+    assert_eq!("PartialEq".parse::<Derive>().unwrap(), Derive::all("PartialEq"));
+
+    assert_eq!("@struct=PartialEq".parse::<Derive>().unwrap(), Derive {
+        target: DeriveTarget::Structs,
+        derived_trait: "PartialEq".to_string()
+    });
+
+    assert_eq!("@enum=PartialEq".parse::<Derive>().unwrap(), Derive {
+        target: DeriveTarget::Enums { unit_only: false },
+        derived_trait: "PartialEq".to_string()
+    });
+
+    assert_eq!("@enum:simple=PartialEq".parse::<Derive>().unwrap(), Derive {
+        target: DeriveTarget::Enums { unit_only: true },
+        derived_trait: "PartialEq".to_string()
+    });
+
+    assert_eq!("MyStruct=PartialEq".parse::<Derive>().unwrap(), Derive {
+        target: DeriveTarget::Type("MyStruct".to_string()),
+        derived_trait: "PartialEq".to_string()
+    });
+
+    assert_eq!(
+        "=".parse::<Derive>().unwrap_err().to_string(),
+        "derive target cannot be empty in '='"
+    );
+
+    assert_eq!(
+        "=PartialEq".parse::<Derive>().unwrap_err().to_string(),
+        "derive target cannot be empty in '=PartialEq'"
+    );
+
+    assert_eq!(
+        "@struct=".parse::<Derive>().unwrap_err().to_string(),
+        "derived trait cannot be empty in '@struct='"
+    );
+}
