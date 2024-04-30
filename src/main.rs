@@ -63,12 +63,24 @@ struct Kopium {
     )]
     schema: String,
 
-    /// Derive these extra traits on generated structs
+    /// Derive these additional traits on generated objects
+    ///
+    /// There are several different ways of specifying traits to derive:
+    ///
+    /// 1. A plain trait name will implement the trait for *all* objects generated from
+    ///    the custom resource definition: `--derive PartialEq --derive Eq`
+    ///
+    /// 2. Constraining the derivation to a singular struct or enum:
+    ///    `--derive IssuerAcmeSolversDns01CnameStrategy=PartialEq`
+    ///
+    /// 3. Constraining the derivation to only structs (@struct), enums (@enum) or *unit-only* enums (@enum:simple),
+    ///    meaning enums where no variants are tuple or structs:
+    ///    `--derive @struct=PartialEq`, `--derive @enum=PartialEq`, `--derive @enum:simple=PartialEq`
     #[arg(long,
         short = 'D',
-        value_parser = ["Copy", "Default", "PartialEq", "Eq", "PartialOrd", "Ord", "Hash", "JsonSchema"],
+        value_parser = parse_derive,
     )]
-    derive: Vec<String>,
+    derive: Vec<Derive>,
 
     #[command(subcommand)]
     command: Option<Command>,
@@ -136,9 +148,14 @@ async fn main() -> Result<()> {
         args.docs = true;
         args.schema = "derived".into();
     }
-    if args.schema == "derived" && !args.derive.contains(&"JsonSchema".to_string()) {
-        args.derive.push("JsonSchema".to_string());
+    if args.schema == "derived" {
+        let json_schema = Derive::all("JsonSchema");
+
+        if !args.derive.contains(&json_schema) {
+            args.derive.push(json_schema)
+        }
     }
+
     args.dispatch().await
 }
 
@@ -148,6 +165,78 @@ fn get_stdin_data() -> Result<String> {
     stdin().read_to_end(&mut buf)?;
     let input = String::from_utf8(buf)?;
     Ok(input)
+}
+
+/// Target object for which the trait must be derived.
+#[derive(Debug, Clone, PartialEq)]
+enum DeriveTarget {
+    /// Derive the trait for all types
+    All,
+    /// Derive the trait for a specific type only.
+    Type(String),
+    /// Derive the trait for all structs.
+    Structs,
+    /// Derive the trait for enums, optionally only for simple
+    /// ([unit-only](https://doc.rust-lang.org/reference/items/enumerations.html)) enums.
+    Enums {
+        /// Limit trait derivation to *unit-only* enums.
+        unit_only: bool,
+    },
+}
+
+/// A trait to derive, as well as the object for which to derive it.
+#[derive(Debug, Clone, PartialEq)]
+struct Derive {
+    /// Target object (type, structs, enums) to derive the trait for.
+    pub target: DeriveTarget,
+    /// Trait to derive for the target.
+    pub derived_trait: String,
+}
+
+impl Derive {
+    pub fn all(derived_trait: &str) -> Self {
+        Derive {
+            target: DeriveTarget::All,
+            derived_trait: derived_trait.to_owned(),
+        }
+    }
+}
+
+fn parse_derive(arg: &str) -> Result<Derive> {
+    if let Some((target, derived_trait)) = arg.split_once('=') {
+        if target.is_empty() {
+            return Err(anyhow!("derive target cannot be empty in '{arg}'"));
+        };
+
+        if derived_trait.is_empty() {
+            return Err(anyhow!("derived trait cannot be empty in '{arg}'"));
+        }
+
+        let target = if let Some(target) = target.strip_prefix('@') {
+            match target {
+                "struct" | "structs" => DeriveTarget::Structs,
+                "enum" | "enums" => DeriveTarget::Enums { unit_only: false },
+                "enum:simple" | "enums:simple" => DeriveTarget::Enums { unit_only: true },
+                other => {
+                    return Err(anyhow!(
+                        "unknown derive target @{other}, must be one of @struct, @enum, or @enum:simple"
+                    ))
+                }
+            }
+        } else {
+            DeriveTarget::Type(target.to_owned())
+        };
+
+        Ok(Derive {
+            target,
+            derived_trait: derived_trait.to_owned(),
+        })
+    } else {
+        Ok(Derive {
+            target: DeriveTarget::All,
+            derived_trait: arg.to_owned(),
+        })
+    }
 }
 
 impl Kopium {
@@ -320,6 +409,7 @@ impl Kopium {
             .into_iter()
             .map(String::from)
             .collect();
+
         if s.is_main_container() && !self.hide_kube {
             // CustomResource first for root struct
             derives.insert(0, "CustomResource".to_string());
@@ -327,26 +417,46 @@ impl Kopium {
         if self.builders {
             derives.push("TypedBuilder".to_string());
         }
-        if s.is_enum && s.members.iter().all(|member| member.type_.is_empty()) {
-            derives.extend(
-                ["PartialEq", "Eq", "PartialOrd", "Ord"]
-                    .into_iter()
-                    .map(String::from),
-            );
-        }
 
-        // add user derives last in order
-        for d in &self.derive {
-            if s.is_enum && d == "Default" {
+        for derive in &self.derive {
+            if derive.derived_trait == "Default" && s.is_enum {
                 // Need to drop Default from enum as this cannot be derived.
                 // Enum defaults need to either be manually derived
                 // or we can insert enum defaults
                 continue;
             }
-            if !derives.contains(d) {
-                derives.push(d.clone());
+
+            // Only insert the trait if the target matches our container.
+            if let Some(derived_trait) = match &derive.target {
+                DeriveTarget::All => Some(&derive.derived_trait),
+                DeriveTarget::Type(name) => {
+                    if &s.name == name {
+                        Some(&derive.derived_trait)
+                    } else {
+                        None
+                    }
+                }
+                DeriveTarget::Structs => {
+                    if !s.is_enum {
+                        Some(&derive.derived_trait)
+                    } else {
+                        None
+                    }
+                }
+                DeriveTarget::Enums { unit_only } => {
+                    if s.is_enum && (!unit_only || s.members.iter().all(|member| member.type_.is_empty())) {
+                        Some(&derive.derived_trait)
+                    } else {
+                        None
+                    }
+                }
+            } {
+                if !derives.contains(derived_trait) {
+                    derives.push(derived_trait.clone())
+                }
             }
         }
+
         println!("#[derive({})]", derives.join(", "));
     }
 
@@ -365,7 +475,11 @@ impl Kopium {
         if self.builders {
             println!("    pub use typed_builder::TypedBuilder;");
         }
-        if self.derive.contains(&"JsonSchema".to_string()) {
+        if self
+            .derive
+            .iter()
+            .any(|derive| derive.derived_trait == "JsonSchema")
+        {
             println!("    pub use schemars::JsonSchema;");
         }
         println!("    pub use serde::{{Serialize, Deserialize}};");
