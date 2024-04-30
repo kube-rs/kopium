@@ -435,20 +435,8 @@ impl Kopium {
             // Only insert the trait if the target matches our container.
             if let Some(derived_trait) = match &derive.target {
                 DeriveTarget::All => Some(&derive.derived_trait),
-                DeriveTarget::Type(name) => {
-                    if &s.name == name {
-                        Some(&derive.derived_trait)
-                    } else {
-                        None
-                    }
-                }
-                DeriveTarget::Structs => {
-                    if !s.is_enum {
-                        Some(&derive.derived_trait)
-                    } else {
-                        None
-                    }
-                }
+                DeriveTarget::Type(name) => (&s.name == name).then_some(&derive.derived_trait),
+                DeriveTarget::Structs => s.is_enum.then_some(&derive.derived_trait),
                 DeriveTarget::Enums { unit_only } => {
                     if s.is_enum && (!unit_only || s.members.iter().all(|member| member.type_.is_empty())) {
                         Some(&derive.derived_trait)
