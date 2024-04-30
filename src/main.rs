@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 #[macro_use] extern crate log;
 use anyhow::{anyhow, Context, Result};
 use clap::{CommandFactory, Parser, Subcommand};
@@ -80,7 +80,7 @@ struct Kopium {
     /// See also: https://doc.rust-lang.org/reference/items/enumerations.html
     #[arg(long,
         short = 'D',
-        value_parser = parse_derive,
+        value_parser = Derive::from_str,
     )]
     derive: Vec<Derive>,
 
@@ -204,40 +204,44 @@ impl Derive {
     }
 }
 
-fn parse_derive(arg: &str) -> Result<Derive> {
-    if let Some((target, derived_trait)) = arg.split_once('=') {
-        if target.is_empty() {
-            return Err(anyhow!("derive target cannot be empty in '{arg}'"));
-        };
+impl FromStr for Derive {
+    type Err = anyhow::Error;
 
-        if derived_trait.is_empty() {
-            return Err(anyhow!("derived trait cannot be empty in '{arg}'"));
-        }
+    fn from_str(value: &str) -> std::prelude::v1::Result<Self, Self::Err> {
+        if let Some((target, derived_trait)) = value.split_once('=') {
+            if target.is_empty() {
+                return Err(anyhow!("derive target cannot be empty in '{value}'"));
+            };
 
-        let target = if let Some(target) = target.strip_prefix('@') {
-            match target {
-                "struct" | "structs" => DeriveTarget::Structs,
-                "enum" | "enums" => DeriveTarget::Enums { unit_only: false },
-                "enum:simple" | "enums:simple" => DeriveTarget::Enums { unit_only: true },
-                other => {
-                    return Err(anyhow!(
-                        "unknown derive target @{other}, must be one of @struct, @enum, or @enum:simple"
-                    ))
-                }
+            if derived_trait.is_empty() {
+                return Err(anyhow!("derived trait cannot be empty in '{value}'"));
             }
-        } else {
-            DeriveTarget::Type(target.to_owned())
-        };
 
-        Ok(Derive {
-            target,
-            derived_trait: derived_trait.to_owned(),
-        })
-    } else {
-        Ok(Derive {
-            target: DeriveTarget::All,
-            derived_trait: arg.to_owned(),
-        })
+            let target = if let Some(target) = target.strip_prefix('@') {
+                match target {
+                    "struct" | "structs" => DeriveTarget::Structs,
+                    "enum" | "enums" => DeriveTarget::Enums { unit_only: false },
+                    "enum:simple" | "enums:simple" => DeriveTarget::Enums { unit_only: true },
+                    other => {
+                        return Err(anyhow!(
+                            "unknown derive target @{other}, must be one of @struct, @enum, or @enum:simple"
+                        ))
+                    }
+                }
+            } else {
+                DeriveTarget::Type(target.to_owned())
+            };
+
+            Ok(Derive {
+                target,
+                derived_trait: derived_trait.to_owned(),
+            })
+        } else {
+            Ok(Derive {
+                target: DeriveTarget::All,
+                derived_trait: value.to_owned(),
+            })
+        }
     }
 }
 
