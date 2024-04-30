@@ -350,6 +350,13 @@ impl Kopium {
         }
 
         for derive in &self.derive {
+            if s.is_enum && derive.derived_trait == "Default" {
+                // Need to drop Default from enum as this cannot be derived.
+                // Enum defaults need to either be manually derived
+                // or we can insert enum defaults
+                continue;
+            }
+
             if derive.is_applicable_to(s) && !derives.contains(&derive.derived_trait.as_str()) {
                 derives.push(&derive.derived_trait)
             }
