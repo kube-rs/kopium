@@ -65,7 +65,7 @@ struct Kopium {
 
     /// Derive these additional traits on generated objects
     ///
-    /// There are several different ways of specifying traits to derive:
+    /// There are three different ways of specifying traits to derive:
     ///
     /// 1. A plain trait name will implement the trait for *all* objects generated from
     ///    the custom resource definition: `--derive PartialEq --derive Eq`
