@@ -76,6 +76,8 @@ struct Kopium {
     /// 3. Constraining the derivation to only structs (@struct), enums (@enum) or *unit-only* enums (@enum:simple),
     ///    meaning enums where no variants are tuple or structs:
     ///    `--derive @struct=PartialEq`, `--derive @enum=PartialEq`, `--derive @enum:simple=PartialEq`
+    ///
+    /// See also: https://doc.rust-lang.org/reference/items/enumerations.html
     #[arg(long,
         short = 'D',
         value_parser = parse_derive,
