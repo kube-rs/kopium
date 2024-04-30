@@ -24,7 +24,7 @@ enum Target {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Derive {
     /// Target object (type, structs, enums) to derive the trait for.
-    pub target: DeriveTarget,
+    target: Target,
     /// Trait to derive for the target.
     pub derived_trait: String,
 }
@@ -33,7 +33,7 @@ impl Derive {
     /// Construct a derived trait targeting All objects.
     pub fn all(derived_trait: &str) -> Self {
         Derive {
-            target: DeriveTarget::All,
+            target: Target::All,
             derived_trait: derived_trait.to_owned(),
         }
     }
@@ -41,7 +41,7 @@ impl Derive {
     /// Returns true if this Derive is applicable to the given container.
     ///
     /// See below truth table:
-    /// | Container            DeriveTarget | All  | Enum { unit_only: true } | Enum { unit_only: false } | Struct | Type("MyStruct") | Type("OtherEnum") |
+    /// | Container            Target | All  | Enum { unit_only: true } | Enum { unit_only: false } | Struct | Type("MyStruct") | Type("OtherEnum") |
     /// |-----------------------------------|------|--------------------------|---------------------------|--------|------------------|-------------------|
     /// | enum Simple { A, B }              | true | true                     | true                      | false  | false            | false             |
     /// | enum Complex { A, B { b: bool } } | true | false                    | true                      | false  | false            | false             |
@@ -50,10 +50,10 @@ impl Derive {
     ///
     pub fn is_applicable_to(&self, s: &Container) -> bool {
         match &self.target {
-            DeriveTarget::All => true,
-            DeriveTarget::Type(name) => &s.name == name,
-            DeriveTarget::Structs => !s.is_enum,
-            DeriveTarget::Enums { unit_only } => {
+            Target::All => true,
+            Target::Type(name) => &s.name == name,
+            Target::Structs => !s.is_enum,
+            Target::Enums { unit_only } => {
                 if !s.is_enum {
                     return false;
                 }
@@ -83,9 +83,9 @@ impl FromStr for Derive {
 
             let target = if let Some(target) = target.strip_prefix('@') {
                 match target {
-                    "struct" | "structs" => DeriveTarget::Structs,
-                    "enum" | "enums" => DeriveTarget::Enums { unit_only: false },
-                    "enum:simple" | "enums:simple" => DeriveTarget::Enums { unit_only: true },
+                    "struct" | "structs" => Target::Structs,
+                    "enum" | "enums" => Target::Enums { unit_only: false },
+                    "enum:simple" | "enums:simple" => Target::Enums { unit_only: true },
                     other => {
                         return Err(anyhow!(
                             "unknown derive target @{other}, must be one of @struct, @enum, or @enum:simple"
@@ -93,7 +93,7 @@ impl FromStr for Derive {
                     }
                 }
             } else {
-                DeriveTarget::Type(target.to_owned())
+                Target::Type(target.to_owned())
             };
 
             Ok(Derive {
@@ -102,7 +102,7 @@ impl FromStr for Derive {
             })
         } else {
             Ok(Derive {
-                target: DeriveTarget::All,
+                target: Target::All,
                 derived_trait: value.to_owned(),
             })
         }
@@ -157,7 +157,7 @@ fn derive_applicability() {
     assert!(all_trait.is_applicable_to(&named_enum));
 
     let simple_enum_trait = Derive {
-        target: DeriveTarget::Enums { unit_only: true },
+        target: Target::Enums { unit_only: true },
         derived_trait: "PartialEq".to_string(),
     };
     assert!(simple_enum_trait.is_applicable_to(&simple_enum));
@@ -167,7 +167,7 @@ fn derive_applicability() {
     assert!(simple_enum_trait.is_applicable_to(&named_enum));
 
     let complex_enum_trait = Derive {
-        target: DeriveTarget::Enums { unit_only: false },
+        target: Target::Enums { unit_only: false },
         derived_trait: "PartialEq".to_string(),
     };
     assert!(complex_enum_trait.is_applicable_to(&simple_enum));
@@ -177,7 +177,7 @@ fn derive_applicability() {
     assert!(complex_enum_trait.is_applicable_to(&named_enum));
 
     let struct_trait = Derive {
-        target: DeriveTarget::Structs,
+        target: Target::Structs,
         derived_trait: "PartialEq".to_string(),
     };
     assert!(!struct_trait.is_applicable_to(&simple_enum));
@@ -187,7 +187,7 @@ fn derive_applicability() {
     assert!(!struct_trait.is_applicable_to(&named_enum));
 
     let named_struct_trait = Derive {
-        target: DeriveTarget::Type("MyStruct".to_string()),
+        target: Target::Type("MyStruct".to_string()),
         derived_trait: "PartialEq".to_string(),
     };
     assert!(!named_struct_trait.is_applicable_to(&simple_enum));
@@ -203,22 +203,22 @@ fn test_derive_parsing() {
     assert_eq!("PartialEq".parse::<Derive>().unwrap(), Derive::all("PartialEq"));
 
     assert_eq!("@struct=PartialEq".parse::<Derive>().unwrap(), Derive {
-        target: DeriveTarget::Structs,
+        target: Target::Structs,
         derived_trait: "PartialEq".to_string()
     });
 
     assert_eq!("@enum=PartialEq".parse::<Derive>().unwrap(), Derive {
-        target: DeriveTarget::Enums { unit_only: false },
+        target: Target::Enums { unit_only: false },
         derived_trait: "PartialEq".to_string()
     });
 
     assert_eq!("@enum:simple=PartialEq".parse::<Derive>().unwrap(), Derive {
-        target: DeriveTarget::Enums { unit_only: true },
+        target: Target::Enums { unit_only: true },
         derived_trait: "PartialEq".to_string()
     });
 
     assert_eq!("MyStruct=PartialEq".parse::<Derive>().unwrap(), Derive {
-        target: DeriveTarget::Type("MyStruct".to_string()),
+        target: Target::Type("MyStruct".to_string()),
         derived_trait: "PartialEq".to_string()
     });
 
