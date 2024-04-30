@@ -290,88 +290,92 @@ impl Kopium {
 
         self.print_generation_warning();
 
-        if let Some(schema) = data {
-            log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
-            let cfg = Config {
-                no_condition: self.no_condition,
-                map: self.map_type,
-                relaxed: self.relaxed,
-            };
-            let structs = analyze(schema, kind, cfg)?
-                .rename()
-                .builder_fields(self.builders)
-                .0;
+        let Some(schema) = data else {
+            anyhow::bail!("no schema found for crd");
+        };
+        log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
+        let cfg = Config {
+            no_condition: self.no_condition,
+            map: self.map_type,
+            relaxed: self.relaxed,
+        };
+        let structs = analyze(schema, kind, cfg)?
+            .rename()
+            .builder_fields(self.builders)
+            .0;
 
-            if !self.hide_prelude {
-                self.print_prelude(&structs);
+        if !self.hide_prelude {
+            self.print_prelude(&structs);
+        }
+
+        for s in &structs {
+            if s.level == 0 {
+                continue; // ignoring root struct
             }
-
-            for s in &structs {
-                if s.level == 0 {
-                    continue; // ignoring root struct
+            if self.elide.contains(&s.name) {
+                debug!("eliding {} from the output", s.name);
+                continue;
+            }
+            self.print_docstr(&s.docs, "");
+            if s.is_main_container() {
+                self.print_derives(s);
+                //root struct gets kube derives unless opted out
+                if !self.hide_kube {
+                    println!(
+                        r#"#[kube(group = "{}", version = "{}", kind = "{}", plural = "{}")]"#,
+                        group, version_name, kind, plural
+                    );
+                    if scope == "Namespaced" {
+                        println!(r#"#[kube(namespaced)]"#);
+                    }
+                    if version.subresources.as_ref().is_some_and(|c| c.status.is_some())
+                        && self.has_status_resource(&structs)
+                    {
+                        println!(r#"#[kube(status = "{}Status")]"#, kind);
+                    }
+                    if self.schema != "derived" {
+                        println!(r#"#[kube(schema = "{}")]"#, self.schema);
+                    }
+                    for derive in &self.derive {
+                        if derive.derived_trait == "JsonSchema" {
+                            continue;
+                        }
+                        println!(r#"#[kube(derive="{}")]"#, derive.derived_trait);
+                    }
+                }
+                if s.is_enum {
+                    println!("pub enum {} {{", s.name);
                 } else {
-                    if self.elide.contains(&s.name) {
-                        debug!("eliding {} from the output", s.name);
-                        continue;
-                    }
-                    self.print_docstr(&s.docs, "");
-                    if s.is_main_container() {
-                        self.print_derives(s);
-                        //root struct gets kube derives unless opted out
-                        if !self.hide_kube {
-                            println!(
-                                r#"#[kube(group = "{}", version = "{}", kind = "{}", plural = "{}")]"#,
-                                group, version_name, kind, plural
-                            );
-                            if scope == "Namespaced" {
-                                println!(r#"#[kube(namespaced)]"#);
-                            }
-                            if version.subresources.as_ref().is_some_and(|c| c.status.is_some())
-                                && self.has_status_resource(&structs)
-                            {
-                                println!(r#"#[kube(status = "{}Status")]"#, kind);
-                            }
-                            if self.schema != "derived" {
-                                println!(r#"#[kube(schema = "{}")]"#, self.schema);
-                            }
-                        }
-                        if s.is_enum {
-                            println!("pub enum {} {{", s.name);
-                        } else {
-                            println!("pub struct {} {{", s.name);
-                        }
-                    } else {
-                        self.print_derives(s);
-                        let spec_trimmed_name = s.name.as_str().replace(&format!("{}Spec", kind), kind);
-                        if s.is_enum {
-                            println!("pub enum {} {{", spec_trimmed_name);
-                        } else {
-                            println!("pub struct {} {{", spec_trimmed_name);
-                        }
-                    }
-                    for m in &s.members {
-                        self.print_docstr(&m.docs, "    ");
-                        if !m.serde_annot.is_empty() {
-                            println!("    #[serde({})]", m.serde_annot.join(", "));
-                        }
-                        let name = format_ident!("{}", m.name);
-                        for annot in &m.extra_annot {
-                            println!("    {}", annot);
-                        }
-                        let spec_trimmed_type = m.type_.as_str().replace(&format!("{}Spec", kind), kind);
-                        if s.is_enum {
-                            // NB: only supporting plain enumerations atm, not oneOf
-                            println!("    {},", name);
-                        } else {
-                            println!("    pub {}: {},", name, spec_trimmed_type);
-                        }
-                    }
-                    println!("}}");
-                    println!();
+                    println!("pub struct {} {{", s.name);
+                }
+            } else {
+                self.print_derives(s);
+                let spec_trimmed_name = s.name.as_str().replace(&format!("{}Spec", kind), kind);
+                if s.is_enum {
+                    println!("pub enum {} {{", spec_trimmed_name);
+                } else {
+                    println!("pub struct {} {{", spec_trimmed_name);
                 }
             }
-        } else {
-            log::error!("no schema found for crd");
+            for m in &s.members {
+                self.print_docstr(&m.docs, "    ");
+                if !m.serde_annot.is_empty() {
+                    println!("    #[serde({})]", m.serde_annot.join(", "));
+                }
+                let name = format_ident!("{}", m.name);
+                for annot in &m.extra_annot {
+                    println!("    {}", annot);
+                }
+                let spec_trimmed_type = m.type_.as_str().replace(&format!("{}Spec", kind), kind);
+                if s.is_enum {
+                    // NB: only supporting plain enumerations atm, not oneOf
+                    println!("    {},", name);
+                } else {
+                    println!("    pub {}: {},", name, spec_trimmed_type);
+                }
+            }
+            println!("}}");
+            println!();
         }
 
         Ok(())
@@ -401,7 +405,7 @@ impl Kopium {
         if self.docs {
             if let Some(d) = doc {
                 println!("{}/// {}", indent, d.replace('\n', &format!("\n{}/// ", indent)));
-                // TODO: logic to split doc strings by sentence / length here
+                // TODO: maybe logic to split doc strings by sentence / length here
             }
         }
     }
@@ -520,26 +524,20 @@ fn find_crd_version<'a>(
     crd: &'a CustomResourceDefinition,
     version: Option<&str>,
 ) -> Result<&'a CustomResourceDefinitionVersion> {
+    let mut iter = crd.spec.versions.iter();
     if let Some(version) = version {
         // pick specified version
-        crd.spec
-            .versions
-            .iter()
-            .find(|v| v.name == version)
-            .ok_or_else(|| {
-                anyhow!(
-                    "Version '{}' not found in CRD '{}'\navailable versions are '{}'",
-                    version,
-                    crd.name_any(),
-                    all_versions(crd)
-                )
-            })
+        iter.find(|v| v.name == version).ok_or_else(|| {
+            anyhow!(
+                "Version '{}' not found in CRD '{}'\navailable versions are '{}'",
+                version,
+                crd.name_any(),
+                all_versions(crd)
+            )
+        })
     } else {
         // pick version with highest version priority
-        crd.spec
-            .versions
-            .iter()
-            .max_by_key(|v| Version::parse(&v.name).priority())
+        iter.max_by_key(|v| Version::parse(&v.name).priority())
             .ok_or_else(|| anyhow!("CRD '{}' has no versions", crd.name_any()))
     }
 }
