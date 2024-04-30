@@ -197,6 +197,7 @@ fn derive_applicability() {
     assert!(!named_struct_trait.is_applicable_to(&named_enum));
 }
 
+#[cfg(test)]
 #[test]
 fn test_derive_parsing() {
     assert_eq!("PartialEq".parse::<Derive>().unwrap(), Derive::all("PartialEq"));
