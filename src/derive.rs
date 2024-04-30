@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use std::str::FromStr;
 
-use crate::{Container, Member};
+use crate::Container;
 
 /// Target object for which the trait must be derived.
 #[derive(Debug, Clone, PartialEq)]
@@ -41,12 +41,12 @@ impl Derive {
     /// Returns true if this Derive is applicable to the given container.
     ///
     /// See below truth table:
-    /// | Container            DeriveTarget | All  | Enum { unit_only: true } | Enum { unit_only: false } | Struct | Type("MyStruct") | Type("OtherStruct") |
-    /// |-----------------------------------|------|--------------------------|---------------------------|--------|------------------|---------------------|
-    /// | enum Simple { A, B }              | true | true                     | true                      | false  | false            | false               |
-    /// | enum Complex { A, B { b: bool } } | true | false                    | true                      | false  | false            | false               |
-    /// | struct MyStruct { .. }            | true | false                    | false                     | true   | true             | false               |
-    /// | enum OtherStruct { .. }           | true | false                    | false                     | true   | false            | true                |
+    /// | Container            DeriveTarget | All  | Enum { unit_only: true } | Enum { unit_only: false } | Struct | Type("MyStruct") | Type("OtherEnum") |
+    /// |-----------------------------------|------|--------------------------|---------------------------|--------|------------------|-------------------|
+    /// | enum Simple { A, B }              | true | true                     | true                      | false  | false            | false             |
+    /// | enum Complex { A, B { b: bool } } | true | false                    | true                      | false  | false            | false             |
+    /// | struct MyStruct { .. }            | true | false                    | false                     | true   | true             | false             |
+    /// | enum OtherEnum { A, B }           | true | false                    | false                     | true   | false            | true              |
     ///
     pub fn is_applicable_to(&self, s: &Container) -> bool {
         match &self.target {
@@ -109,8 +109,11 @@ impl FromStr for Derive {
     }
 }
 
+#[cfg(test)]
 #[test]
 fn derive_applicability() {
+    use crate::Member;
+
     let structure = Container {
         is_enum: false,
         ..Default::default()
@@ -140,11 +143,18 @@ fn derive_applicability() {
         ..Default::default()
     };
 
+    let named_enum = Container {
+        name: "OtherEnum".to_string(),
+        is_enum: true,
+        ..Default::default()
+    };
+
     let all_trait = Derive::all("PartialEq");
     assert!(all_trait.is_applicable_to(&structure));
     assert!(all_trait.is_applicable_to(&simple_enum));
     assert!(all_trait.is_applicable_to(&complex_enum));
     assert!(all_trait.is_applicable_to(&named_structure));
+    assert!(all_trait.is_applicable_to(&named_enum));
 
     let simple_enum_trait = Derive {
         target: DeriveTarget::Enums { unit_only: true },
@@ -154,6 +164,7 @@ fn derive_applicability() {
     assert!(!simple_enum_trait.is_applicable_to(&complex_enum));
     assert!(!simple_enum_trait.is_applicable_to(&structure));
     assert!(!simple_enum_trait.is_applicable_to(&named_structure));
+    assert!(simple_enum_trait.is_applicable_to(&named_enum));
 
     let complex_enum_trait = Derive {
         target: DeriveTarget::Enums { unit_only: false },
@@ -163,6 +174,7 @@ fn derive_applicability() {
     assert!(complex_enum_trait.is_applicable_to(&complex_enum));
     assert!(!complex_enum_trait.is_applicable_to(&structure));
     assert!(!complex_enum_trait.is_applicable_to(&named_structure));
+    assert!(complex_enum_trait.is_applicable_to(&named_enum));
 
     let struct_trait = Derive {
         target: DeriveTarget::Structs,
@@ -172,6 +184,7 @@ fn derive_applicability() {
     assert!(!struct_trait.is_applicable_to(&complex_enum));
     assert!(struct_trait.is_applicable_to(&structure));
     assert!(struct_trait.is_applicable_to(&named_structure));
+    assert!(!struct_trait.is_applicable_to(&named_enum));
 
     let named_struct_trait = Derive {
         target: DeriveTarget::Type("MyStruct".to_string()),
@@ -181,4 +194,5 @@ fn derive_applicability() {
     assert!(!named_struct_trait.is_applicable_to(&complex_enum));
     assert!(!named_struct_trait.is_applicable_to(&structure));
     assert!(named_struct_trait.is_applicable_to(&named_structure));
+    assert!(!named_struct_trait.is_applicable_to(&named_enum));
 }
