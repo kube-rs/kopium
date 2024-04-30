@@ -5,7 +5,7 @@ use crate::Container;
 
 /// Target object for which the trait must be derived.
 #[derive(Debug, Clone, PartialEq)]
-pub enum DeriveTarget {
+enum Target {
     /// Derive the trait for all types
     All,
     /// Derive the trait for a named type only.
