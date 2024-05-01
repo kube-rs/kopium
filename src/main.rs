@@ -1,11 +1,11 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 #[macro_use] extern crate log;
 use anyhow::{anyhow, Context, Result};
 use clap::{CommandFactory, Parser, Subcommand};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion,
 };
-use kopium::{analyze, Config, Container, MapType};
+use kopium::{analyze, Config, Container, Derive, MapType};
 use kube::{api, core::Version, Api, Client, ResourceExt};
 use quote::format_ident;
 
@@ -63,12 +63,26 @@ struct Kopium {
     )]
     schema: String,
 
-    /// Derive these extra traits on generated structs
+    /// Derive these additional traits on generated objects
+    ///
+    /// There are three different ways of specifying traits to derive:
+    ///
+    /// 1. A plain trait name will implement the trait for *all* objects generated from
+    ///    the custom resource definition: `--derive PartialEq`
+    ///
+    /// 2. Constraining the derivation to a singular struct or enum:
+    ///    `--derive IssuerAcmeSolversDns01CnameStrategy=PartialEq`
+    ///
+    /// 3. Constraining the derivation to only structs (@struct), enums (@enum) or *unit-only* enums (@enum:simple),
+    ///    meaning enums where no variants are tuple or structs:
+    ///    `--derive @struct=PartialEq`, `--derive @enum=PartialEq`, `--derive @enum:simple=PartialEq`
+    ///
+    /// See also: https://doc.rust-lang.org/reference/items/enumerations.html
     #[arg(long,
         short = 'D',
-        value_parser = ["Copy", "Default", "PartialEq", "Eq", "PartialOrd", "Ord", "Hash", "JsonSchema"],
+        value_parser = Derive::from_str,
     )]
-    derive: Vec<String>,
+    derive: Vec<Derive>,
 
     #[command(subcommand)]
     command: Option<Command>,
@@ -136,9 +150,14 @@ async fn main() -> Result<()> {
         args.docs = true;
         args.schema = "derived".into();
     }
-    if args.schema == "derived" && !args.derive.contains(&"JsonSchema".to_string()) {
-        args.derive.push("JsonSchema".to_string());
+    if args.schema == "derived" {
+        let json_schema = Derive::all("JsonSchema");
+
+        if !args.derive.contains(&json_schema) {
+            args.derive.push(json_schema)
+        }
     }
+
     args.dispatch().await
 }
 
@@ -245,11 +264,11 @@ impl Kopium {
                     if self.schema != "derived" {
                         println!(r#"#[kube(schema = "{}")]"#, self.schema);
                     }
-                    for trait_to_derive in &self.derive {
-                        if trait_to_derive == "JsonSchema" {
+                    for derive in &self.derive {
+                        if derive.derived_trait == "JsonSchema" {
                             continue;
                         }
-                        println!(r#"#[kube(derive="{}")]"#, trait_to_derive);
+                        println!(r#"#[kube(derive="{}")]"#, derive.derived_trait);
                     }
                 }
                 if s.is_enum {
@@ -321,6 +340,7 @@ impl Kopium {
 
     fn print_derives(&self, s: &Container) {
         let mut derives = vec!["Serialize", "Deserialize", "Clone", "Debug"];
+
         if s.is_main_container() && !self.hide_kube {
             // CustomResource first for root struct
             derives.insert(0, "CustomResource");
@@ -328,16 +348,20 @@ impl Kopium {
         if self.builders {
             derives.push("TypedBuilder");
         }
-        // add user derives last in order
-        for d in &self.derive {
-            if s.is_enum && d == "Default" {
+
+        for derive in &self.derive {
+            if s.is_enum && derive.derived_trait == "Default" {
                 // Need to drop Default from enum as this cannot be derived.
                 // Enum defaults need to either be manually derived
                 // or we can insert enum defaults
                 continue;
             }
-            derives.push(d);
+
+            if derive.is_applicable_to(s) && !derives.contains(&derive.derived_trait.as_str()) {
+                derives.push(&derive.derived_trait)
+            }
         }
+
         println!("#[derive({})]", derives.join(", "));
     }
 
@@ -356,7 +380,11 @@ impl Kopium {
         if self.builders {
             println!("    pub use typed_builder::TypedBuilder;");
         }
-        if self.derive.contains(&"JsonSchema".to_string()) {
+        if self
+            .derive
+            .iter()
+            .any(|derive| derive.derived_trait == "JsonSchema")
+        {
             println!("    pub use schemars::JsonSchema;");
         }
         println!("    pub use serde::{{Serialize, Deserialize}};");
