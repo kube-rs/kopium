@@ -41,7 +41,7 @@ impl Derive {
     /// Returns true if this Derive is applicable to the given container.
     ///
     /// See below truth table:
-    /// | Container            Target | All  | Enum { unit_only: true } | Enum { unit_only: false } | Struct | Type("MyStruct") | Type("OtherEnum") |
+    /// | Container                  Target | All  | Enum { unit_only: true } | Enum { unit_only: false } | Struct | Type("MyStruct") | Type("OtherEnum") |
     /// |-----------------------------------|------|--------------------------|---------------------------|--------|------------------|-------------------|
     /// | enum Simple { A, B }              | true | true                     | true                      | false  | false            | false             |
     /// | enum Complex { A, B { b: bool } } | true | false                    | true                      | false  | false            | false             |
