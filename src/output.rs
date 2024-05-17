@@ -81,6 +81,7 @@ impl Container {
         self.members.iter().any(|m| m.type_.contains("Vec<Condition>"))
     }
 
+    /// Checks if default is implemented for all props, and if not, returns false
     pub fn can_derive_default(&self, containers: &[Container]) -> bool {
         if self.is_enum {
             // Need to drop Default from enum as this cannot be derived.
@@ -90,12 +91,13 @@ impl Container {
         }
 
         for m in &self.members {
+            // If the type contains a <, it's a container type. All container types kopium uses right now (Map, Vec, Option) have a default implementation.
             if !m.type_.contains('<')
-                && !m.type_.contains("::")
                 && m.type_ != "String"
                 && m.type_ != "IntOrString"
                 && m.type_ != "NaiveDate"
                 && m.type_ != "DateTime"
+                // If the first character is lowercase, assume it's a built-in type and skip the check.
                 && m.type_.chars().next().unwrap_or_default().is_uppercase()
             {
                 if containers
@@ -310,5 +312,69 @@ mod test {
         assert_eq!(&cs.members[1].name, "jwks_uri_x");
         assert_eq!(&cs.members[2].name, "jwks_uri_x_x");
         assert_eq!(&cs.members[3].name, "jwks_uri_x_x_x");
+    }
+
+    #[test]
+    fn can_derive_default() {
+        let containers = vec![
+            Container {
+                name: "Simple".to_string(),
+                level: 1,
+                members: vec![],
+                docs: None,
+                is_enum: false,
+            },
+            Container {
+                name: "Enum".to_string(),
+                level: 1,
+                members: vec![],
+                docs: None,
+                is_enum: true,
+            },
+            Container {
+                name: "Nested".to_string(),
+                level: 1,
+                members: vec![Member {
+                    name: "simple".to_string(),
+                    type_: "Simple".to_string(),
+                    serde_annot: vec![],
+                    extra_annot: vec![],
+                    docs: None,
+                }],
+                docs: None,
+                is_enum: false,
+            },
+            Container {
+                name: "ReferencesEnum".to_string(),
+                level: 1,
+                members: vec![Member {
+                    name: "enum".to_string(),
+                    type_: "Enum".to_string(),
+                    serde_annot: vec![],
+                    extra_annot: vec![],
+                    docs: None,
+                }],
+                docs: None,
+                is_enum: false,
+            },
+            Container {
+                name: "ReferencesEnumNested".to_string(),
+                level: 1,
+                members: vec![Member {
+                    name: "references_enum".to_string(),
+                    type_: "ReferencesEnum".to_string(),
+                    serde_annot: vec![],
+                    extra_annot: vec![],
+                    docs: None,
+                }],
+                docs: None,
+                is_enum: false,
+            },
+        ];
+        assert!(containers[0].can_derive_default(&containers)); // Simple
+        assert!(!containers[1].can_derive_default(&containers)); // Enum
+        assert!(containers[2].can_derive_default(&containers)); // Nested
+        assert!(!containers[3].can_derive_default(&containers)); // ReferencesEnum
+        assert!(!containers[4].can_derive_default(&containers)); // ReferencesEnumNested
     }
 }
