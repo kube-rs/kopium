@@ -80,6 +80,36 @@ impl Container {
     pub fn contains_conditions(&self) -> bool {
         self.members.iter().any(|m| m.type_.contains("Vec<Condition>"))
     }
+
+    pub fn can_derive_default(&self, containers: &[Container]) -> bool {
+        if self.is_enum {
+            // Need to drop Default from enum as this cannot be derived.
+            // Enum defaults need to either be manually derived
+            // or we can insert enum defaults
+            return false;
+        }
+
+        for m in &self.members {
+            if !m.type_.contains('<')
+                && !m.type_.contains("::")
+                && m.type_ != "String"
+                && m.type_ != "IntOrString"
+                && m.type_ != "NaiveDate"
+                && m.type_ != "DateTime"
+                && m.type_.chars().next().unwrap_or_default().is_uppercase()
+            {
+                if containers
+                    .iter()
+                    .find(|c| c.name == m.type_)
+                    .is_some_and(|c| !c.can_derive_default(containers))
+                {
+                    return false;
+                }
+            }
+        }
+
+        true
+    }
 }
 
 impl Container {

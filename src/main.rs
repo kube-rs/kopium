@@ -246,7 +246,7 @@ impl Kopium {
             }
             self.print_docstr(&s.docs, "");
             if s.is_main_container() {
-                self.print_derives(s);
+                self.print_derives(s, &structs);
                 //root struct gets kube derives unless opted out
                 if !self.hide_kube {
                     println!(
@@ -277,7 +277,7 @@ impl Kopium {
                     println!("pub struct {} {{", s.name);
                 }
             } else {
-                self.print_derives(s);
+                self.print_derives(s, &structs);
                 let spec_trimmed_name = s.name.as_str().replace(&format!("{}Spec", kind), kind);
                 if s.is_enum {
                     println!("pub enum {} {{", spec_trimmed_name);
@@ -338,23 +338,24 @@ impl Kopium {
         }
     }
 
-    fn print_derives(&self, s: &Container) {
+    fn print_derives(&self, s: &Container, containers: &[Container]) {
         let mut derives = vec!["Serialize", "Deserialize", "Clone", "Debug"];
 
         if s.is_main_container() && !self.hide_kube {
             // CustomResource first for root struct
             derives.insert(0, "CustomResource");
         }
-        if self.builders {
+
+        // TypedBuilder does not work with enums
+        if self.builders && !s.is_enum {
             derives.push("TypedBuilder");
         }
 
         for derive in &self.derive {
-            if s.is_enum && derive.derived_trait == "Default" {
-                // Need to drop Default from enum as this cannot be derived.
-                // Enum defaults need to either be manually derived
-                // or we can insert enum defaults
-                continue;
+            if derive.derived_trait == "Default" {
+                if !s.can_derive_default(containers) {
+                    continue;
+                }
             }
 
             if derive.is_applicable_to(s) && !derives.contains(&derive.derived_trait.as_str()) {
