@@ -268,6 +268,9 @@ impl Kopium {
                         if derive.derived_trait == "JsonSchema" {
                             continue;
                         }
+                        if derive.derived_trait == "Default" && !s.can_derive_default(&structs) {
+                            continue;
+                        }
                         println!(r#"#[kube(derive="{}")]"#, derive.derived_trait);
                     }
                 }
