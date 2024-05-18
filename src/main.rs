@@ -121,6 +121,12 @@ struct Kopium {
     /// Type used to represent maps via additionalProperties
     #[arg(long, value_enum, default_value_t)]
     map_type: MapType,
+    
+    /// Always add #[derive(Default)] to structs, even if it can't be derived without a manual impl for some fields
+    /// 
+    /// This option only has an effect if `--derive Default` is set.
+    #[arg(long)]
+    force_derive_default: bool,
 }
 
 #[derive(Clone, Copy, Debug, Subcommand)]
@@ -268,7 +274,7 @@ impl Kopium {
                         if derive.derived_trait == "JsonSchema" {
                             continue;
                         }
-                        if derive.derived_trait == "Default" && !s.can_derive_default(&structs) {
+                        if derive.derived_trait == "Default" && !self.force_derive_default && !s.can_derive_default(&structs) {
                             continue;
                         }
                         println!(r#"#[kube(derive="{}")]"#, derive.derived_trait);
@@ -356,7 +362,7 @@ impl Kopium {
 
         for derive in &self.derive {
             if derive.derived_trait == "Default" {
-                if !s.can_derive_default(containers) {
+                if !s.can_derive_default(containers) || (self.force_derive_default && !s.is_enum) {
                     continue;
                 }
             }
