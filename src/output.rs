@@ -1,3 +1,5 @@
+use std::cell::OnceCell;
+
 use heck::{ToPascalCase, ToSnakeCase};
 
 /// All found containers
@@ -16,6 +18,7 @@ pub struct Container {
     pub docs: Option<String>,
     /// Whether this container is an enum
     pub is_enum: bool,
+    pub supports_derive_default: OnceCell<bool>,
 }
 
 /// Output member belonging to an Container
@@ -90,6 +93,10 @@ impl Container {
             return false;
         }
 
+        if let Some(can_derive) = self.supports_derive_default.get() {
+            return *can_derive;
+        }
+
         for m in &self.members {
             // If the type contains a <, it's a container type. All container types kopium uses right now (Map, Vec, Option) have a default implementation.
             if !m.type_.contains('<')
@@ -105,11 +112,14 @@ impl Container {
                     .find(|c| c.name == m.type_)
                     .is_some_and(|c| !c.can_derive_default(containers))
                 {
+                    self.supports_derive_default.set(false).unwrap();
                     return false;
                 }
             }
         }
 
+        // We can't fail here, because if it's set, we always return, and set only fails it the Cell is already set
+        self.supports_derive_default.set(true).unwrap();
         true
     }
 }
@@ -243,6 +253,8 @@ impl MapType {
 // unit tests
 #[cfg(test)]
 mod test {
+    use std::cell::OnceCell;
+
     use super::{Container, Member};
     fn name_only_enum_member(name: &str) -> Member {
         Member {
@@ -281,6 +293,7 @@ mod test {
             ],
             docs: None,
             is_enum: true,
+            supports_derive_default: OnceCell::new(),
         };
 
         c.rename();
@@ -306,6 +319,7 @@ mod test {
             ],
             docs: None,
             is_enum: false,
+            supports_derive_default: OnceCell::new(),
         };
         cs.rename();
         assert_eq!(&cs.members[0].name, "jwks_uri");
@@ -323,6 +337,7 @@ mod test {
                 members: vec![],
                 docs: None,
                 is_enum: false,
+                supports_derive_default: OnceCell::new(),
             },
             Container {
                 name: "Enum".to_string(),
@@ -330,6 +345,7 @@ mod test {
                 members: vec![],
                 docs: None,
                 is_enum: true,
+                supports_derive_default: OnceCell::new(),
             },
             Container {
                 name: "Nested".to_string(),
@@ -343,6 +359,7 @@ mod test {
                 }],
                 docs: None,
                 is_enum: false,
+                supports_derive_default: OnceCell::new(),
             },
             Container {
                 name: "ReferencesEnum".to_string(),
@@ -356,6 +373,7 @@ mod test {
                 }],
                 docs: None,
                 is_enum: false,
+                supports_derive_default: OnceCell::new(),
             },
             Container {
                 name: "ReferencesEnumNested".to_string(),
@@ -369,6 +387,49 @@ mod test {
                 }],
                 docs: None,
                 is_enum: false,
+                supports_derive_default: OnceCell::new(),
+            },
+            Container {
+                name: "ReferencesEnumOption".to_string(),
+                level: 1,
+                members: vec![Member {
+                    name: "maybe_enum".to_string(),
+                    type_: "Option<Enum>".to_string(),
+                    serde_annot: vec![],
+                    extra_annot: vec![],
+                    docs: None,
+                }],
+                docs: None,
+                is_enum: false,
+                supports_derive_default: OnceCell::new(),
+            },
+            Container {
+                name: "ReferencesEnumVec".to_string(),
+                level: 1,
+                members: vec![Member {
+                    name: "enum_list".to_string(),
+                    type_: "Vec<Enum>".to_string(),
+                    serde_annot: vec![],
+                    extra_annot: vec![],
+                    docs: None,
+                }],
+                docs: None,
+                is_enum: false,
+                supports_derive_default: OnceCell::new(),
+            },
+            Container {
+                name: "ReferencesEnumNestedOption".to_string(),
+                level: 1,
+                members: vec![Member {
+                    name: "maybe_references_enum".to_string(),
+                    type_: "Option<ReferencesEnum>".to_string(),
+                    serde_annot: vec![],
+                    extra_annot: vec![],
+                    docs: None,
+                }],
+                docs: None,
+                is_enum: false,
+                supports_derive_default: OnceCell::new(),
             },
         ];
         assert!(containers[0].can_derive_default(&containers)); // Simple
@@ -376,5 +437,8 @@ mod test {
         assert!(containers[2].can_derive_default(&containers)); // Nested
         assert!(!containers[3].can_derive_default(&containers)); // ReferencesEnum
         assert!(!containers[4].can_derive_default(&containers)); // ReferencesEnumNested
+        assert!(containers[5].can_derive_default(&containers)); // ReferencesEnumOption
+        assert!(containers[6].can_derive_default(&containers)); // ReferencesEnumVec
+        assert!(containers[7].can_derive_default(&containers)); // ReferencesEnumNestedOption
     }
 }
