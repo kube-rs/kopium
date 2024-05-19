@@ -5,10 +5,7 @@ use heck::ToUpperCamelCase;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     JSONSchemaProps, JSONSchemaPropsOrArray, JSONSchemaPropsOrBool, JSON,
 };
-use std::{
-    cell::OnceCell,
-    collections::{BTreeMap, HashMap},
-};
+use std::collections::{BTreeMap, HashMap};
 
 const IGNORED_KEYS: [&str; 3] = ["metadata", "apiVersion", "kind"];
 
@@ -228,7 +225,7 @@ fn analyze_enum_properties(
         level,
         docs: schema.description.clone(),
         is_enum: true,
-        supports_derive_default: OnceCell::new(),
+        ..Container::default()
     })
 }
 
@@ -337,7 +334,7 @@ fn extract_container(
         level,
         docs: schema.description.clone(),
         is_enum: false,
-        supports_derive_default: OnceCell::new(),
+        ..Container::default()
     })
 }
 

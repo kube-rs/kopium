@@ -253,8 +253,6 @@ impl MapType {
 // unit tests
 #[cfg(test)]
 mod test {
-    use std::cell::OnceCell;
-
     use super::{Container, Member};
     fn name_only_enum_member(name: &str) -> Member {
         Member {
@@ -291,9 +289,8 @@ mod test {
                 name_only_enum_member("jwksUri"),
                 name_only_enum_member("JwksUri"),
             ],
-            docs: None,
             is_enum: true,
-            supports_derive_default: OnceCell::new(),
+            ..Container::default()
         };
 
         c.rename();
@@ -317,9 +314,7 @@ mod test {
                 name_only_int_member("jwksUri"),
                 name_only_int_member("JwksUri"),
             ],
-            docs: None,
-            is_enum: false,
-            supports_derive_default: OnceCell::new(),
+            ..Container::default()
         };
         cs.rename();
         assert_eq!(&cs.members[0].name, "jwks_uri");
@@ -334,18 +329,13 @@ mod test {
             Container {
                 name: "Simple".to_string(),
                 level: 1,
-                members: vec![],
-                docs: None,
-                is_enum: false,
-                supports_derive_default: OnceCell::new(),
+                ..Container::default()
             },
             Container {
                 name: "Enum".to_string(),
                 level: 1,
-                members: vec![],
-                docs: None,
                 is_enum: true,
-                supports_derive_default: OnceCell::new(),
+                ..Container::default()
             },
             Container {
                 name: "Nested".to_string(),
@@ -353,13 +343,9 @@ mod test {
                 members: vec![Member {
                     name: "simple".to_string(),
                     type_: "Simple".to_string(),
-                    serde_annot: vec![],
-                    extra_annot: vec![],
-                    docs: None,
+                    ..Member::default()
                 }],
-                docs: None,
-                is_enum: false,
-                supports_derive_default: OnceCell::new(),
+                ..Container::default()
             },
             Container {
                 name: "ReferencesEnum".to_string(),
@@ -367,13 +353,9 @@ mod test {
                 members: vec![Member {
                     name: "enum".to_string(),
                     type_: "Enum".to_string(),
-                    serde_annot: vec![],
-                    extra_annot: vec![],
-                    docs: None,
+                    ..Member::default()
                 }],
-                docs: None,
-                is_enum: false,
-                supports_derive_default: OnceCell::new(),
+                ..Container::default()
             },
             Container {
                 name: "ReferencesEnumNested".to_string(),
@@ -381,13 +363,9 @@ mod test {
                 members: vec![Member {
                     name: "references_enum".to_string(),
                     type_: "ReferencesEnum".to_string(),
-                    serde_annot: vec![],
-                    extra_annot: vec![],
-                    docs: None,
+                    ..Member::default()
                 }],
-                docs: None,
-                is_enum: false,
-                supports_derive_default: OnceCell::new(),
+                ..Container::default()
             },
             Container {
                 name: "ReferencesEnumOption".to_string(),
@@ -395,13 +373,9 @@ mod test {
                 members: vec![Member {
                     name: "maybe_enum".to_string(),
                     type_: "Option<Enum>".to_string(),
-                    serde_annot: vec![],
-                    extra_annot: vec![],
-                    docs: None,
+                    ..Member::default()
                 }],
-                docs: None,
-                is_enum: false,
-                supports_derive_default: OnceCell::new(),
+                ..Container::default()
             },
             Container {
                 name: "ReferencesEnumVec".to_string(),
@@ -409,13 +383,9 @@ mod test {
                 members: vec![Member {
                     name: "enum_list".to_string(),
                     type_: "Vec<Enum>".to_string(),
-                    serde_annot: vec![],
-                    extra_annot: vec![],
-                    docs: None,
+                    ..Member::default()
                 }],
-                docs: None,
-                is_enum: false,
-                supports_derive_default: OnceCell::new(),
+                ..Container::default()
             },
             Container {
                 name: "ReferencesEnumNestedOption".to_string(),
@@ -423,13 +393,9 @@ mod test {
                 members: vec![Member {
                     name: "maybe_references_enum".to_string(),
                     type_: "Option<ReferencesEnum>".to_string(),
-                    serde_annot: vec![],
-                    extra_annot: vec![],
-                    docs: None,
+                    ..Member::default()
                 }],
-                docs: None,
-                is_enum: false,
-                supports_derive_default: OnceCell::new(),
+                ..Container::default()
             },
         ];
         assert!(containers[0].can_derive_default(&containers)); // Simple
