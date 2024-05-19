@@ -225,6 +225,7 @@ fn analyze_enum_properties(
         level,
         docs: schema.description.clone(),
         is_enum: true,
+        ..Container::default()
     })
 }
 
@@ -333,6 +334,7 @@ fn extract_container(
         level,
         docs: schema.description.clone(),
         is_enum: false,
+        ..Container::default()
     })
 }
 

@@ -121,6 +121,12 @@ struct Kopium {
     /// Type used to represent maps via additionalProperties
     #[arg(long, value_enum, default_value_t)]
     map_type: MapType,
+
+    /// Automatically removes #[derive(Default)] from structs that contain fields for which a default can not be automatically derived.
+    ///
+    /// This option only has an effect if `--derive Default` is set.
+    #[arg(long)]
+    smart_derive_elision: bool,
 }
 
 #[derive(Clone, Copy, Debug, Subcommand)]
@@ -246,7 +252,7 @@ impl Kopium {
             }
             self.print_docstr(&s.docs, "");
             if s.is_main_container() {
-                self.print_derives(s);
+                self.print_derives(s, &structs);
                 //root struct gets kube derives unless opted out
                 if !self.hide_kube {
                     println!(
@@ -268,6 +274,12 @@ impl Kopium {
                         if derive.derived_trait == "JsonSchema" {
                             continue;
                         }
+                        if derive.derived_trait == "Default"
+                            && self.smart_derive_elision
+                            && !s.can_derive_default(&structs)
+                        {
+                            continue;
+                        }
                         println!(r#"#[kube(derive="{}")]"#, derive.derived_trait);
                     }
                 }
@@ -277,7 +289,7 @@ impl Kopium {
                     println!("pub struct {} {{", s.name);
                 }
             } else {
-                self.print_derives(s);
+                self.print_derives(s, &structs);
                 let spec_trimmed_name = s.name.as_str().replace(&format!("{}Spec", kind), kind);
                 if s.is_enum {
                     println!("pub enum {} {{", spec_trimmed_name);
@@ -338,23 +350,24 @@ impl Kopium {
         }
     }
 
-    fn print_derives(&self, s: &Container) {
+    fn print_derives(&self, s: &Container, containers: &[Container]) {
         let mut derives = vec!["Serialize", "Deserialize", "Clone", "Debug"];
 
         if s.is_main_container() && !self.hide_kube {
             // CustomResource first for root struct
             derives.insert(0, "CustomResource");
         }
-        if self.builders {
+
+        // TypedBuilder does not work with enums
+        if self.builders && !s.is_enum {
             derives.push("TypedBuilder");
         }
 
         for derive in &self.derive {
-            if s.is_enum && derive.derived_trait == "Default" {
-                // Need to drop Default from enum as this cannot be derived.
-                // Enum defaults need to either be manually derived
-                // or we can insert enum defaults
-                continue;
+            if derive.derived_trait == "Default" {
+                if (self.smart_derive_elision && !s.can_derive_default(containers)) || !s.is_enum {
+                    continue;
+                }
             }
 
             if derive.is_applicable_to(s) && !derives.contains(&derive.derived_trait.as_str()) {
