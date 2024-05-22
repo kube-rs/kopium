@@ -351,6 +351,7 @@ fn resolve_additional_properties(
 
     // This case is for maps. It is generally String -> Something, depending on the type key:
     let dict_type = s.type_.clone().unwrap_or_default();
+    debug!("dict type is {dict_type}");
     let dict_key = match dict_type.as_ref() {
         "string" => Some("String".into()),
         // We are not 100% sure the array and object subcases here are correct but they pass tests atm.
@@ -393,6 +394,8 @@ fn resolve_additional_properties(
         "" => {
             if s.x_kubernetes_int_or_string.is_some() {
                 Some("IntOrString".into())
+            } else if s.x_kubernetes_preserve_unknown_fields == Some(true) {
+                Some("serde_json::Value".into())
             } else {
                 bail!("unknown empty dict type for {}", key)
             }
@@ -648,6 +651,30 @@ type: object
         let match_labels = &server_selector.members[0];
         assert_eq!(match_labels.name, "matchLabels");
         assert_eq!(match_labels.type_, "BTreeMap<String, serde_json::Value>");
+    }
+
+    #[test]
+    fn additional_preserve_unknown() {
+        init();
+        let schema_str = r#"
+    description: MiddlewareSpec defines the desired state of a Middleware.
+    properties:
+      plugin:
+        additionalProperties:
+          x-kubernetes-preserve-unknown-fields: true
+        description: traefik middleware crd
+        type: object
+    type: object"#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        println!("got {schema:?}");
+
+        let structs = analyze(schema, "Spec", Cfg::default()).unwrap().0;
+        println!("got: {structs:?}");
+        let root = &structs[0];
+        assert_eq!(root.name, "Spec");
+        let member = &root.members[0];
+        assert_eq!(member.name, "plugin");
+        assert_eq!(member.type_, "Option<BTreeMap<String, serde_json::Value>>");
     }
 
     #[test]
