@@ -4,6 +4,8 @@ default:
 
 fmt:
   cargo +nightly fmt
+lint:
+  cargo clippy
 
 test: test-pr test-sm test-mv test-argo test-agent test-certmanager test-cluster test-gateway-route test-linkerd-serverauth test-linkerd-server
 
