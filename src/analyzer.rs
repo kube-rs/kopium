@@ -857,13 +857,13 @@ type: object
         let root = &structs[0];
         assert_eq!(root.name, "Endpoint");
         assert_eq!(root.level, 0);
-        assert_eq!(root.is_enum, false);
+        assert!(!root.is_enum);
         assert_eq!(&root.members[0].name, "relabelings");
         assert_eq!(&root.members[0].type_, "Option<Vec<EndpointRelabelings>>");
 
         let rel = &structs[1];
         assert_eq!(rel.name, "EndpointRelabelings");
-        assert_eq!(rel.is_enum, false);
+        assert!(!rel.is_enum);
         assert_eq!(&rel.members[0].name, "action");
         assert_eq!(&rel.members[0].type_, "Option<EndpointRelabelingsAction>");
         // TODO: verify rel.members[0].field_annot uses correct default
@@ -871,7 +871,7 @@ type: object
         // action enum member
         let act = &structs[2];
         assert_eq!(act.name, "EndpointRelabelingsAction");
-        assert_eq!(act.is_enum, true);
+        assert!(act.is_enum);
 
         // should have enum members:
         assert_eq!(&act.members[0].name, "replace");
@@ -1110,7 +1110,7 @@ type: object
         let root = &structs[0];
         assert_eq!(root.name, "StatusCode");
         assert_eq!(root.level, 0);
-        assert_eq!(root.is_enum, true);
+        assert!(root.is_enum);
         assert_eq!(&root.members[0].name, "301");
         assert_eq!(&root.members[0].name, "302");
         assert_eq!(&root.members[0].type_, "");
@@ -1136,7 +1136,7 @@ type: object
         let root = &structs[0];
         assert_eq!(root.name, "KustomizationSpec");
         assert_eq!(root.level, 0);
-        assert_eq!(root.is_enum, false);
+        assert!(!root.is_enum);
         assert_eq!(&root.members[0].name, "patchesStrategicMerge");
         assert_eq!(
             &root.members[0].type_,
@@ -1178,7 +1178,7 @@ type: object
         let root = &structs[0];
         assert_eq!(root.name, "AppProjectStatus");
         assert_eq!(root.level, 0);
-        assert_eq!(root.is_enum, false);
+        assert!(!root.is_enum);
         assert_eq!(&root.members[0].name, "jwtTokensByRole");
         assert_eq!(
             &root.members[0].type_,

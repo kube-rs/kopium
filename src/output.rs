@@ -85,6 +85,8 @@ impl Container {
     }
 
     /// Checks if default is implemented for all props, and if not, returns false
+    ///
+    /// Behavior for --smart-derive-elision.
     pub fn can_derive_default(&self, containers: &[Container]) -> bool {
         if self.is_enum {
             // Need to drop Default from enum as this cannot be derived.
@@ -94,31 +96,30 @@ impl Container {
         }
 
         if let Some(can_derive) = self.supports_derive_default.get() {
+            // only run recursive check against every struct once
             return *can_derive;
         }
 
         for m in &self.members {
-            // If the type contains a <, it's a container type. All container types kopium uses right now (Map, Vec, Option) have a default implementation.
+            // If the type contains a <, it's a container type. All kopium containers (Map, Vec, Option) has impl Default.
+            // If the first character is lowercase, assume it's a built-in type and skip the check.
             if !m.type_.contains('<')
                 && m.type_ != "String"
                 && m.type_ != "IntOrString"
                 && m.type_ != "NaiveDate"
                 && m.type_ != "DateTime"
-                // If the first character is lowercase, assume it's a built-in type and skip the check.
                 && m.type_.chars().next().unwrap_or_default().is_uppercase()
-            {
-                if containers
+                && containers
                     .iter()
                     .find(|c| c.name == m.type_)
                     .is_some_and(|c| !c.can_derive_default(containers))
-                {
-                    self.supports_derive_default.set(false).unwrap();
-                    return false;
-                }
+            {
+                self.supports_derive_default.set(false).unwrap();
+                return false;
             }
         }
 
-        // We can't fail here, because if it's set, we always return, and set only fails it the Cell is already set
+        // No members prevented us from deriving default.
         self.supports_derive_default.set(true).unwrap();
         true
     }
