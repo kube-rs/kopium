@@ -32,8 +32,8 @@ mod tests {
 
         // assumes a resource of type CR has been applied with name 'gen' in the namespace
         println!(
-            "# Api<{}.{}>.get(\"{}\")",
-            canonical.spec.names.kind, canonical.spec.group, "gen"
+            "# Api<{}.{}>.get(\"gen\")",
+            canonical.spec.names.kind, canonical.spec.group
         );
         let instance = cr.get("gen").await?;
         assert_eq!(instance.name_unchecked(), "gen");

@@ -1,3 +1,5 @@
+use std::cell::OnceCell;
+
 use heck::{ToPascalCase, ToSnakeCase};
 
 /// All found containers
@@ -16,6 +18,7 @@ pub struct Container {
     pub docs: Option<String>,
     /// Whether this container is an enum
     pub is_enum: bool,
+    pub supports_derive_default: OnceCell<bool>,
 }
 
 /// Output member belonging to an Container
@@ -79,6 +82,46 @@ impl Container {
 
     pub fn contains_conditions(&self) -> bool {
         self.members.iter().any(|m| m.type_.contains("Vec<Condition>"))
+    }
+
+    /// Checks if default is implemented for all props, and if not, returns false
+    ///
+    /// Behavior for --smart-derive-elision.
+    pub fn can_derive_default(&self, containers: &[Container]) -> bool {
+        if self.is_enum {
+            // Need to drop Default from enum as this cannot be derived.
+            // Enum defaults need to either be manually derived
+            // or we can insert enum defaults
+            return false;
+        }
+
+        if let Some(can_derive) = self.supports_derive_default.get() {
+            // only run recursive check against every struct once
+            return *can_derive;
+        }
+
+        for m in &self.members {
+            // If the type contains a <, it's a container type. All kopium containers (Map, Vec, Option) has impl Default.
+            // If the first character is lowercase, assume it's a built-in type and skip the check.
+            if !m.type_.contains('<')
+                && m.type_ != "String"
+                && m.type_ != "IntOrString"
+                && m.type_ != "NaiveDate"
+                && m.type_ != "DateTime"
+                && m.type_.chars().next().unwrap_or_default().is_uppercase()
+                && containers
+                    .iter()
+                    .find(|c| c.name == m.type_)
+                    .is_some_and(|c| !c.can_derive_default(containers))
+            {
+                self.supports_derive_default.set(false).unwrap();
+                return false;
+            }
+        }
+
+        // No members prevented us from deriving default.
+        self.supports_derive_default.set(true).unwrap();
+        true
     }
 }
 
@@ -191,6 +234,23 @@ impl Output {
     }
 }
 
+/// Type used for additionalProperties maps
+#[derive(clap::ValueEnum, Clone, Copy, Default, Debug)]
+#[clap(rename_all = "PascalCase")]
+pub enum MapType {
+    #[default]
+    BTreeMap,
+    HashMap,
+}
+impl MapType {
+    pub fn name(&self) -> &str {
+        match self {
+            Self::BTreeMap => "BTreeMap",
+            Self::HashMap => "HashMap",
+        }
+    }
+}
+
 // unit tests
 #[cfg(test)]
 mod test {
@@ -230,8 +290,8 @@ mod test {
                 name_only_enum_member("jwksUri"),
                 name_only_enum_member("JwksUri"),
             ],
-            docs: None,
             is_enum: true,
+            ..Container::default()
         };
 
         c.rename();
@@ -255,13 +315,97 @@ mod test {
                 name_only_int_member("jwksUri"),
                 name_only_int_member("JwksUri"),
             ],
-            docs: None,
-            is_enum: false,
+            ..Container::default()
         };
         cs.rename();
         assert_eq!(&cs.members[0].name, "jwks_uri");
         assert_eq!(&cs.members[1].name, "jwks_uri_x");
         assert_eq!(&cs.members[2].name, "jwks_uri_x_x");
         assert_eq!(&cs.members[3].name, "jwks_uri_x_x_x");
+    }
+
+    #[test]
+    fn can_derive_default() {
+        let containers = vec![
+            Container {
+                name: "Simple".to_string(),
+                level: 1,
+                ..Container::default()
+            },
+            Container {
+                name: "Enum".to_string(),
+                level: 1,
+                is_enum: true,
+                ..Container::default()
+            },
+            Container {
+                name: "Nested".to_string(),
+                level: 1,
+                members: vec![Member {
+                    name: "simple".to_string(),
+                    type_: "Simple".to_string(),
+                    ..Member::default()
+                }],
+                ..Container::default()
+            },
+            Container {
+                name: "ReferencesEnum".to_string(),
+                level: 1,
+                members: vec![Member {
+                    name: "enum".to_string(),
+                    type_: "Enum".to_string(),
+                    ..Member::default()
+                }],
+                ..Container::default()
+            },
+            Container {
+                name: "ReferencesEnumNested".to_string(),
+                level: 1,
+                members: vec![Member {
+                    name: "references_enum".to_string(),
+                    type_: "ReferencesEnum".to_string(),
+                    ..Member::default()
+                }],
+                ..Container::default()
+            },
+            Container {
+                name: "ReferencesEnumOption".to_string(),
+                level: 1,
+                members: vec![Member {
+                    name: "maybe_enum".to_string(),
+                    type_: "Option<Enum>".to_string(),
+                    ..Member::default()
+                }],
+                ..Container::default()
+            },
+            Container {
+                name: "ReferencesEnumVec".to_string(),
+                level: 1,
+                members: vec![Member {
+                    name: "enum_list".to_string(),
+                    type_: "Vec<Enum>".to_string(),
+                    ..Member::default()
+                }],
+                ..Container::default()
+            },
+            Container {
+                name: "ReferencesEnumNestedOption".to_string(),
+                level: 1,
+                members: vec![Member {
+                    name: "maybe_references_enum".to_string(),
+                    type_: "Option<ReferencesEnum>".to_string(),
+                    ..Member::default()
+                }],
+                ..Container::default()
+            },
+        ];
+        assert!(containers[0].can_derive_default(&containers)); // Simple
+        assert!(!containers[1].can_derive_default(&containers)); // Enum
+        assert!(containers[2].can_derive_default(&containers)); // Nested
+        assert!(!containers[3].can_derive_default(&containers)); // ReferencesEnum
+        assert!(!containers[4].can_derive_default(&containers)); // ReferencesEnumNested
+        assert!(containers[5].can_derive_default(&containers)); // ReferencesEnumOption
+        assert!(containers[6].can_derive_default(&containers)); // ReferencesEnumVec
+        assert!(containers[7].can_derive_default(&containers)); // ReferencesEnumNestedOption
     }
 }

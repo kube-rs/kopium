@@ -1,11 +1,11 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 #[macro_use] extern crate log;
 use anyhow::{anyhow, Context, Result};
 use clap::{CommandFactory, Parser, Subcommand};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion,
 };
-use kopium::{analyze, Config, Container};
+use kopium::{analyze, Config, Container, Derive, MapType};
 use kube::{api, core::Version, Api, Client, ResourceExt};
 use quote::format_ident;
 
@@ -32,9 +32,9 @@ struct Kopium {
     #[arg(long)]
     hide_prelude: bool,
 
-    /// Do not emit kube derive instructions; structs only
+    /// Do not derive CustomResource nor set kube-derive attributes
     ///
-    /// If this is set, it makes any kube-derive specific options such as `--schema` unnecessary.
+    /// If this is set, it makes any kube-derive specific options such as `--schema` unnecessary
     #[arg(long)]
     hide_kube: bool,
 
@@ -63,12 +63,26 @@ struct Kopium {
     )]
     schema: String,
 
-    /// Derive these extra traits on generated structs
+    /// Derive these additional traits on generated objects
+    ///
+    /// There are three different ways of specifying traits to derive:
+    ///
+    /// 1. A plain trait name will implement the trait for *all* objects generated from
+    ///    the custom resource definition: `--derive PartialEq`
+    ///
+    /// 2. Constraining the derivation to a singular struct or enum:
+    ///    `--derive IssuerAcmeSolversDns01CnameStrategy=PartialEq`
+    ///
+    /// 3. Constraining the derivation to only structs (@struct), enums (@enum) or *unit-only* enums (@enum:simple),
+    ///    meaning enums where no variants are tuple or structs:
+    ///    `--derive @struct=PartialEq`, `--derive @enum=PartialEq`, `--derive @enum:simple=PartialEq`
+    ///
+    /// See also: https://doc.rust-lang.org/reference/items/enumerations.html
     #[arg(long,
         short = 'D',
-        value_parser = ["Copy", "Default", "PartialEq", "Eq", "PartialOrd", "Ord", "Hash", "JsonSchema"],
+        value_parser = Derive::from_str,
     )]
-    derive: Vec<String>,
+    derive: Vec<Derive>,
 
     #[command(subcommand)]
     command: Option<Command>,
@@ -86,16 +100,33 @@ struct Kopium {
     /// Elide the following containers from the output
     ///
     /// This allows manual customization of structs from the output without having to remove it from
-    /// the output first.
+    /// the output first. Takes precise generated struct names.
     #[arg(long, short = 'e')]
     elide: Vec<String>,
 
-    /// Enable generation of custom Condition APIs.
+    /// Relaxed interpretation
     ///
-    /// If false, it detects if a particular path is an array of Condition objects and uses a standard
-    /// Condition API instead of generating a custom definition.
+    /// This allows certain invalid openapi specs to be interpreted as arbitrary objects as used by argo workflows for example.
+    /// the output first.
+    #[arg(long)]
+    relaxed: bool,
+
+    /// Disable standardised Condition API
+    ///
+    /// By default, kopium detects Condition objects and uses a standard
+    /// Condition API from k8s_openapi instead of generating a custom definition.
     #[arg(long)]
     no_condition: bool,
+
+    /// Type used to represent maps via additionalProperties
+    #[arg(long, value_enum, default_value_t)]
+    map_type: MapType,
+
+    /// Automatically removes #[derive(Default)] from structs that contain fields for which a default can not be automatically derived.
+    ///
+    /// This option only has an effect if `--derive Default` is set.
+    #[arg(long)]
+    smart_derive_elision: bool,
 }
 
 #[derive(Clone, Copy, Debug, Subcommand)]
@@ -125,9 +156,14 @@ async fn main() -> Result<()> {
         args.docs = true;
         args.schema = "derived".into();
     }
-    if args.schema == "derived" && !args.derive.contains(&"JsonSchema".to_string()) {
-        args.derive.push("JsonSchema".to_string());
+    if args.schema == "derived" {
+        let json_schema = Derive::all("JsonSchema");
+
+        if !args.derive.contains(&json_schema) {
+            args.derive.push(json_schema)
+        }
     }
+
     args.dispatch().await
 }
 
@@ -188,86 +224,98 @@ impl Kopium {
 
         self.print_generation_warning();
 
-        if let Some(schema) = data {
-            log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
-            let cfg = Config {
-                no_condition: self.no_condition,
-            };
-            let structs = analyze(schema, kind, cfg)?
-                .rename()
-                .builder_fields(self.builders)
-                .0;
+        let Some(schema) = data else {
+            anyhow::bail!("no schema found for crd");
+        };
+        log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
+        let cfg = Config {
+            no_condition: self.no_condition,
+            map: self.map_type,
+            relaxed: self.relaxed,
+        };
+        let structs = analyze(schema, kind, cfg)?
+            .rename()
+            .builder_fields(self.builders)
+            .0;
 
-            if !self.hide_prelude {
-                self.print_prelude(&structs);
+        if !self.hide_prelude {
+            self.print_prelude(&structs);
+        }
+
+        for s in &structs {
+            if s.level == 0 {
+                continue; // ignoring root struct
             }
-
-            for s in &structs {
-                if s.level == 0 {
-                    continue; // ignoring root struct
+            if self.elide.contains(&s.name) {
+                debug!("eliding {} from the output", s.name);
+                continue;
+            }
+            self.print_docstr(&s.docs, "");
+            if s.is_main_container() {
+                self.print_derives(s, &structs);
+                //root struct gets kube derives unless opted out
+                if !self.hide_kube {
+                    println!(
+                        r#"#[kube(group = "{}", version = "{}", kind = "{}", plural = "{}")]"#,
+                        group, version_name, kind, plural
+                    );
+                    if scope == "Namespaced" {
+                        println!(r#"#[kube(namespaced)]"#);
+                    }
+                    if version.subresources.as_ref().is_some_and(|c| c.status.is_some())
+                        && self.has_status_resource(&structs)
+                    {
+                        println!(r#"#[kube(status = "{}Status")]"#, kind);
+                    }
+                    if self.schema != "derived" {
+                        println!(r#"#[kube(schema = "{}")]"#, self.schema);
+                    }
+                    for derive in &self.derive {
+                        if derive.derived_trait == "JsonSchema" {
+                            continue;
+                        }
+                        if derive.derived_trait == "Default"
+                            && self.smart_derive_elision
+                            && !s.can_derive_default(&structs)
+                        {
+                            continue;
+                        }
+                        println!(r#"#[kube(derive="{}")]"#, derive.derived_trait);
+                    }
+                }
+                if s.is_enum {
+                    println!("pub enum {} {{", s.name);
                 } else {
-                    if self.elide.contains(&s.name) {
-                        debug!("eliding {} from the output", s.name);
-                        continue;
-                    }
-                    self.print_docstr(&s.docs, "");
-                    if s.is_main_container() {
-                        self.print_derives(s);
-                        //root struct gets kube derives unless opted out
-                        if !self.hide_kube {
-                            println!(
-                                r#"#[kube(group = "{}", version = "{}", kind = "{}", plural = "{}")]"#,
-                                group, version_name, kind, plural
-                            );
-                            if scope == "Namespaced" {
-                                println!(r#"#[kube(namespaced)]"#);
-                            }
-                            if version.subresources.as_ref().is_some_and(|c| c.status.is_some())
-                                && self.has_status_resource(&structs)
-                            {
-                                println!(r#"#[kube(status = "{}Status")]"#, kind);
-                            }
-                            if self.schema != "derived" {
-                                println!(r#"#[kube(schema = "{}")]"#, self.schema);
-                            }
-                        }
-                        if s.is_enum {
-                            println!("pub enum {} {{", s.name);
-                        } else {
-                            println!("pub struct {} {{", s.name);
-                        }
-                    } else {
-                        self.print_derives(s);
-                        let spec_trimmed_name = s.name.as_str().replace(&format!("{}Spec", kind), kind);
-                        if s.is_enum {
-                            println!("pub enum {} {{", spec_trimmed_name);
-                        } else {
-                            println!("pub struct {} {{", spec_trimmed_name);
-                        }
-                    }
-                    for m in &s.members {
-                        self.print_docstr(&m.docs, "    ");
-                        if !m.serde_annot.is_empty() {
-                            println!("    #[serde({})]", m.serde_annot.join(", "));
-                        }
-                        let name = format_ident!("{}", m.name);
-                        for annot in &m.extra_annot {
-                            println!("    {}", annot);
-                        }
-                        let spec_trimmed_type = m.type_.as_str().replace(&format!("{}Spec", kind), kind);
-                        if s.is_enum {
-                            // NB: only supporting plain enumerations atm, not oneOf
-                            println!("    {},", name);
-                        } else {
-                            println!("    pub {}: {},", name, spec_trimmed_type);
-                        }
-                    }
-                    println!("}}");
-                    println!();
+                    println!("pub struct {} {{", s.name);
+                }
+            } else {
+                self.print_derives(s, &structs);
+                let spec_trimmed_name = s.name.as_str().replace(&format!("{}Spec", kind), kind);
+                if s.is_enum {
+                    println!("pub enum {} {{", spec_trimmed_name);
+                } else {
+                    println!("pub struct {} {{", spec_trimmed_name);
                 }
             }
-        } else {
-            log::error!("no schema found for crd");
+            for m in &s.members {
+                self.print_docstr(&m.docs, "    ");
+                if !m.serde_annot.is_empty() {
+                    println!("    #[serde({})]", m.serde_annot.join(", "));
+                }
+                let name = format_ident!("{}", m.name);
+                for annot in &m.extra_annot {
+                    println!("    {}", annot);
+                }
+                let spec_trimmed_type = m.type_.as_str().replace(&format!("{}Spec", kind), kind);
+                if s.is_enum {
+                    // NB: only supporting plain enumerations atm, not oneOf
+                    println!("    {},", name);
+                } else {
+                    println!("    pub {}: {},", name, spec_trimmed_type);
+                }
+            }
+            println!("}}");
+            println!();
         }
 
         Ok(())
@@ -297,33 +345,36 @@ impl Kopium {
         if self.docs {
             if let Some(d) = doc {
                 println!("{}/// {}", indent, d.replace('\n', &format!("\n{}/// ", indent)));
-                // TODO: logic to split doc strings by sentence / length here
+                // TODO: maybe logic to split doc strings by sentence / length here
             }
         }
     }
 
-    fn print_derives(&self, s: &Container) {
-        let mut derives: Vec<String> = vec!["Serialize", "Deserialize", "Clone", "Debug"]
-            .into_iter()
-            .map(String::from)
-            .collect();
+    fn print_derives(&self, s: &Container, containers: &[Container]) {
+        let mut derives = vec!["Serialize", "Deserialize", "Clone", "Debug"];
+
         if s.is_main_container() && !self.hide_kube {
             // CustomResource first for root struct
-            derives.insert(0, "CustomResource".to_string());
+            derives.insert(0, "CustomResource");
         }
-        if self.builders {
-            derives.push("TypedBuilder".to_string());
+
+        // TypedBuilder does not work with enums
+        if self.builders && !s.is_enum {
+            derives.push("TypedBuilder");
         }
-        // add user derives last in order
-        for d in &self.derive {
-            if s.is_enum && d == "Default" {
-                // Need to drop Default from enum as this cannot be derived.
-                // Enum defaults need to either be manually derived
-                // or we can insert enum defaults
+
+        for derive in &self.derive {
+            if derive.derived_trait == "Default"
+                && ((self.smart_derive_elision && !s.can_derive_default(containers)) || !s.is_enum)
+            {
                 continue;
             }
-            derives.push(d.clone());
+
+            if derive.is_applicable_to(s) && !derives.contains(&derive.derived_trait.as_str()) {
+                derives.push(&derive.derived_trait)
+            }
         }
+
         println!("#[derive({})]", derives.join(", "));
     }
 
@@ -334,35 +385,42 @@ impl Kopium {
     }
 
     fn print_prelude(&self, results: &[Container]) {
+        println!("#[allow(unused_imports)]");
+        println!("mod prelude {{");
         if !self.hide_kube {
-            println!("use kube::CustomResource;");
+            println!("    pub use kube::CustomResource;");
         }
         if self.builders {
-            println!("use typed_builder::TypedBuilder;");
+            println!("    pub use typed_builder::TypedBuilder;");
         }
-        if self.derive.contains(&"JsonSchema".to_string()) {
-            println!("use schemars::JsonSchema;");
+        if self
+            .derive
+            .iter()
+            .any(|derive| derive.derived_trait == "JsonSchema")
+        {
+            println!("    pub use schemars::JsonSchema;");
         }
-        println!("use serde::{{Serialize, Deserialize}};");
+        println!("    pub use serde::{{Serialize, Deserialize}};");
         if results.iter().any(|o| o.uses_btreemaps()) {
-            println!("use std::collections::BTreeMap;");
+            println!("    pub use std::collections::BTreeMap;");
         }
         if results.iter().any(|o| o.uses_hashmaps()) {
-            println!("use std::collections::HashMap;");
+            println!("    pub use std::collections::HashMap;");
         }
         if results.iter().any(|o| o.uses_datetime()) {
-            println!("use chrono::{{DateTime, Utc}};");
+            println!("    pub use chrono::{{DateTime, Utc}};");
         }
         if results.iter().any(|o| o.uses_date()) {
-            println!("use chrono::naive::NaiveDate;");
+            println!("    pub use chrono::naive::NaiveDate;");
         }
         if results.iter().any(|o| o.uses_int_or_string()) {
-            println!("use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;");
+            println!("    pub use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;");
         }
         if results.iter().any(|o| o.contains_conditions()) && !self.no_condition {
-            println!("use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;");
+            println!("    pub use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;");
         }
-        println!();
+        println!("}}");
+        println!("use self::prelude::*;\n");
     }
 
     fn print_generation_warning(&self) {
@@ -378,26 +436,20 @@ fn find_crd_version<'a>(
     crd: &'a CustomResourceDefinition,
     version: Option<&str>,
 ) -> Result<&'a CustomResourceDefinitionVersion> {
+    let mut iter = crd.spec.versions.iter();
     if let Some(version) = version {
         // pick specified version
-        crd.spec
-            .versions
-            .iter()
-            .find(|v| v.name == version)
-            .ok_or_else(|| {
-                anyhow!(
-                    "Version '{}' not found in CRD '{}'\navailable versions are '{}'",
-                    version,
-                    crd.name_any(),
-                    all_versions(crd)
-                )
-            })
+        iter.find(|v| v.name == version).ok_or_else(|| {
+            anyhow!(
+                "Version '{}' not found in CRD '{}'\navailable versions are '{}'",
+                version,
+                crd.name_any(),
+                all_versions(crd)
+            )
+        })
     } else {
         // pick version with highest version priority
-        crd.spec
-            .versions
-            .iter()
-            .max_by_key(|v| Version::parse(&v.name).priority())
+        iter.max_by_key(|v| Version::parse(&v.name).priority())
             .ok_or_else(|| anyhow!("CRD '{}' has no versions", crd.name_any()))
     }
 }

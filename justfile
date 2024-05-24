@@ -4,6 +4,8 @@ default:
 
 fmt:
   cargo +nightly fmt
+lint:
+  cargo clippy
 
 test: test-pr test-sm test-mv test-argo test-agent test-certmanager test-cluster test-gateway-route test-linkerd-serverauth test-linkerd-server
 
@@ -41,6 +43,11 @@ test-argo:
   echo "pub type CR = Application;" >> tests/gen.rs
   kubectl apply -f tests/app.yaml
   cargo test --test runner -- --nocapture
+
+test-argo-wf:
+  # argo workflows are hard to test since the full crd are not supposed to be installed in k8s
+  ! cargo run --bin kopium -- --filename tests/argoproj.io_clusterworkflowtemplates.yaml > /dev/null
+  cargo run --bin kopium -- --relaxed --filename tests/argoproj.io_clusterworkflowtemplates.yaml > /dev/null
 
 test-certmanager:
   kubectl apply --force-conflicts --server-side -f https://github.com/jetstack/cert-manager/releases/download/v1.7.1/cert-manager.crds.yaml

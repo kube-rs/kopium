@@ -1,5 +1,5 @@
 //! Deals entirely with schema analysis for the purpose of creating output structs + members
-use crate::{Container, Member, Output};
+use crate::{Container, MapType, Member, Output};
 use anyhow::{bail, Result};
 use heck::ToUpperCamelCase;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
@@ -12,6 +12,8 @@ const IGNORED_KEYS: [&str; 3] = ["metadata", "apiVersion", "kind"];
 #[derive(Default)]
 pub struct Config {
     pub no_condition: bool,
+    pub map: MapType,
+    pub relaxed: bool,
 }
 
 /// Scan a schema for structs and members, and recurse to find all structs
@@ -67,7 +69,7 @@ fn analyze_(
             debug!("Generating struct for {} (under {})", current, stack);
             // initial analysis of properties (we do not recurse here, we need to find members first)
             if props.is_empty() && schema.x_kubernetes_preserve_unknown_fields.unwrap_or(false) {
-                warn!("not generating type {} - using BTreeMap", current);
+                warn!("not generating type {} - using map", current);
                 return Ok(());
             }
             let c = extract_container(&props, stack, &mut array_recurse_level, level, schema, cfg)?;
@@ -227,6 +229,7 @@ fn analyze_enum_properties(
         level,
         docs: schema.description.clone(),
         is_enum: true,
+        ..Container::default()
     })
 }
 
@@ -255,7 +258,7 @@ fn extract_container(
                     dict_key = Some("serde_json::Value".into());
                 }
                 if let Some(dict) = dict_key {
-                    format!("BTreeMap<String, {}>", dict)
+                    format!("{}<String, {}>", cfg.map.name(), dict)
                 } else {
                     format!("{}{}", stack, key.to_upper_camel_case())
                 }
@@ -274,7 +277,7 @@ fn extract_container(
             "integer" => extract_integer_type(value)?,
             "array" => {
                 // recurse through repeated arrays until we find a concrete type (keep track of how deep we went)
-                let (mut array_type, recurse_level) = array_recurse_for_type(value, stack, key, 1)?;
+                let (mut array_type, recurse_level) = array_recurse_for_type(value, stack, key, 1, cfg)?;
                 trace!("got array {} for {} in level {}", array_type, key, recurse_level);
                 if !cfg.no_condition && key == "conditions" && is_conditions(value) {
                     array_type = "Vec<Condition>".into();
@@ -284,10 +287,14 @@ fn extract_container(
                 array_type
             }
             "" => {
+                let map_type = cfg.map.name();
                 if value.x_kubernetes_int_or_string.is_some() {
                     "IntOrString".into()
                 } else if value.x_kubernetes_preserve_unknown_fields == Some(true) {
-                    "HashMap<String, serde_json::Value>".into()
+                    "serde_json::Value".into()
+                } else if cfg.relaxed {
+                    debug!("found empty object at {} key: {}", stack, key);
+                    format!("{map_type}<String, serde_json::Value>")
                 } else {
                     bail!("unknown empty dict type for {}", key)
                 }
@@ -331,6 +338,7 @@ fn extract_container(
         level,
         docs: schema.description.clone(),
         is_enum: false,
+        ..Container::default()
     })
 }
 
@@ -347,6 +355,7 @@ fn resolve_additional_properties(
 
     // This case is for maps. It is generally String -> Something, depending on the type key:
     let dict_type = s.type_.clone().unwrap_or_default();
+    debug!("dict type is {dict_type}");
     let dict_key = match dict_type.as_ref() {
         "string" => Some("String".into()),
         // We are not 100% sure the array and object subcases here are correct but they pass tests atm.
@@ -389,6 +398,8 @@ fn resolve_additional_properties(
         "" => {
             if s.x_kubernetes_int_or_string.is_some() {
                 Some("IntOrString".into())
+            } else if s.x_kubernetes_preserve_unknown_fields == Some(true) {
+                Some("serde_json::Value".into())
             } else {
                 bail!("unknown empty dict type for {}", key)
             }
@@ -409,12 +420,14 @@ fn array_recurse_for_type(
     stack: &str,
     key: &str,
     level: u8,
+    cfg: &Config,
 ) -> Result<(String, u8)> {
     if let Some(items) = &value.items {
         match items {
             JSONSchemaPropsOrArray::Schema(s) => {
                 if s.type_.is_none() && s.x_kubernetes_preserve_unknown_fields == Some(true) {
-                    return Ok(("Vec<HashMap<String, serde_json::Value>>".into(), level));
+                    let map_type = cfg.map.name();
+                    return Ok((format!("Vec<{}<String, serde_json::Value>>", map_type), level));
                 }
                 let inner_array_type = s.type_.clone().unwrap_or_default();
                 return match inner_array_type.as_ref() {
@@ -426,7 +439,8 @@ fn array_recurse_for_type(
                         }
 
                         let vec_value = if let Some(dict_value) = dict_value {
-                            format!("BTreeMap<String, {dict_value}>")
+                            let map_type = cfg.map.name();
+                            format!("{map_type}<String, {dict_value}>")
                         } else {
                             let structsuffix = key.to_upper_camel_case();
                             format!("{stack}{structsuffix}")
@@ -439,7 +453,17 @@ fn array_recurse_for_type(
                     "date" => Ok((format!("Vec<{}>", extract_date_type(value)?), level)),
                     "number" => Ok((format!("Vec<{}>", extract_number_type(value)?), level)),
                     "integer" => Ok((format!("Vec<{}>", extract_integer_type(value)?), level)),
-                    "array" => Ok(array_recurse_for_type(s, stack, key, level + 1)?),
+                    "array" => {
+                        if s.items.is_some() {
+                            Ok(array_recurse_for_type(s, stack, key, level + 1, cfg)?)
+                        } else if cfg.relaxed {
+                            warn!("Empty inner array in: {} key: {}", stack, key);
+                            let map_type = cfg.map.name();
+                            Ok((format!("{}<String, serde_json::Value>", map_type), level))
+                        } else {
+                            bail!("Empty inner array in: {} key: {}", stack, key);
+                        }
+                    }
                     unknown => {
                         bail!("unsupported recursive array type \"{unknown}\" for {key}")
                     }
@@ -494,9 +518,7 @@ fn extract_number_type(value: &JSONSchemaProps) -> Result<String> {
         match f.as_ref() {
             "float" => "f32".to_string(),
             "double" => "f64".to_string(),
-            x => {
-                bail!("unknown number {}", x);
-            }
+            _ => "f64".to_string(),
         }
     } else {
         "f64".to_string()
@@ -505,7 +527,7 @@ fn extract_number_type(value: &JSONSchemaProps) -> Result<String> {
 
 fn extract_integer_type(value: &JSONSchemaProps) -> Result<String> {
     // Think kubernetes go types just do signed ints, but set a minimum to zero..
-    // rust will set uint, so emitting that when possbile
+    // rust will set uint, so emitting that when possible
     Ok(if let Some(f) = &value.format {
         match f.as_ref() {
             "int8" => "i8".to_string(),
@@ -518,9 +540,7 @@ fn extract_integer_type(value: &JSONSchemaProps) -> Result<String> {
             "uint32" => "u32".to_string(),
             "uint64" => "u64".to_string(),
             "uint128" => "u128".to_string(),
-            x => {
-                bail!("unknown integer {}", x);
-            }
+            _ => "i64".to_string(),
         }
     } else {
         "i64".to_string()
@@ -635,6 +655,85 @@ type: object
         let match_labels = &server_selector.members[0];
         assert_eq!(match_labels.name, "matchLabels");
         assert_eq!(match_labels.type_, "BTreeMap<String, serde_json::Value>");
+    }
+
+    #[test]
+    fn additional_preserve_unknown() {
+        init();
+        let schema_str = r#"
+    description: MiddlewareSpec defines the desired state of a Middleware.
+    properties:
+      plugin:
+        additionalProperties:
+          x-kubernetes-preserve-unknown-fields: true
+        description: traefik middleware crd
+        type: object
+    type: object"#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        println!("got {schema:?}");
+
+        let structs = analyze(schema, "Spec", Cfg::default()).unwrap().0;
+        println!("got: {structs:?}");
+        let root = &structs[0];
+        assert_eq!(root.name, "Spec");
+        let member = &root.members[0];
+        assert_eq!(member.name, "plugin");
+        assert_eq!(member.type_, "Option<BTreeMap<String, serde_json::Value>>");
+    }
+
+    #[test]
+    fn no_type_preserve_unknown_fields() {
+        init();
+        let schema_str = r#"
+description: Schema defines the schema of the variable.
+properties:
+  openAPIV3Schema:
+    description: |-
+      OpenAPIV3Schema defines the schema of a variable via OpenAPI v3
+      schema. The schema is a subset of the schema used in
+      Kubernetes CRDs.
+    properties:
+      items:
+        description: |-
+          Items specifies fields of an array.
+          NOTE: Can only be set if type is array.
+          NOTE: This field uses PreserveUnknownFields and Schemaless,
+          because recursive validation is not possible.
+        x-kubernetes-preserve-unknown-fields: true
+      requiredItems:
+        description: |-
+          Items specifies fields of an array.
+          NOTE: Can only be set if type is array.
+          NOTE: This field uses PreserveUnknownFields and Schemaless,
+          because recursive validation is not possible.
+        x-kubernetes-preserve-unknown-fields: true
+    required:
+    - requiredItems
+    type: object
+required:
+- openAPIV3Schema
+type: object
+"#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        // println!("schema: {}", serde_json::to_string_pretty(&schema).unwrap());
+        let structs = analyze(schema, "Variables", Cfg::default()).unwrap().0;
+        // println!("{:#?}", structs);
+
+        let root = &structs[0];
+        assert_eq!(root.name, "Variables");
+        assert_eq!(root.level, 0);
+        let root_member = &root.members[0];
+        assert_eq!(root_member.name, "openAPIV3Schema");
+        assert_eq!(root_member.type_, "VariablesOpenApiv3Schema");
+        let variables_schema = &structs[1];
+        assert_eq!(variables_schema.name, "VariablesOpenApiv3Schema");
+        assert_eq!(variables_schema.level, 1);
+        let items = &variables_schema.members[0];
+        assert_eq!(items.name, "items");
+        assert_eq!(items.type_, "Option<serde_json::Value>");
+        let required_items = &variables_schema.members[1];
+        assert_eq!(required_items.name, "requiredItems");
+        assert_eq!(required_items.type_, "serde_json::Value");
     }
 
     #[test]
@@ -762,13 +861,13 @@ type: object
         let root = &structs[0];
         assert_eq!(root.name, "Endpoint");
         assert_eq!(root.level, 0);
-        assert_eq!(root.is_enum, false);
+        assert!(!root.is_enum);
         assert_eq!(&root.members[0].name, "relabelings");
         assert_eq!(&root.members[0].type_, "Option<Vec<EndpointRelabelings>>");
 
         let rel = &structs[1];
         assert_eq!(rel.name, "EndpointRelabelings");
-        assert_eq!(rel.is_enum, false);
+        assert!(!rel.is_enum);
         assert_eq!(&rel.members[0].name, "action");
         assert_eq!(&rel.members[0].type_, "Option<EndpointRelabelingsAction>");
         // TODO: verify rel.members[0].field_annot uses correct default
@@ -776,7 +875,7 @@ type: object
         // action enum member
         let act = &structs[2];
         assert_eq!(act.name, "EndpointRelabelingsAction");
-        assert_eq!(act.is_enum, true);
+        assert!(act.is_enum);
 
         // should have enum members:
         assert_eq!(&act.members[0].name, "replace");
@@ -1015,7 +1114,7 @@ type: object
         let root = &structs[0];
         assert_eq!(root.name, "StatusCode");
         assert_eq!(root.level, 0);
-        assert_eq!(root.is_enum, true);
+        assert!(root.is_enum);
         assert_eq!(&root.members[0].name, "301");
         assert_eq!(&root.members[0].name, "302");
         assert_eq!(&root.members[0].type_, "");
@@ -1041,11 +1140,11 @@ type: object
         let root = &structs[0];
         assert_eq!(root.name, "KustomizationSpec");
         assert_eq!(root.level, 0);
-        assert_eq!(root.is_enum, false);
+        assert!(!root.is_enum);
         assert_eq!(&root.members[0].name, "patchesStrategicMerge");
         assert_eq!(
             &root.members[0].type_,
-            "Option<Vec<HashMap<String, serde_json::Value>>>"
+            "Option<Vec<BTreeMap<String, serde_json::Value>>>"
         );
     }
 
@@ -1117,7 +1216,7 @@ type: object
         let root = &structs[0];
         assert_eq!(root.name, "AppProjectStatus");
         assert_eq!(root.level, 0);
-        assert_eq!(root.is_enum, false);
+        assert!(!root.is_enum);
         assert_eq!(&root.members[0].name, "jwtTokensByRole");
         assert_eq!(
             &root.members[0].type_,
