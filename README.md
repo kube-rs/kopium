@@ -149,6 +149,7 @@ The main catalogue library is [metio/kube-custom-resources-rs](https://github.co
 
 Specific group binding libraries:
 - [gateway-api-rs](https://github.com/kube-rs/gateway-api-rs)
+- [istio-api-rs](https://github.com/BlankZhu/istio-api-rs)
 
 Feel free to [edit this file](https://github.com/kube-rs/kopium/edit/main/README.md) to add more.
 
