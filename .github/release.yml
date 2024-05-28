@@ -4,6 +4,10 @@ changelog:
     labels: [exclude]
   categories:
     - title: Changes
-      labels: ["*"]
+      labels:
+        - '*'
+      exclude:
+        labels:
+          - dependencies
     - title: Dependencies
       labels: [dependencies]
