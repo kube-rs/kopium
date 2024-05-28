@@ -365,7 +365,7 @@ impl Kopium {
 
         for derive in &self.derive {
             if derive.derived_trait == "Default"
-                && ((self.smart_derive_elision && !s.can_derive_default(containers)) || !s.is_enum)
+                && ((self.smart_derive_elision && !s.can_derive_default(containers)) || s.is_enum)
             {
                 continue;
             }
