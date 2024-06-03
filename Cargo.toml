@@ -26,7 +26,7 @@ name = "kopium"
 path = "src/lib.rs"
 
 [dependencies]
-tokio = { version = "1.37.0", features = ["full"] }
+tokio = { version = "1.38.0", features = ["full"] }
 anyhow = "1.0.86"
 log = "0.4.21"
 env_logger = "0.11.3"
