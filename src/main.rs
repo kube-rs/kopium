@@ -118,6 +118,13 @@ struct Kopium {
     #[arg(long)]
     no_condition: bool,
 
+    /// Disable standardised ObjectReference API
+    ///
+    /// By default, kopium detects ObjectReference objects and uses a standard
+    /// ObjectReference from k8s_openapi instead of generating a custom definition.
+    #[arg(long)]
+    no_object_reference: bool,
+
     /// Type used to represent maps via additionalProperties
     #[arg(long, value_enum, default_value_t)]
     map_type: MapType,
@@ -230,6 +237,7 @@ impl Kopium {
         log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
         let cfg = Config {
             no_condition: self.no_condition,
+            no_object_reference: self.no_object_reference,
             map: self.map_type,
             relaxed: self.relaxed,
         };
@@ -418,6 +426,9 @@ impl Kopium {
         }
         if results.iter().any(|o| o.contains_conditions()) && !self.no_condition {
             println!("    pub use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;");
+        }
+        if results.iter().any(|o| o.contains_object_ref()) && !self.no_object_reference {
+            println!("    pub use k8s_openapi::api::core::v1::ObjectReference;");
         }
         println!("}}");
         println!("use self::prelude::*;\n");

@@ -84,6 +84,10 @@ impl Container {
         self.members.iter().any(|m| m.type_.contains("Vec<Condition>"))
     }
 
+    pub fn contains_object_ref(&self) -> bool {
+        self.members.iter().any(|m| m.type_.contains("ObjectReference"))
+    }
+
     /// Checks if default is implemented for all props, and if not, returns false
     ///
     /// Behavior for --smart-derive-elision.

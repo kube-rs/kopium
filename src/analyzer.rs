@@ -12,6 +12,7 @@ const IGNORED_KEYS: [&str; 3] = ["metadata", "apiVersion", "kind"];
 #[derive(Default)]
 pub struct Config {
     pub no_condition: bool,
+    pub no_object_reference: bool,
     pub map: MapType,
     pub relaxed: bool,
 }
@@ -255,6 +256,8 @@ fn extract_container(
                 }
                 if let Some(dict) = dict_key {
                     format!("{}<String, {}>", cfg.map.name(), dict)
+                } else if !cfg.no_object_reference && is_object_ref(value) {
+                    "ObjectReference".into()
                 } else {
                     format!("{}{}", stack, key.to_upper_camel_case())
                 }
@@ -277,6 +280,8 @@ fn extract_container(
                 trace!("got array {} for {} in level {}", array_type, key, recurse_level);
                 if !cfg.no_condition && key == "conditions" && is_conditions(value) {
                     array_type = "Vec<Condition>".into();
+                } else if !cfg.no_object_reference && is_object_ref_list(value) {
+                    array_type = "Vec<ObjectReference>".into()
                 } else {
                     array_recurse_level.insert(key.clone(), recurse_level);
                 }
@@ -486,6 +491,36 @@ fn is_conditions(value: &JSONSchemaProps) -> bool {
             if type_.is_some() && status.is_some() && reason.is_some() && message.is_some() && ltt.is_some() {
                 return true;
             }
+        }
+    }
+    false
+}
+
+fn is_object_ref_list(value: &JSONSchemaProps) -> bool {
+    if let Some(JSONSchemaPropsOrArray::Schema(props)) = &value.items {
+        is_object_ref(props)
+    } else {
+        false
+    }
+}
+
+fn is_object_ref(value: &JSONSchemaProps) -> bool {
+    if let Some(p) = &value.properties {
+        if p.len() != 7 {
+            return false;
+        }
+        let api_version = p.get("apiVersion");
+        let field_path = p.get("fieldPath");
+        let kind = p.get("kind");
+        let name = p.get("name");
+        let ns = p.get("namespace");
+        let rv = p.get("resourceVersion");
+        let uid = p.get("uid");
+        if [api_version, field_path, kind, name, ns, rv, uid]
+            .iter()
+            .all(|k| k.is_some())
+        {
+            return true;
         }
     }
     false
@@ -1279,5 +1314,70 @@ type: object
         assert_eq!(structs.len(), 1);
         assert_eq!(structs[0].members.len(), 1);
         assert_eq!(structs[0].members[0].type_, "Option<Vec<Condition>>");
+    }
+
+    #[test]
+    fn uses_k8s_openapi_object_reference() {
+        init();
+        let schema_str = r#"
+properties:
+  myRef:
+    properties:
+      apiVersion:
+        type: string
+      fieldPath:
+        type: string
+      kind:
+        type: string
+      name:
+        type: string
+      namespace:
+        type: string
+      resourceVersion:
+        type: string
+      uid:
+        type: string
+    type: object
+type: object
+"#;
+
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+
+        let structs = analyze(schema, "Reference", Cfg::default()).unwrap().0;
+        assert_eq!(structs[0].members[0].type_, "Option<ObjectReference>");
+    }
+
+    #[test]
+    fn uses_k8s_openapi_object_reference_in_list() {
+        init();
+        let schema_str = r#"
+        properties:
+          controlPlaneRef:
+            items:
+              properties:
+                apiVersion:
+                  type: string
+                fieldPath:
+                  type: string
+                kind:
+                  type: string
+                name:
+                  type: string
+                namespace:
+                  type: string
+                resourceVersion:
+                  type: string
+                uid:
+                  type: string
+              type: object
+              x-kubernetes-map-type: atomic
+            type: array
+        type: object
+        "#;
+
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+
+        let structs = analyze(schema, "Reference", Cfg::default()).unwrap().0;
+        assert_eq!(structs[0].members[0].type_, "Option<Vec<ObjectReference>>");
     }
 }
