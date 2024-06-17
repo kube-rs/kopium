@@ -45,7 +45,7 @@ version = "0.22.0"
 features = ["latest"]
 
 [dependencies.kube]
-version = "0.91.0"
+version = "0.92.0"
 features = ["derive"]
 
 [dev-dependencies]
