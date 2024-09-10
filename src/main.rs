@@ -352,8 +352,8 @@ impl Kopium {
         // print doc strings if requested in arguments
         if self.docs {
             if let Some(d) = doc {
-                println!("{}/// {}", indent, d.replace('\n', &format!("\n{}/// ", indent)));
                 // TODO: maybe logic to split doc strings by sentence / length here
+                println!("{}", format_docstr(indent, d));
             }
         }
     }
@@ -474,4 +474,13 @@ fn all_versions(crd: &CustomResourceDefinition) -> String {
         .collect::<Vec<_>>();
     vers.sort_by_cached_key(|v| std::cmp::Reverse(Version::parse(v).priority()));
     vers.join(", ")
+}
+
+fn format_docstr(indent: &str, input: &str) -> String {
+    // TODO: maybe logic to split doc strings by sentence / length here
+    format!(
+        "{}/// {}",
+        indent,
+        input.replace('\n', &format!("\n{}/// ", indent))
+    )
 }
