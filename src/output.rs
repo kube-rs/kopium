@@ -488,6 +488,5 @@ mod test {
             "/// Some docs\n/// ```text\n/// foobar\n/// ```\n/// Some more docs\n/// ```text\n/// foobar.more\n/// ```",
             format_docstr("", "Some docs\n```\nfoobar\n```\nSome more docs\n```\nfoobar.more\n```")
         );
-
     }
 }
