@@ -1,6 +1,7 @@
 use std::cell::OnceCell;
 
 use heck::{ToPascalCase, ToSnakeCase};
+use regex::RegexBuilder;
 
 /// All found containers
 pub struct Output(pub Vec<Container>);
@@ -256,31 +257,11 @@ impl MapType {
 }
 
 pub fn format_docstr(indent: &str, input: &str) -> String {
-    let rustdoc_code = "```";
-    let rustdoc_starts: Vec<usize> = input
-        .match_indices(rustdoc_code)
-        .map(|(index, _)| index)
-        .collect();
-    let mut cleaned_input = String::with_capacity(input.len());
-    let mut start = 0;
-    let mut opened = false;
-    for doc in rustdoc_starts {
-        if doc == 0 || input.as_bytes()[doc - 1] == b'\n' {
-            if !opened {
-                cleaned_input.push_str(&input[start..doc]);
-                cleaned_input.push_str("```text");
-                if input.as_bytes()[doc + rustdoc_code.len()].is_ascii_alphabetic() {
-                    cleaned_input.push_str("\n");
-                }
-                opened = true;
-                start = doc + rustdoc_code.len();
-            } else {
-                opened = false;
-            }
-        }
-    }
-    cleaned_input.push_str(&input[start..]);
-
+    let re = RegexBuilder::new(r"```.*\n([\s\S]+)\n```")
+        .swap_greed(true)
+        .build()
+        .unwrap();
+    let cleaned_input = re.replace_all(input, "```text\n$1\n```").to_owned();
     // TODO: maybe logic to split doc strings by sentence / length here
 
     format!(
@@ -471,12 +452,12 @@ mod test {
             format_docstr("", "```\nfoobar('```')\n```")
         );
         assert_eq!(
-            "/// ```text      \n/// foobar\n/// ```",
+            "/// ```text\n/// foobar\n/// ```",
             format_docstr("", "```      \nfoobar\n```"),
-            "Trailing whitespaces are fine, but preserved"
+            "Trailing whitespaces are fine"
         );
         assert_eq!(
-            "/// ```text\n/// go\n/// foobar\n/// ```",
+            "/// ```text\n/// foobar\n/// ```",
             format_docstr("", "```go\nfoobar\n```"),
             "Language must be removed from code blocks"
         );
