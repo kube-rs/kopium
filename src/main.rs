@@ -5,7 +5,7 @@ use clap::{CommandFactory, Parser, Subcommand};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion,
 };
-use kopium::{analyze, Config, Container, Derive, MapType};
+use kopium::{analyze, format_docstr, Config, Container, Derive, MapType};
 use kube::{api, core::Version, Api, Client, ResourceExt};
 use quote::format_ident;
 
@@ -474,58 +474,4 @@ fn all_versions(crd: &CustomResourceDefinition) -> String {
         .collect::<Vec<_>>();
     vers.sort_by_cached_key(|v| std::cmp::Reverse(Version::parse(v).priority()));
     vers.join(", ")
-}
-
-fn format_docstr(indent: &str, input: &str) -> String {
-    let rustdoc_code = "```\n";
-    let rustdoc_starts: Vec<usize> = input
-        .match_indices(rustdoc_code)
-        .step_by(2)
-        .map(|(index, _)| index)
-        .collect();
-    let mut cleaned_input = String::with_capacity(input.len());
-    let mut start = 0;
-    for doc in rustdoc_starts {
-        cleaned_input.push_str(&input[start..doc]);
-        cleaned_input.push_str("```text\n");
-        start = doc + rustdoc_code.len();
-    }
-    cleaned_input.push_str(&input[start..]);
-
-    // TODO: maybe logic to split doc strings by sentence / length here
-
-    format!(
-        "{}/// {}",
-        indent,
-        cleaned_input.replace('\n', &format!("\n{}/// ", indent))
-    )
-}
-
-#[cfg(test)]
-mod test {
-    use crate::format_docstr;
-
-    #[test]
-    fn escapes_codes_from_descriptions() {
-        assert_eq!(
-            "/// ```text\n/// foobar\n/// ```\n/// ",
-            format_docstr("", "```\nfoobar\n```\n")
-        );
-        assert_eq!(
-            "/// Some docs\n/// ```text\n/// foobar\n/// ```\n/// ",
-            format_docstr("", "Some docs\n```\nfoobar\n```\n")
-        );
-        assert_eq!(
-            "/// Some docs\n/// ```text\n/// foobar\n/// ```",
-            format_docstr("", "Some docs\n```\nfoobar\n```")
-        );
-        assert_eq!(
-            "/// ```text\n/// foobar\n/// ```",
-            format_docstr("", "```\nfoobar\n```")
-        );
-        assert_eq!(
-            "/// Some docs\n/// with no code blocks!",
-            format_docstr("", "Some docs\nwith no code blocks!")
-        );
-    }
 }
