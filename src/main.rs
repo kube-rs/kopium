@@ -477,10 +477,55 @@ fn all_versions(crd: &CustomResourceDefinition) -> String {
 }
 
 fn format_docstr(indent: &str, input: &str) -> String {
+    let rustdoc_code = "```\n";
+    let rustdoc_starts: Vec<usize> = input
+        .match_indices(rustdoc_code)
+        .step_by(2)
+        .map(|(index, _)| index)
+        .collect();
+    let mut cleaned_input = String::with_capacity(input.len());
+    let mut start = 0;
+    for doc in rustdoc_starts {
+        cleaned_input.push_str(&input[start..doc]);
+        cleaned_input.push_str("```text\n");
+        start = doc + rustdoc_code.len();
+    }
+    cleaned_input.push_str(&input[start..]);
+
     // TODO: maybe logic to split doc strings by sentence / length here
+
     format!(
         "{}/// {}",
         indent,
-        input.replace('\n', &format!("\n{}/// ", indent))
+        cleaned_input.replace('\n', &format!("\n{}/// ", indent))
     )
+}
+
+#[cfg(test)]
+mod test {
+    use crate::format_docstr;
+
+    #[test]
+    fn escapes_codes_from_descriptions() {
+        assert_eq!(
+            "/// ```text\n/// foobar\n/// ```\n/// ",
+            format_docstr("", "```\nfoobar\n```\n")
+        );
+        assert_eq!(
+            "/// Some docs\n/// ```text\n/// foobar\n/// ```\n/// ",
+            format_docstr("", "Some docs\n```\nfoobar\n```\n")
+        );
+        assert_eq!(
+            "/// Some docs\n/// ```text\n/// foobar\n/// ```",
+            format_docstr("", "Some docs\n```\nfoobar\n```")
+        );
+        assert_eq!(
+            "/// ```text\n/// foobar\n/// ```",
+            format_docstr("", "```\nfoobar\n```")
+        );
+        assert_eq!(
+            "/// Some docs\n/// with no code blocks!",
+            format_docstr("", "Some docs\nwith no code blocks!")
+        );
+    }
 }
