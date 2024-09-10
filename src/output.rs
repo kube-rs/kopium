@@ -256,18 +256,28 @@ impl MapType {
 }
 
 pub fn format_docstr(indent: &str, input: &str) -> String {
-    let rustdoc_code = "```\n";
+    let rustdoc_code = "```";
     let rustdoc_starts: Vec<usize> = input
         .match_indices(rustdoc_code)
-        .step_by(2)
         .map(|(index, _)| index)
         .collect();
     let mut cleaned_input = String::with_capacity(input.len());
     let mut start = 0;
+    let mut opened = false;
     for doc in rustdoc_starts {
-        cleaned_input.push_str(&input[start..doc]);
-        cleaned_input.push_str("```text\n");
-        start = doc + rustdoc_code.len();
+        if doc == 0 || input.as_bytes()[doc - 1] == b'\n' {
+            if !opened {
+                cleaned_input.push_str(&input[start..doc]);
+                cleaned_input.push_str("```text");
+                if input.as_bytes()[doc + rustdoc_code.len()].is_ascii_alphabetic() {
+                    cleaned_input.push_str("\n");
+                }
+                opened = true;
+                start = doc + rustdoc_code.len();
+            } else {
+                opened = false;
+            }
+        }
     }
     cleaned_input.push_str(&input[start..]);
 
@@ -457,8 +467,27 @@ mod test {
             format_docstr("", "```\nfoobar\n```")
         );
         assert_eq!(
+            "/// ```text\n/// foobar('```')\n/// ```",
+            format_docstr("", "```\nfoobar('```')\n```")
+        );
+        assert_eq!(
+            "/// ```text      \n/// foobar\n/// ```",
+            format_docstr("", "```      \nfoobar\n```"),
+            "Trailing whitespaces are fine, but preserved"
+        );
+        assert_eq!(
+            "/// ```text\n/// go\n/// foobar\n/// ```",
+            format_docstr("", "```go\nfoobar\n```"),
+            "Language must be removed from code blocks"
+        );
+        assert_eq!(
             "/// Some docs\n/// with no code blocks!",
             format_docstr("", "Some docs\nwith no code blocks!")
         );
+        assert_eq!(
+            "/// Some docs\n/// ```text\n/// foobar\n/// ```\n/// Some more docs\n/// ```text\n/// foobar.more\n/// ```",
+            format_docstr("", "Some docs\n```\nfoobar\n```\nSome more docs\n```\nfoobar.more\n```")
+        );
+
     }
 }
