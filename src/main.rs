@@ -5,7 +5,7 @@ use clap::{CommandFactory, Parser, Subcommand};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion,
 };
-use kopium::{analyze, Config, Container, Derive, MapType};
+use kopium::{analyze, format_docstr, Config, Container, Derive, MapType};
 use kube::{api, core::Version, Api, Client, ResourceExt};
 use quote::format_ident;
 
@@ -352,8 +352,8 @@ impl Kopium {
         // print doc strings if requested in arguments
         if self.docs {
             if let Some(d) = doc {
-                println!("{}/// {}", indent, d.replace('\n', &format!("\n{}/// ", indent)));
                 // TODO: maybe logic to split doc strings by sentence / length here
+                println!("{}", format_docstr(indent, d));
             }
         }
     }

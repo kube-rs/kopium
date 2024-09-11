@@ -1,6 +1,15 @@
 use std::cell::OnceCell;
 
 use heck::{ToPascalCase, ToSnakeCase};
+use lazy_static::lazy_static;
+use regex::{Regex, RegexBuilder};
+
+lazy_static! {
+    static ref RE_CODEBLOCK: Regex = RegexBuilder::new(r"```.*\n([\s\S]+)\n```")
+        .swap_greed(true)
+        .build()
+        .unwrap();
+}
 
 /// All found containers
 pub struct Output(pub Vec<Container>);
@@ -255,10 +264,21 @@ impl MapType {
     }
 }
 
+pub fn format_docstr(indent: &str, input: &str) -> String {
+    let cleaned_input = RE_CODEBLOCK.replace_all(input, "```text\n$1\n```");
+    // TODO: maybe logic to split doc strings by sentence / length here
+
+    format!(
+        "{}/// {}",
+        indent,
+        cleaned_input.replace('\n', &format!("\n{}/// ", indent))
+    )
+}
+
 // unit tests
 #[cfg(test)]
 mod test {
-    use super::{Container, Member};
+    use super::{format_docstr, Container, Member};
     fn name_only_enum_member(name: &str) -> Member {
         Member {
             name: name.to_string(),
@@ -411,5 +431,47 @@ mod test {
         assert!(containers[5].can_derive_default(&containers)); // ReferencesEnumOption
         assert!(containers[6].can_derive_default(&containers)); // ReferencesEnumVec
         assert!(containers[7].can_derive_default(&containers)); // ReferencesEnumNestedOption
+    }
+
+    #[test]
+    fn escapes_codes_from_descriptions() {
+        assert_eq!(
+            "/// ```text\n/// foobar\n/// ```\n/// ",
+            format_docstr("", "```\nfoobar\n```\n")
+        );
+        assert_eq!(
+            "/// Some docs\n/// ```text\n/// foobar\n/// ```\n/// ",
+            format_docstr("", "Some docs\n```\nfoobar\n```\n")
+        );
+        assert_eq!(
+            "/// Some docs\n/// ```text\n/// foobar\n/// ```",
+            format_docstr("", "Some docs\n```\nfoobar\n```")
+        );
+        assert_eq!(
+            "/// ```text\n/// foobar\n/// ```",
+            format_docstr("", "```\nfoobar\n```")
+        );
+        assert_eq!(
+            "/// ```text\n/// foobar('```')\n/// ```",
+            format_docstr("", "```\nfoobar('```')\n```")
+        );
+        assert_eq!(
+            "/// ```text\n/// foobar\n/// ```",
+            format_docstr("", "```      \nfoobar\n```"),
+            "Trailing whitespaces are fine"
+        );
+        assert_eq!(
+            "/// ```text\n/// foobar\n/// ```",
+            format_docstr("", "```go\nfoobar\n```"),
+            "Language must be removed from code blocks"
+        );
+        assert_eq!(
+            "/// Some docs\n/// with no code blocks!",
+            format_docstr("", "Some docs\nwith no code blocks!")
+        );
+        assert_eq!(
+            "/// Some docs\n/// ```text\n/// foobar\n/// ```\n/// Some more docs\n/// ```text\n/// foobar.more\n/// ```",
+            format_docstr("", "Some docs\n```\nfoobar\n```\nSome more docs\n```\nfoobar.more\n```")
+        );
     }
 }
