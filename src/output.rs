@@ -1,7 +1,15 @@
 use std::cell::OnceCell;
 
 use heck::{ToPascalCase, ToSnakeCase};
-use regex::RegexBuilder;
+use lazy_static::lazy_static;
+use regex::{Regex, RegexBuilder};
+
+lazy_static! {
+    static ref RE_CODEBLOCK: Regex = RegexBuilder::new(r"```.*\n([\s\S]+)\n```")
+        .swap_greed(true)
+        .build()
+        .unwrap();
+}
 
 /// All found containers
 pub struct Output(pub Vec<Container>);
@@ -257,11 +265,7 @@ impl MapType {
 }
 
 pub fn format_docstr(indent: &str, input: &str) -> String {
-    let re = RegexBuilder::new(r"```.*\n([\s\S]+)\n```")
-        .swap_greed(true)
-        .build()
-        .unwrap();
-    let cleaned_input = re.replace_all(input, "```text\n$1\n```").to_owned();
+    let cleaned_input = RE_CODEBLOCK.replace_all(input, "```text\n$1\n```");
     // TODO: maybe logic to split doc strings by sentence / length here
 
     format!(
