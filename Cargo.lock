@@ -698,7 +698,6 @@ dependencies = [
  "heck",
  "k8s-openapi",
  "kube",
- "lazy_static",
  "libc",
  "log",
  "quote",

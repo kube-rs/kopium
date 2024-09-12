@@ -352,7 +352,6 @@ impl Kopium {
         // print doc strings if requested in arguments
         if self.docs {
             if let Some(d) = doc {
-                // TODO: maybe logic to split doc strings by sentence / length here
                 println!("{}", format_docstr(indent, d));
             }
         }
