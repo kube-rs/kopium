@@ -42,11 +42,11 @@ libc = "0.2.158"
 regex = "1.10.6"
 
 [dependencies.k8s-openapi]
-version = "0.22.0"
+version = "0.23.0"
 features = ["latest"]
 
 [dependencies.kube]
-version = "0.94.1"
+version = "0.95.0"
 features = ["derive"]
 
 [dev-dependencies]
@@ -54,5 +54,5 @@ schemars = "0.8.21"
 typed-builder = "0.20.0"
 
 [dev-dependencies.k8s-openapi]
-version = "0.22.0"
+version = "0.23.0"
 features = ["latest", "schemars"]
