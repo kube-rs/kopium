@@ -38,7 +38,7 @@ serde = { version = "1.0.215", features = ["derive"] }
 serde_yaml = "0.9.34"
 heck = "0.5.0"
 syn = "2.0.87"
-libc = "0.2.162"
+libc = "0.2.165"
 regex = "1.11.1"
 
 [dependencies.k8s-openapi]
