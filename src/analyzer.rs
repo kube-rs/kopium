@@ -427,8 +427,7 @@ fn array_recurse_for_type(
         match items {
             JSONSchemaPropsOrArray::Schema(s) => {
                 if s.type_.is_none() && s.x_kubernetes_preserve_unknown_fields == Some(true) {
-                    let map_type = cfg.map.name();
-                    return Ok((format!("Vec<{}<String, serde_json::Value>>", map_type), level));
+                    return Ok(("Vec<serde_json::Value>".to_string(), level));
                 }
                 let inner_array_type = s.type_.clone().unwrap_or_default();
                 return match inner_array_type.as_ref() {
@@ -1173,10 +1172,7 @@ type: object
         assert_eq!(root.level, 0);
         assert!(!root.is_enum);
         assert_eq!(&root.members[0].name, "patchesStrategicMerge");
-        assert_eq!(
-            &root.members[0].type_,
-            "Option<Vec<BTreeMap<String, serde_json::Value>>>"
-        );
+        assert_eq!(&root.members[0].type_, "Option<Vec<serde_json::Value>>");
     }
 
     #[test]
