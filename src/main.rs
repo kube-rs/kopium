@@ -270,7 +270,13 @@ impl Kopium {
                     if scope == "Namespaced" {
                         println!(r#"#[kube(namespaced)]"#);
                     }
-                    if version.subresources.as_ref().is_some_and(|c| c.status.is_some())
+                    if (version.subresources.as_ref().is_some_and(|c| c.status.is_some())
+                        || version
+                            .schema
+                            .as_ref()
+                            .and_then(|c| c.open_api_v3_schema.as_ref())
+                            .and_then(|c| c.properties.as_ref())
+                            .is_some_and(|c| c.contains_key("status")))
                         && self.has_status_resource(&structs)
                     {
                         println!(r#"#[kube(status = "{}Status")]"#, kind);
