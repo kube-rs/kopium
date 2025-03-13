@@ -270,6 +270,8 @@ impl Kopium {
                     if scope == "Namespaced" {
                         println!(r#"#[kube(namespaced)]"#);
                     }
+                    // status should be listed as a subresource
+                    // but also check for top-level .status for certain non-conforming crds like argo application
                     if (version.subresources.as_ref().is_some_and(|c| c.status.is_some())
                         || version
                             .schema
