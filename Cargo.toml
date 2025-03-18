@@ -26,19 +26,19 @@ name = "kopium"
 path = "src/lib.rs"
 
 [dependencies]
-tokio = { version = "1.44.0", features = ["full"] }
+tokio = { version = "1.44.1", features = ["full"] }
 anyhow = "1.0.97"
 log = "0.4.26"
 env_logger = "0.11.6"
 serde_json = "1.0.140"
 clap = { version = "4.5", features = ["cargo", "derive"] }
 clap_complete = "4.5"
-quote = "1.0.39"
+quote = "1.0.40"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_yaml = "0.9.34"
 heck = "0.5.0"
 syn = "2.0.100"
-libc = "0.2.170"
+libc = "0.2.171"
 regex = "1.11.1"
 
 [dependencies.k8s-openapi]
@@ -46,12 +46,12 @@ version = "0.24.0"
 features = ["latest"]
 
 [dependencies.kube]
-version = "0.98.0"
+version = "0.99.0"
 features = ["derive"]
 
 [dev-dependencies]
 schemars = "0.8.22"
-typed-builder = "0.20.0"
+typed-builder = "0.20.1"
 
 [dev-dependencies.k8s-openapi]
 version = "0.24.0"
