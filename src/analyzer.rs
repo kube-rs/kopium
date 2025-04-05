@@ -1,5 +1,5 @@
 //! Deals entirely with schema analysis for the purpose of creating output structs + members
-use crate::{Container, MapType, Member, Output};
+use crate::{Container, MapType, Member, Output, Overrides, PropertyAction};
 use anyhow::{bail, Result};
 use heck::ToUpperCamelCase;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
@@ -15,6 +15,7 @@ pub struct Config {
     pub no_object_reference: bool,
     pub map: MapType,
     pub relaxed: bool,
+    pub overrides: Option<Overrides>,
 }
 
 /// Scan a schema for structs and members, and recurse to find all structs
@@ -111,6 +112,13 @@ fn find_containers(
     for (key, value) in props {
         if level == 0 && IGNORED_KEYS.contains(&(key.as_ref())) {
             debug!("not recursing into ignored {}", key); // handled elsewhere
+            continue;
+        }
+        if let Some(action) = get_property_action(key, value, cfg) {
+            debug!(
+                "not recursing into overriden {} (override exists {action:?})",
+                key
+            );
             continue;
         }
         let next_key = key.to_upper_camel_case();
@@ -244,63 +252,71 @@ fn extract_container(
     let reqs = schema.required.clone().unwrap_or_default();
     for (key, value) in props {
         let value_type = value.type_.clone().unwrap_or_default();
-        let rust_type = match value_type.as_ref() {
-            "object" => {
-                let mut dict_key = None;
-                if let Some(additional) = &value.additional_properties {
-                    dict_key = resolve_additional_properties(additional, stack, key, value)?;
-                } else if value.properties.is_none()
-                    && value.x_kubernetes_preserve_unknown_fields.unwrap_or(false)
-                {
-                    dict_key = Some("serde_json::Value".into());
-                }
-                if let Some(dict) = dict_key {
-                    format!("{}<String, {}>", cfg.map.name(), dict)
-                } else if !cfg.no_object_reference && is_object_ref(value) {
-                    "ObjectReference".into()
-                } else {
-                    format!("{}{}", stack, key.to_upper_camel_case())
-                }
+        let rust_type = if let Some(action) = get_property_action(key, value, cfg) {
+            warn!("using {action:?} for {key} (under {stack})");
+            match action {
+                PropertyAction::Replace(type_) => type_.to_owned(),
+                PropertyAction::Omit => continue,
             }
-            "string" => {
-                if let Some(_en) = &value.enum_ {
-                    trace!("got enum string: {}", serde_json::to_string(&schema).unwrap());
-                    format!("{}{}", stack, key.to_upper_camel_case())
-                } else {
-                    "String".to_string()
+        } else {
+            match value_type.as_ref() {
+                "object" => {
+                    let mut dict_key = None;
+                    if let Some(additional) = &value.additional_properties {
+                        dict_key = resolve_additional_properties(additional, stack, key, value)?;
+                    } else if value.properties.is_none()
+                        && value.x_kubernetes_preserve_unknown_fields.unwrap_or(false)
+                    {
+                        dict_key = Some("serde_json::Value".into());
+                    }
+                    if let Some(dict) = dict_key {
+                        format!("{}<String, {}>", cfg.map.name(), dict)
+                    } else if !cfg.no_object_reference && is_object_ref(value) {
+                        "ObjectReference".into()
+                    } else {
+                        format!("{}{}", stack, key.to_upper_camel_case())
+                    }
                 }
-            }
-            "boolean" => "bool".to_string(),
-            "date" => extract_date_type(value)?,
-            "number" => extract_number_type(value)?,
-            "integer" => extract_integer_type(value)?,
-            "array" => {
-                // recurse through repeated arrays until we find a concrete type (keep track of how deep we went)
-                let (mut array_type, recurse_level) = array_recurse_for_type(value, stack, key, 1, cfg)?;
-                trace!("got array {} for {} in level {}", array_type, key, recurse_level);
-                if !cfg.no_condition && key == "conditions" && is_conditions(value) {
-                    array_type = "Vec<Condition>".into();
-                } else if !cfg.no_object_reference && is_object_ref_list(value) {
-                    array_type = "Vec<ObjectReference>".into()
-                } else {
-                    array_recurse_level.insert(key.clone(), recurse_level);
+                "string" => {
+                    if let Some(_en) = &value.enum_ {
+                        trace!("got enum string: {}", serde_json::to_string(&schema).unwrap());
+                        format!("{}{}", stack, key.to_upper_camel_case())
+                    } else {
+                        "String".to_string()
+                    }
                 }
-                array_type
-            }
-            "" => {
-                let map_type = cfg.map.name();
-                if value.x_kubernetes_int_or_string.is_some() {
-                    "IntOrString".into()
-                } else if value.x_kubernetes_preserve_unknown_fields == Some(true) {
-                    "serde_json::Value".into()
-                } else if cfg.relaxed {
-                    debug!("found empty object at {} key: {}", stack, key);
-                    format!("{map_type}<String, serde_json::Value>")
-                } else {
-                    bail!("unknown empty dict type for {}", key)
+                "boolean" => "bool".to_string(),
+                "date" => extract_date_type(value)?,
+                "number" => extract_number_type(value)?,
+                "integer" => extract_integer_type(value)?,
+                "array" => {
+                    // recurse through repeated arrays until we find a concrete type (keep track of how deep we went)
+                    let (mut array_type, recurse_level) = array_recurse_for_type(value, stack, key, 1, cfg)?;
+                    trace!("got array {} for {} in level {}", array_type, key, recurse_level);
+                    if !cfg.no_condition && key == "conditions" && is_conditions(value) {
+                        array_type = "Vec<Condition>".into();
+                    } else if !cfg.no_object_reference && is_object_ref_list(value) {
+                        array_type = "Vec<ObjectReference>".into()
+                    } else {
+                        array_recurse_level.insert(key.clone(), recurse_level);
+                    }
+                    array_type
                 }
+                "" => {
+                    let map_type = cfg.map.name();
+                    if value.x_kubernetes_int_or_string.is_some() {
+                        "IntOrString".into()
+                    } else if value.x_kubernetes_preserve_unknown_fields == Some(true) {
+                        "serde_json::Value".into()
+                    } else if cfg.relaxed {
+                        debug!("found empty object at {} key: {}", stack, key);
+                        format!("{map_type}<String, serde_json::Value>")
+                    } else {
+                        bail!("unknown empty dict type for {}", key)
+                    }
+                }
+                x => bail!("unknown type {}", x),
             }
-            x => bail!("unknown type {}", x),
         };
 
         // Create member and wrap types correctly
@@ -475,6 +491,16 @@ fn array_recurse_for_type(
     } else {
         bail!("missing items in array type")
     }
+}
+
+fn get_property_action<'a>(
+    key: &str,
+    value: &JSONSchemaProps,
+    cfg: &'a Config,
+) -> Option<&'a PropertyAction> {
+    cfg.overrides
+        .as_ref()
+        .and_then(|overrides| overrides.get_property_action(key, value))
 }
 
 // ----------------------------------------------------------------------------

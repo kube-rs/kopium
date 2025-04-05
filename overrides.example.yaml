@@ -1,0 +1,402 @@
+# The configuration format for kopium overrides which define rules that modify the code analysis
+# and generation behavior.
+#
+# Multiple override files can be composed via `--overrides file1 --overrides file2 --overrides fileN`,
+# which will be merged into a single configuration.
+#
+# Rules are matched in their defined order, ie. rules in `file1` above would match before `file2`, due
+# to their ordering as CLI options.
+propertyRules:
+    # The action to perform if the type and name-directed matches below succeed.
+    # `replace` is the `String` to use as the property's Rust type. This will prevent a Rust
+    # `Container` being generated for the property, if matching succeeds.
+  - matchSuccess:
+      replace: ResourceRequirements
+    # Instead of replacing the property with an existing type, it can also be ignored using:
+    # matchSuccess: omit
+
+    # 1. Name-directed matching.
+    #
+    # The first step of determining if a rule applies to a given CRD property, is to attempt
+    # to match the property's name against zero or more exact strings or regular expressions.
+    matchName:
+      # An exact match checks the property name matches exactly.
+      - exact: resources
+      # This is the equivalent regular expression to `exact` match, above.
+      #
+      # You should prefer to use precise `exact` matches if possible, as they are performed using
+      # `O(1)` `HashMap::get(name)`. In constrast; the property name must be tested against _every_
+      # `regex` defined in the overrides, via a `O(n)` linear scan per property, if no `exact`
+      # matches were found.
+      #
+      # Regular expression syntax is that of the <https://docs.rs/regex> crate.
+      - regex: ^resources$
+
+    # 2. Type-directed matching.
+    #
+    # If one of the `matchName` expressions succeeded in matching the property name, or no
+    # expressions were specified, then the property's `JSONSchemaProps` value will be tested against
+    # the partially specified schema defined in `matchSchema`.
+    #
+    # The full `JSONSchemaProps` format is supported. It's the same as what you see within a CRD YAML,
+    # and can be copy-pasted directly from CRD properties. However, only a certain subset of
+    # `JSONSchemaProps` are used by the evaluator when performing a match. Currently, the fields that
+    # are recursively evaluated within a schema for type-directed matching are:
+    #
+    #    type_,
+    #    enum_,
+    #    items,
+    #    additional_items,
+    #    properties,
+    #    additional_properties,
+    #    required,
+    #    one_of,
+    #    all_of,
+    #    any_of,
+    #    not,
+    #    x_kubernetes_int_or_string,
+    #    x_kubernetes_preserve_unknown_fields,
+    #    x_kubernetes_list_type,
+    #    x_kubernetes_map_type,
+    #
+    # For `matchSchema.subset`, the matching proceeds against the property's value via a structural
+    # subset operation; if the defined "shape" matches that of the property being analyzed, then the
+    # `replace` above will be returned as the Rust type that should be substituted instead of
+    # generating a new container type. This will cause the analysis to short-circuit, and move on to
+    # the next property.
+    #
+    # The `subset` operation can be thought of as a pattern match similar to Rust's `match` statement,
+    # with any unspecified structure treated as the wildcard `..` (ie. success).
+    #
+    # For `matchSchema.exhaustive`, matching requires an exact schema match similar to Rust's PartialEq,
+    # although like `subset` and unlike PartialEq, not all fields are not considered for comparison.
+    #
+    # Here, the JSONSchema for `core::v1::ResourceRequirements` has been copy-pasted, with the
+    # documentation items removed, as an example.
+    matchSchema:
+      # Instead of `subset`, you could use `exhaustive` to change the type-directed matching behavior.
+      subset:
+        type: object
+        properties:
+          claims:
+            type: array
+            items:
+              type: object
+              properties:
+                name:
+                  type: string
+          limits:
+            type: object
+          requests:
+            type: object
+
+  # If a rule is defined that specifies no `matchSchema` expression, type replacement will occur
+  # purely on a name-directed basis, if any of the `matchName` expressions are matched.
+  #
+  # Generally, it is not advised to omit type-directed matching completely, since you could possibly
+  # over-eagerly perform replacement of completely unrelated types.
+  - matchSuccess:
+      replace: Affinity
+    matchName:
+      - exact: affinity
+    # matchSchema:
+    #   subset:
+    #     type: object
+    #     properties:
+    #       nodeAffinity:
+    #         type: object
+    #       podAffinity:
+    #         type: object
+    #       podAntiAffinity:
+    #         type: object
+
+  # You can modify all matched names with the same `replace` type, on success.
+  - matchSuccess:
+      replace: Probe
+    matchName:
+      - exact: livenessProbe
+      - exact: readinessProbe
+      - exact: startupProbe
+    matchSchema:
+      subset:
+        type: object
+        properties:
+          initialDelaySeconds:
+            type: integer
+          timeoutSeconds:
+            type: integer
+          periodSeconds:
+            type: integer
+          successThreshold:
+            type: integer
+          failureThreshold:
+            type: integer
+
+  # Conversely, for names that are identical but have differing schemas and Rust types, you can
+  # define two different rules.
+  #
+  # In this example, two separate rules are defined for pod and container security contexts which
+  # have the same `matchName` expressions, but differing `matchSchema` expressions.
+
+  # Replace the container security context.
+  - matchSuccess:
+      replace: SecurityContext
+    matchName:
+      - exact: securityContext
+    matchSchema:
+      subset:
+        type: object
+        properties:
+          allowPrivilegeEscalation:
+            type: boolean
+          appArmorProfile:
+            type: object
+            properties:
+              localhostProfile:
+                type: string
+              type:
+                type: string
+          capabilities:
+            type: object
+            properties:
+              add:
+                type: array
+                items:
+                  type: string
+              drop:
+                type: array
+                items:
+                  type: string
+          privileged:
+            type: boolean
+          procMount:
+            type: string
+          readOnlyRootFilesystem:
+            type: boolean
+          runAsGroup:
+            type: integer
+          runAsNonRoot:
+            type: boolean
+          runAsUser:
+            type: integer
+          seLinuxOptions:
+            type: object
+            properties:
+              level:
+                type: string
+              role:
+                type: string
+              type:
+                type: string
+              user:
+                type: string
+          seccompProfile:
+            type: object
+            properties:
+              localhostProfile:
+                type: string
+              type:
+                type: string
+          windowsOptions:
+            type: object
+            properties:
+              gmsaCredentialSpec:
+                type: string
+              gmsaCredentialSpecName:
+                type: string
+              hostProcess:
+                type: boolean
+              runAsUserName:
+                type: string
+
+  # Replace the pod security context.
+  - matchSuccess:
+      replace: PodSecurityContext
+    matchName:
+      - exact: securityContext
+    matchSchema:
+      subset:
+        type: object
+        properties:
+          appArmorProfile:
+            type: object
+            properties:
+              localhostProfile:
+                type: string
+              type:
+                type: string
+          fsGroup:
+            type: integer
+          fsGroupChangePolicy:
+            type: string
+          runAsGroup:
+            type: integer
+          runAsNonRoot:
+            type: boolean
+          runAsUser:
+            type: integer
+          seLinuxOptions:
+            type: object
+            properties:
+              level:
+                type: string
+              role:
+                type: string
+              type:
+                type: string
+              user:
+                type: string
+          seccompProfile:
+            type: object
+            properties:
+              localhostProfile:
+                type: string
+              type:
+                type: string
+          supplementalGroups:
+            type: array
+            items:
+              type: integer
+          sysctls:
+            type: array
+            items:
+              type: object
+              properties:
+                name:
+                  type: string
+                value:
+                  type: string
+          windowsOptions:
+            type: object
+            properties:
+              gmsaCredentialSpec:
+                type: string
+              gmsaCredentialSpecName:
+                type: string
+              hostProcess:
+                type: boolean
+              runAsUserName:
+                type: string
+
+  - matchSuccess:
+      replace: Vec<LocalObjectReference>
+    matchAnyName:
+      - exact:
+    matchSchema:
+      exhaustive:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+
+  - matchSuccess:
+      replace: Vec<EnvVar>
+    matchName:
+      - exact: env
+    matchSchema:
+      subset:
+        type: array
+        items:
+          type: object
+          properties:
+            name:
+              type: string
+            value:
+              type: string
+            valueFrom:
+              type: object
+
+  - matchSuccess:
+      replace: Vec<VolumeMount>
+    matchName:
+      - exact: volumeMounts
+    matchSchema:
+      subset:
+        type: array
+        items:
+          type: object
+          properties:
+            mountPath:
+              type: string
+            mountPropagation:
+              type: string
+            name:
+              type: string
+            readOnly:
+              type: boolean
+            recursiveReadOnly:
+              type: string
+            subPath:
+              type: string
+            subPathExpr:
+              type: string
+
+  - matchSuccess:
+      replace: Vec<Toleration>
+    matchName:
+      - exact: tolerations
+    matchSchema:
+      exhaustive:
+        type: array
+        items:
+          type: object
+          properties:
+            effect:
+              type: string
+            key:
+              type: string
+            operator:
+              type: string
+            tolerationSeconds:
+              type: integer
+            value:
+              type: string
+
+  - matchSuccess:
+      replace: TopologySpreadConstraint
+    matchName:
+      - exact: topologySpreadConstraints
+    matchSchema:
+      exhaustive:
+        type: array
+        items:
+          type: object
+          properties:
+            labelSelector:
+              type: object
+              properties:
+                matchExpressions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      key:
+                        type: string
+                      operator:
+                        type: string
+                      values:
+                        type: array
+                        items:
+                          type: string
+                matchLabels:
+                  additionalProperties:
+                    type: string
+                  type: object
+            matchLabelKeys:
+              type: array
+              items:
+                type: string
+            maxSkew:
+              type: integer
+            minDomains:
+              type: integer
+            nodeAffinityPolicy:
+              type: string
+            nodeTaintsPolicy:
+              type: string
+            topologyKey:
+              type: string
+            whenUnsatisfiable:
+              type: string

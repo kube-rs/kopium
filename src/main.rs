@@ -1,13 +1,14 @@
-use std::{path::PathBuf, str::FromStr};
 #[macro_use] extern crate log;
+
 use anyhow::{anyhow, Context, Result};
 use clap::{CommandFactory, Parser, Subcommand};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     CustomResourceDefinition, CustomResourceDefinitionVersion,
 };
-use kopium::{analyze, format_docstr, Config, Container, Derive, MapType};
+use kopium::{analyze, format_docstr, Config, Container, Derive, MapType, Overrides};
 use kube::{api, core::Version, Api, Client, ResourceExt};
 use quote::format_ident;
+use std::{path::PathBuf, str::FromStr};
 
 #[derive(Parser)]
 #[command(
@@ -134,6 +135,12 @@ struct Kopium {
     /// This option only has an effect if `--derive Default` is set.
     #[arg(long)]
     smart_derive_elision: bool,
+
+    /// Parse these YAML configuration files containing rules for overriding code analysis and generation behavior.
+    ///
+    /// See: https://github.com/kube-rs/kopium/blob/main/overrides.example.yaml
+    #[arg(long, value_hint = clap::ValueHint::FilePath)]
+    overrides: Vec<PathBuf>,
 }
 
 #[derive(Clone, Copy, Debug, Subcommand)]
@@ -234,12 +241,19 @@ impl Kopium {
         let Some(schema) = data else {
             anyhow::bail!("no schema found for crd");
         };
-        log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
+        debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
+        let overrides = if !self.overrides.is_empty() {
+            Some(Overrides::from_paths(self.overrides.iter())?)
+        } else {
+            None
+        };
+        trace!("overrides: {overrides:#?}");
         let cfg = Config {
             no_condition: self.no_condition,
             no_object_reference: self.no_object_reference,
             map: self.map_type,
             relaxed: self.relaxed,
+            overrides,
         };
         let structs = analyze(schema, kind, cfg)?
             .rename()
