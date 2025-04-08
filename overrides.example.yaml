@@ -15,28 +15,33 @@ propertyRules:
     # Instead of replacing the property with an existing type, it can also be ignored using:
     # matchSuccess: omit
 
-    # 1. Name-directed matching.
+    # Step 1: name-directed matching.
     #
-    # The first step of determining if a rule applies to a given CRD property, is to attempt
+    # This is the first step of determining if a rule applies to a given CRD property. It tries
     # to match the property's name against zero or more exact strings or regular expressions.
+    #
+    # Any `matchName` expressions are evaluated prior to `matchSchema` expressions.
     matchName:
       # An exact match checks the property name matches exactly.
       - exact: resources
       # This is the equivalent regular expression to `exact` match, above.
       #
-      # You should prefer to use precise `exact` matches if possible, as they are performed using
-      # `O(1)` `HashMap::get(name)`. In constrast; the property name must be tested against _every_
-      # `regex` defined in the overrides, via a `O(n)` linear scan per property, if no `exact`
+      # You should prefer to use precise `exact` matches if possible, as they can be optimized to use
+      # `O(1)` lookups via `HashMap::get(name)`. With `regex` matches however, the property name must
+      # be tested against _every_ `regex` requiring an `O(n)` linear scan per property, if no `exact`
       # matches were found.
       #
       # Regular expression syntax is that of the <https://docs.rs/regex> crate.
       - regex: ^resources$
 
-    # 2. Type-directed matching.
+    # Step 2: type-directed matching.
     #
-    # If one of the `matchName` expressions succeeded in matching the property name, or no
-    # expressions were specified, then the property's `JSONSchemaProps` value will be tested against
-    # the partially specified schema defined in `matchSchema`.
+    # This is the second step of determining if a rule applies to a given CRD property. It tries
+    # to match the property's schema against a partial specification.
+    #
+    # If one of the `matchName` expressions succeeded in matching the property name, or no `matchName`
+    # expressions were specified, the property's `JSONSchemaProps` value will be tested against the
+    # schema defined in `matchSchema`.
     #
     # The full `JSONSchemaProps` format is supported. It's the same as what you see within a CRD YAML,
     # and can be copy-pasted directly from CRD properties. However, only a certain subset of
@@ -281,7 +286,7 @@ propertyRules:
   - matchSuccess:
       replace: Vec<LocalObjectReference>
     matchAnyName:
-      - exact:
+      - exact: imagePullSecrets
     matchSchema:
       exhaustive:
         type: array

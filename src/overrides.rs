@@ -111,12 +111,15 @@ impl Overrides {
                         errors.push(error);
                     })
                     .ok()?;
+                // For each `name` in exact matches, a clone of the rule is stored in the
+                // `property_index` `HashMap`, hence all compiled rules are wrapped in `Rc`.
+                let rule = Rc::new(rule);
                 let has_exact_matches = !exact_matches.is_empty();
                 for name in exact_matches {
                     property_index
                         .entry(name)
-                        .and_modify(|rules: &mut Vec<Rc<CompiledPropertyRule>>| rules.push(rule.clone()))
-                        .or_insert(vec![rule.clone(); 1]);
+                        .and_modify(|rules: &mut Vec<Rc<CompiledPropertyRule>>| rules.push(Rc::clone(&rule)))
+                        .or_insert(vec![Rc::clone(&rule); 1]);
                 }
 
                 // Don't yield the rule for the linear scan if it has an exact match and _no_ regex matches,
@@ -244,7 +247,7 @@ impl PropertyRule {
     /// Compile any regular expressions contained in the property rule, returning a set of exact
     /// matches that were not compiled into the resulting regular expression set, so they can be
     /// optimized elsewhere.
-    fn compile(self) -> Result<(Rc<CompiledPropertyRule>, HashSet<String>), regex::Error> {
+    fn compile(self) -> Result<(CompiledPropertyRule, HashSet<String>), regex::Error> {
         let mut exact_matches = HashSet::new();
         let regex_matches = self.match_name.into_iter().filter_map(|name| match name {
             PropertyName::Regex(regex) => Some(regex),
@@ -255,11 +258,11 @@ impl PropertyRule {
         });
 
         Ok((
-            Rc::new(PropertyRule {
+            PropertyRule {
                 match_name: PropertyRegexSet::new(regex_matches)?,
                 match_schema: self.match_schema,
                 match_success: self.match_success,
-            }),
+            },
             exact_matches,
         ))
     }
