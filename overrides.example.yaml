@@ -73,8 +73,8 @@ propertyRules:
     # The `subset` operation can be thought of as a pattern match similar to Rust's `match` statement,
     # with any unspecified structure treated as the wildcard `..` (ie. success).
     #
-    # For `matchSchema.exhaustive`, matching requires an exact schema match similar to Rust's PartialEq,
-    # although like `subset` and unlike PartialEq, not all fields are not considered for comparison.
+    # For `matchSchema.exhaustive`, matching requires an exact schema match, with no additional unknown
+    # fields upstream.
     #
     # Here, the JSONSchema for `core::v1::ResourceRequirements` has been copy-pasted, with the
     # documentation items removed, as an example.
