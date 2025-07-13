@@ -46,6 +46,7 @@ curl -sSL https://raw.githubusercontent.com/prometheus-operator/prometheus-opera
     | kopium -Af - > prometheusrule.rs
 ```
 
+
 ## Output
 
 ```rust
@@ -95,8 +96,7 @@ pub struct PrometheusRuleGroupsRules {
 
 ## Usage with kube
 
-Simply add the generated file (e.g. output from above in `prometheusrule.rs`) to your library, and import (at least) the special root type:
-
+Add the generated file (e.g. output from above in `prometheusrule.rs`) to your library, and import (at least) the special root type:
 
 ```rust
 use prometheusrule::PrometheusRule;
@@ -111,6 +111,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     Ok(())
 }
+```
+
+Note that you will need to depend on `kube`, along with `k8s-openapi` and `schemars` at **semver compatible versions** with the latest kube release (which can be seen in the [last release cargo.toml for kube](https://docs.rs/crate/kube/latest/source/Cargo.toml)). E.g. with `kube` 1:
+
+```toml
+kube = { version = "1" }
+schemars = { version = "0.8" }
+k8s-openapi = { version = "0.25", features = ["latest"] }
 ```
 
 ## Autocomplete
