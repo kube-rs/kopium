@@ -18,6 +18,7 @@ updates:
         patterns:
           - kube
           - k8s-openapi
+          - schemars
       core:
         patterns:
           - serde
@@ -35,7 +36,6 @@ updates:
           - clap
           - clap-*
           - clap_*
-          - schemars
       rest:
         patterns:
           - .*
