@@ -116,9 +116,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 Note that you will need to depend on `kube`, along with `k8s-openapi` and `schemars` at **semver compatible versions** with the latest kube release (which can be seen in the [last release cargo.toml for kube](https://docs.rs/crate/kube/latest/source/Cargo.toml)). E.g. with `kube` 1:
 
 ```toml
-kube = { version = "1" }
+kube = { version = "1", features = ["derive"] }
 schemars = { version = "0.8" }
-k8s-openapi = { version = "0.25", features = ["latest"] }
+k8s-openapi = { version = "0.25", features = ["latest", "schemars"] }
 ```
 
 ## Autocomplete
