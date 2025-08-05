@@ -11,6 +11,7 @@ readme = "./README.md"
 repository = "https://github.com/kube-rs/kopium"
 keywords = ["kubernetes", "openapi"]
 categories = ["command-line-utilities", "parsing"]
+default-run = "kopium"
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/{ version }/kopium-{ target }{ archive-suffix }"
@@ -19,11 +20,14 @@ bin-dir = "kopium-{ target }/{ bin }{ format }"
 [[bin]]
 doc = false
 name = "kopium"
-path = "src/main.rs"
+path = "src/bin/kopium.rs"
 
 [lib]
 name = "kopium"
 path = "src/lib.rs"
+
+[lints.clippy]
+uninlined_format_args = "allow"
 
 [dependencies]
 tokio = { version = "1.46.1", features = ["full"] }

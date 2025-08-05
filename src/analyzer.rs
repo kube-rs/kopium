@@ -1,11 +1,13 @@
 //! Deals entirely with schema analysis for the purpose of creating output structs + members
-use crate::{Container, MapType, Member, Output};
+use std::collections::{BTreeMap, HashMap};
+
 use anyhow::{bail, Result};
 use heck::ToUpperCamelCase;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     JSONSchemaProps, JSONSchemaPropsOrArray, JSONSchemaPropsOrBool, JSON,
 };
-use std::collections::{BTreeMap, HashMap};
+
+use crate::{Container, MapType, Member, Output};
 
 const IGNORED_KEYS: [&str; 3] = ["metadata", "apiVersion", "kind"];
 
@@ -429,8 +431,10 @@ fn array_recurse_for_type(
                 if s.type_.is_none() && s.x_kubernetes_preserve_unknown_fields == Some(true) {
                     return Ok(("Vec<serde_json::Value>".to_string(), level));
                 }
+
                 let inner_array_type = s.type_.clone().unwrap_or_default();
-                return match inner_array_type.as_ref() {
+
+                match inner_array_type.as_ref() {
                     "object" => {
                         // Same logic as in `extract_container` to simplify types to maps.
                         let mut dict_value = None;
@@ -467,7 +471,7 @@ fn array_recurse_for_type(
                     unknown => {
                         bail!("unsupported recursive array type \"{unknown}\" for {key}")
                     }
-                };
+                }
             }
             // maybe fallback to serde_json::Value
             _ => bail!("only support single schema in array {}", key),
@@ -580,10 +584,11 @@ fn extract_integer_type(value: &JSONSchemaProps) -> Result<String> {
 // unit tests particular schema patterns
 #[cfg(test)]
 mod test {
-    use super::{analyze, Config as Cfg};
+    use std::sync::Once;
+
     use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::JSONSchemaProps;
 
-    use std::sync::Once;
+    use super::{analyze, Config as Cfg};
 
     static START: Once = Once::new();
     fn init() {
