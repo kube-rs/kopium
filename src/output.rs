@@ -22,7 +22,7 @@ pub struct Container {
     pub supports_derive_default: OnceCell<bool>,
 }
 
-/// Output member belonging to an Container
+/// Output member belonging to a [`Container`]
 #[derive(Default, Debug)]
 pub struct Member {
     /// The raw, unsanitized name of the member
@@ -106,7 +106,7 @@ impl Container {
         }
 
         for m in &self.members {
-            // If the type contains a <, it's a container type. All kopium containers (Map, Vec, Option) has impl Default.
+            // If the type contains a <, it's a container type. All kopium containers (Map, Vec, Option) have `impl Default`.
             // If the first character is lowercase, assume it's a built-in type and skip the check.
             if !m.type_.contains('<')
                 && m.type_ != "String"
@@ -165,7 +165,7 @@ impl Container {
             };
             // The new, Rust correct name MIGHT clash with existing names in degenerate cases
             // such as those in https://github.com/kube-rs/kopium/issues/165
-            // so if duplicates are seen, we suffix an "X" to disamgiguate (repeatedly if needed)
+            // so if duplicates are seen, we suffix an "X" to disambiguate (repeatedly if needed)
             while seen.contains(&new_name) {
                 let disambiguation_suffix = if self.is_enum { "X" } else { "_x" };
                 new_name = format!("{new_name}{disambiguation_suffix}"); // force disambiguate
@@ -212,12 +212,12 @@ impl Container {
 }
 
 impl Output {
-    /// Rename all structs and all all their members to rust conventions
+    /// Rename all structs and all their members to rust conventions
     ///
     /// Converts [*].members[*].name to snake_case for structs, PascalCase for enums,
     /// and adds a serde(rename = "orig_name") annotation to `serde_annot`.
     ///
-    /// It is unsound to skip this step. Some CRDs use kebab-cased members is invalid in Rust.
+    /// It is unsound to skip this step. Some CRDs use kebab-cased members and so are invalid in Rust.
     pub fn rename(mut self) -> Self {
         for c in &mut self.0 {
             c.rename();
@@ -247,11 +247,28 @@ pub enum MapType {
     BTreeMap,
     HashMap,
 }
+
 impl MapType {
     pub fn name(&self) -> &str {
         match self {
             Self::BTreeMap => "BTreeMap",
             Self::HashMap => "HashMap",
+        }
+    }
+}
+
+impl<T: AsRef<str>> From<T> for MapType {
+    fn from(value: T) -> Self {
+        let value = value.as_ref();
+
+        if value.eq_ignore_ascii_case("HashMap") {
+            Self::HashMap
+        } else {
+            if !value.eq_ignore_ascii_case("BTreeMap") {
+                log::warn!("unknown map type '{}', defaulting to BTreeMap", value);
+            }
+
+            Self::BTreeMap
         }
     }
 }
