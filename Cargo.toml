@@ -1,9 +1,11 @@
 [package]
 name = "kopium"
 description = "kubernetes openapi unmangler"
-version = "0.21.2"
+version = "0.21.3"
 edition = "2021"
-authors = ["clux <sszynrae@gmail.com>"]
+authors = [
+    "clux <sszynrae@gmail.com>",
+]
 license = "Apache-2.0"
 readme = "./README.md"
 repository = "https://github.com/kube-rs/kopium"
@@ -28,23 +30,23 @@ path = "src/lib.rs"
 uninlined_format_args = "allow"
 
 [dependencies]
-anyhow = "1.0.98"
+anyhow = "1.0.99"
 clap = { version = "4.5", features = ["cargo", "derive"] }
 clap_complete = "4.5"
 env_logger = "0.11.6"
 heck = "0.5.0"
 k8s-openapi = { version = "0.25.0", features = ["latest"] }
 kube = { version = "1.1.0", features = ["derive"] }
-libc = "0.2.174"
+libc = "0.2.175"
 log = "0.4.27"
 quote = "1.0.40"
 regex = "1.11.1"
 serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.140"
+serde_json = "1.0.142"
 serde_yaml = "0.9.34"
 syn = "2.0"
-tokio = { version = "1.46.1", features = ["full"] }
-typed-builder = "0.21.0"
+tokio = { version = "1.47.1", features = ["full"] }
+typed-builder = "0.21.1"
 
 [dev-dependencies]
 k8s-openapi = { version = "0.25.0", features = ["latest", "schemars"] }

@@ -282,12 +282,16 @@ pub fn format_docstr(indent: &str, input: &str) -> String {
             .unwrap()
     });
     let cleaned_input = re.replace_all(input, "```text\n$1\n```");
-    // TODO: maybe logic to split doc strings by sentence / length here
+
+    // Convert bare URLs to automatic links
+    static RE_URL: OnceLock<Regex> = OnceLock::new();
+    let re_url = RE_URL.get_or_init(|| Regex::new(r"(https?://\S+)").unwrap());
+    let linked_input = re_url.replace_all(&cleaned_input, "<$1>");
 
     format!(
         "{}/// {}",
         indent,
-        cleaned_input.replace('\n', &format!("\n{}/// ", indent))
+        linked_input.replace('\n', &format!("\n{}/// ", indent))
     )
 }
 
@@ -488,6 +492,22 @@ mod test {
         assert_eq!(
             "/// Some docs\n/// ```text\n/// foobar\n/// ```\n/// Some more docs\n/// ```text\n/// foobar.more\n/// ```",
             format_docstr("", "Some docs\n```\nfoobar\n```\nSome more docs\n```\nfoobar.more\n```")
+        );
+    }
+
+    #[test]
+    fn converts_urls_to_links() {
+        assert_eq!(
+            "/// Some docs\n/// <https://kube-rs.io/kopium>\n/// ",
+            format_docstr("", "Some docs\nhttps://kube-rs.io/kopium\n")
+        );
+        assert_eq!(
+            "/// Some docs\n/// ```text\n/// <https://kube-rs.io/kopium>\n/// ```\n/// ",
+            format_docstr("", "Some docs\n```\nhttps://kube-rs.io/kopium\n```\n")
+        );
+        assert_eq!(
+            "/// Some docs\n/// ```text\n/// <https://kube-rs.io/kopium> testing string, not url\n/// ```\n/// ",
+            format_docstr("", "Some docs\n```\nhttps://kube-rs.io/kopium testing string, not url\n```\n")
         );
     }
 }
