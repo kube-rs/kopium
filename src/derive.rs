@@ -1,5 +1,6 @@
-use anyhow::anyhow;
 use std::str::FromStr;
+
+use anyhow::anyhow;
 
 use crate::Container;
 
@@ -72,7 +73,7 @@ impl Derive {
 impl FromStr for Derive {
     type Err = anyhow::Error;
 
-    fn from_str(value: &str) -> std::prelude::v1::Result<Self, Self::Err> {
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
         if let Some((target, derived_trait)) = value.split_once('=') {
             if target.is_empty() {
                 return Err(anyhow!("derive target cannot be empty in '{value}'"));
