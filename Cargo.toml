@@ -39,7 +39,7 @@ serde_yaml = "0.9.34"
 heck = "0.5.0"
 syn = "2.0.106"
 libc = "0.2.175"
-regex = "1.11.1"
+regex = "1.11.2"
 
 [dependencies.k8s-openapi]
 version = "0.25.0"
