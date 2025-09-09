@@ -464,10 +464,17 @@ fn array_recurse_for_type(
                             bail!("Empty inner array in: {} key: {}", stack, key);
                         }
                     }
+                    "" => {
+                        if s.x_kubernetes_int_or_string.is_some() {
+                            Ok(("Vec<IntOrString>".into(), level))
+                        } else {
+                            bail!("unknown empty array type for {}", key)
+                        }
+                    }
                     unknown => {
                         bail!("unsupported recursive array type \"{unknown}\" for {key}")
                     }
-                };
+                }
             }
             // maybe fallback to serde_json::Value
             _ => bail!("only support single schema in array {}", key),
@@ -1173,6 +1180,30 @@ type: object
         assert!(!root.is_enum);
         assert_eq!(&root.members[0].name, "patchesStrategicMerge");
         assert_eq!(&root.members[0].type_, "Option<Vec<serde_json::Value>>");
+    }
+
+    #[test]
+    fn array_of_int_or_strings() {
+        init();
+        let schema_str = r#"
+        properties:
+          targetPorts:
+            description: Numbers or names of the port to access on the pods targeted by the service.
+            items:
+              x-kubernetes-int-or-string: true
+            type: array
+        type: object
+        "#;
+
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        let structs = analyze(schema, "Schema", Cfg::default()).unwrap().0;
+        println!("got {:?}", structs);
+        let root = &structs[0];
+        assert_eq!(root.name, "Schema");
+        assert_eq!(root.level, 0);
+        assert!(!root.is_enum);
+        assert_eq!(&root.members[0].name, "targetPorts");
+        assert_eq!(&root.members[0].type_, "Option<Vec<IntOrString>>");
     }
 
     #[test]
