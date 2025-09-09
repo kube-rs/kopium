@@ -248,7 +248,7 @@ fn extract_container(
             "object" => {
                 let mut dict_key = None;
                 if let Some(additional) = &value.additional_properties {
-                    dict_key = resolve_additional_properties(additional, stack, key, value)?;
+                    dict_key = resolve_additional_properties(additional, stack, key)?;
                 } else if value.properties.is_none()
                     && value.x_kubernetes_preserve_unknown_fields.unwrap_or(false)
                 {
@@ -347,7 +347,6 @@ fn resolve_additional_properties(
     additional: &JSONSchemaPropsOrBool,
     stack: &str,
     key: &str,
-    value: &JSONSchemaProps,
 ) -> Result<Option<String>, anyhow::Error> {
     debug!("got additional: {}", serde_json::to_string(&additional)?);
     let JSONSchemaPropsOrBool::Schema(s) = additional else {
@@ -362,36 +361,7 @@ fn resolve_additional_properties(
         // We are not 100% sure the array and object subcases here are correct but they pass tests atm.
         // authoratative, but more detailed sources than crd validation docs below are welcome
         // https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation
-        "array" => {
-            let mut simple_inner = None;
-            if let Some(JSONSchemaPropsOrArray::Schema(ix)) = &s.items {
-                simple_inner = ix.type_.clone();
-                debug!("additional simple inner  type: {:?}", simple_inner);
-            }
-            // Simple case: additionalProperties contain: {items: {type: K}}
-            // Then it's a simple map (service_monitor_params) - but key is useless
-            match simple_inner.as_deref() {
-                Some("string") => Some("String".into()),
-                Some("integer") => Some(extract_integer_type(s)?),
-                Some("date") => Some(extract_date_type(value)?),
-                Some("") => {
-                    if s.x_kubernetes_int_or_string.is_some() {
-                        Some("IntOrString".into())
-                    } else {
-                        bail!("unknown inner empty dict type for {}", key)
-                    }
-                }
-                // can probably cover the regulars here as well
-
-                // Harder case: inline structs under items (agent test with `validationInfo`)
-                // key becomes the struct
-                Some("object") => Some(format!("{}{}", stack, key.to_upper_camel_case())),
-                None => Some(format!("{}{}", stack, key.to_upper_camel_case())),
-
-                // leftovers, array of arrays?... need a better way to recurse probably
-                Some(x) => bail!("unknown inner empty dict type {} for {}", x, key),
-            }
-        }
+        "array" => Some(array_recurse_for_type(s, stack, key, 1, &Config::default())?.0),
         "object" => {
             // cluster test with `failureDomains` uses this spec format
             Some(format!("{}{}", stack, key.to_upper_camel_case()))
@@ -430,12 +400,12 @@ fn array_recurse_for_type(
                     return Ok(("Vec<serde_json::Value>".to_string(), level));
                 }
                 let inner_array_type = s.type_.clone().unwrap_or_default();
-                return match inner_array_type.as_ref() {
+                match inner_array_type.as_ref() {
                     "object" => {
                         // Same logic as in `extract_container` to simplify types to maps.
                         let mut dict_value = None;
                         if let Some(additional) = &s.additional_properties {
-                            dict_value = resolve_additional_properties(additional, stack, key, s)?;
+                            dict_value = resolve_additional_properties(additional, stack, key)?;
                         }
 
                         let vec_value = if let Some(dict_value) = dict_value {
@@ -464,10 +434,17 @@ fn array_recurse_for_type(
                             bail!("Empty inner array in: {} key: {}", stack, key);
                         }
                     }
+                    "" => {
+                        if s.x_kubernetes_int_or_string.is_some() {
+                            Ok(("Vec<IntOrString>".into(), level))
+                        } else {
+                            bail!("unknown empty array type for {}", key)
+                        }
+                    }
                     unknown => {
                         bail!("unsupported recursive array type \"{unknown}\" for {key}")
                     }
-                };
+                }
             }
             // maybe fallback to serde_json::Value
             _ => bail!("only support single schema in array {}", key),
@@ -634,7 +611,7 @@ mod test {
         // should have a member with a key to the map:
         let map = &root.members[0];
         assert_eq!(map.name, "validationsInfo");
-        assert_eq!(map.type_, "Option<BTreeMap<String, AgentValidationsInfo>>");
+        assert_eq!(map.type_, "Option<BTreeMap<String, Vec<AgentValidationsInfo>>>");
         // should have a separate struct
         let other = &structs[1];
         assert_eq!(other.name, "AgentValidationsInfo");
@@ -1059,7 +1036,7 @@ type: object
         // should have an params member:
         let member = &eps.members[0];
         assert_eq!(member.name, "params");
-        assert_eq!(member.type_, "Option<BTreeMap<String, String>>");
+        assert_eq!(member.type_, "Option<BTreeMap<String, Vec<String>>>");
     }
 
     #[test]
@@ -1173,6 +1150,30 @@ type: object
         assert!(!root.is_enum);
         assert_eq!(&root.members[0].name, "patchesStrategicMerge");
         assert_eq!(&root.members[0].type_, "Option<Vec<serde_json::Value>>");
+    }
+
+    #[test]
+    fn array_of_int_or_strings() {
+        init();
+        let schema_str = r#"
+        properties:
+          targetPorts:
+            description: Numbers or names of the port to access on the pods targeted by the service.
+            items:
+              x-kubernetes-int-or-string: true
+            type: array
+        type: object
+        "#;
+
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        let structs = analyze(schema, "Schema", Cfg::default()).unwrap().0;
+        println!("got {:?}", structs);
+        let root = &structs[0];
+        assert_eq!(root.name, "Schema");
+        assert_eq!(root.level, 0);
+        assert!(!root.is_enum);
+        assert_eq!(&root.members[0].name, "targetPorts");
+        assert_eq!(&root.members[0].type_, "Option<Vec<IntOrString>>");
     }
 
     #[test]
