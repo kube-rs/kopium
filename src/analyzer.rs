@@ -347,6 +347,7 @@ fn resolve_additional_properties(
     additional: &JSONSchemaPropsOrBool,
     stack: &str,
     key: &str,
+    cfg: &Config,
 ) -> Result<Option<String>, anyhow::Error> {
     debug!("got additional: {}", serde_json::to_string(&additional)?);
     let JSONSchemaPropsOrBool::Schema(s) = additional else {
@@ -361,7 +362,7 @@ fn resolve_additional_properties(
         // We are not 100% sure the array and object subcases here are correct but they pass tests atm.
         // authoratative, but more detailed sources than crd validation docs below are welcome
         // https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation
-        "array" => Some(array_recurse_for_type(s, stack, key, 1, &Config::default())?.0),
+        "array" => Some(array_recurse_for_type(s, stack, key, 1, cfg)?.0),
         "object" => {
             // cluster test with `failureDomains` uses this spec format
             Some(format!("{}{}", stack, key.to_upper_camel_case()))
@@ -405,7 +406,7 @@ fn array_recurse_for_type(
                         // Same logic as in `extract_container` to simplify types to maps.
                         let mut dict_value = None;
                         if let Some(additional) = &s.additional_properties {
-                            dict_value = resolve_additional_properties(additional, stack, key)?;
+                            dict_value = resolve_additional_properties(additional, stack, key, cfg)?;
                         }
 
                         let vec_value = if let Some(dict_value) = dict_value {
