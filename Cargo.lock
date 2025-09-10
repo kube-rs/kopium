@@ -662,7 +662,7 @@ dependencies = [
 
 [[package]]
 name = "kopium"
-version = "0.22.0"
+version = "0.22.1"
 dependencies = [
  "anyhow",
  "clap",
