@@ -245,23 +245,7 @@ fn extract_container(
     for (key, value) in props {
         let value_type = value.type_.clone().unwrap_or_default();
         let rust_type = match value_type.as_ref() {
-            "object" => {
-                let mut dict_key = None;
-                if let Some(additional) = &value.additional_properties {
-                    dict_key = resolve_additional_properties(additional, stack, key)?;
-                } else if value.properties.is_none()
-                    && value.x_kubernetes_preserve_unknown_fields.unwrap_or(false)
-                {
-                    dict_key = Some("serde_json::Value".into());
-                }
-                if let Some(dict) = dict_key {
-                    format!("{}<String, {}>", cfg.map.name(), dict)
-                } else if !cfg.no_object_reference && is_object_ref(value) {
-                    "ObjectReference".into()
-                } else {
-                    format!("{}{}", stack, key.to_upper_camel_case())
-                }
-            }
+            "object" => extract_object_type(value, stack, key, cfg)?,
             "string" => {
                 if let Some(_en) = &value.enum_ {
                     trace!("got enum string: {}", serde_json::to_string(&schema).unwrap());
@@ -347,6 +331,7 @@ fn resolve_additional_properties(
     additional: &JSONSchemaPropsOrBool,
     stack: &str,
     key: &str,
+    cfg: &Config,
 ) -> Result<Option<String>, anyhow::Error> {
     debug!("got additional: {}", serde_json::to_string(&additional)?);
     let JSONSchemaPropsOrBool::Schema(s) = additional else {
@@ -361,11 +346,8 @@ fn resolve_additional_properties(
         // We are not 100% sure the array and object subcases here are correct but they pass tests atm.
         // authoratative, but more detailed sources than crd validation docs below are welcome
         // https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation
-        "array" => Some(array_recurse_for_type(s, stack, key, 1, &Config::default())?.0),
-        "object" => {
-            // cluster test with `failureDomains` uses this spec format
-            Some(format!("{}{}", stack, key.to_upper_camel_case()))
-        }
+        "array" => Some(array_recurse_for_type(s, stack, key, 1, cfg)?.0),
+        "object" => Some(extract_object_type(s, stack, key, cfg)?),
         "" => {
             if s.x_kubernetes_int_or_string.is_some() {
                 Some("IntOrString".into())
@@ -402,19 +384,7 @@ fn array_recurse_for_type(
                 let inner_array_type = s.type_.clone().unwrap_or_default();
                 match inner_array_type.as_ref() {
                     "object" => {
-                        // Same logic as in `extract_container` to simplify types to maps.
-                        let mut dict_value = None;
-                        if let Some(additional) = &s.additional_properties {
-                            dict_value = resolve_additional_properties(additional, stack, key)?;
-                        }
-
-                        let vec_value = if let Some(dict_value) = dict_value {
-                            let map_type = cfg.map.name();
-                            format!("{map_type}<String, {dict_value}>")
-                        } else {
-                            let structsuffix = key.to_upper_camel_case();
-                            format!("{stack}{structsuffix}")
-                        };
+                        let vec_value = extract_object_type(s, stack, key, cfg)?;
 
                         Ok((format!("Vec<{}>", vec_value), level))
                     }
@@ -500,6 +470,27 @@ fn is_object_ref(value: &JSONSchemaProps) -> bool {
         }
     }
     false
+}
+
+fn extract_object_type(
+    value: &JSONSchemaProps,
+    stack: &str,
+    key: &str,
+    cfg: &Config,
+) -> Result<String, anyhow::Error> {
+    let mut dict_key = None;
+    if let Some(additional) = &value.additional_properties {
+        dict_key = resolve_additional_properties(additional, stack, key, cfg)?;
+    } else if value.properties.is_none() && value.x_kubernetes_preserve_unknown_fields.unwrap_or(false) {
+        dict_key = Some("serde_json::Value".into());
+    }
+    Ok(if let Some(dict) = dict_key {
+        format!("{}<String, {}>", cfg.map.name(), dict)
+    } else if !cfg.no_object_reference && is_object_ref(value) {
+        "ObjectReference".into()
+    } else {
+        format!("{}{}", stack, key.to_upper_camel_case())
+    })
 }
 
 fn extract_date_type(value: &JSONSchemaProps) -> Result<String> {
@@ -622,6 +613,40 @@ mod test {
         assert_eq!(other.members[1].type_, "String");
         assert_eq!(other.members[2].name, "status");
         assert_eq!(other.members[2].type_, "String");
+    }
+
+    #[test]
+    fn map_of_map() {
+        init();
+        // as found in cnpg-cluster
+        let schema_str = r#"
+        description: Instances topology.
+        properties:
+          instances:
+            additionalProperties:
+              additionalProperties:
+                type: string
+              description: PodTopologyLabels represent the topology of a Pod.
+                map[labelName]labelValue
+              type: object
+            description: Instances contains the pod topology of the instances
+            type: object
+        type: object
+"#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        //println!("schema: {}", serde_json::to_string_pretty(&schema).unwrap());
+
+        let structs = analyze(schema, "ClusterStatusTopology", Cfg::default())
+            .unwrap()
+            .0;
+        //println!("{:?}", structs);
+        let root = &structs[0];
+        assert_eq!(root.name, "ClusterStatusTopology");
+        assert_eq!(root.level, 0);
+        // should have a member with a key to the map:
+        let map = &root.members[0];
+        assert_eq!(map.name, "instances");
+        assert_eq!(map.type_, "Option<BTreeMap<String, BTreeMap<String, String>>>");
     }
 
     #[test]
