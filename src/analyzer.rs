@@ -404,7 +404,10 @@ fn array_recurse_for_type(
                     "integer" => Ok((format!("Vec<{}>", extract_integer_type(value)?), level)),
                     "array" => {
                         if s.items.is_some() {
-                            Ok(array_recurse_for_type(s, stack, key, level + 1, cfg)?)
+                            let (array_type, recurse_level) =
+                                array_recurse_for_type(s, stack, key, level + 1, cfg)?;
+
+                            Ok((format!("Vec<{}>", array_type), recurse_level))
                         } else if cfg.relaxed {
                             warn!("Empty inner array in: {} key: {}", stack, key);
                             let map_type = cfg.map.name();
@@ -1502,5 +1505,34 @@ type: object
             "Option<BTreeMap<String, BTreeMap<String, CephClusterSpecCephConfigFromSecret>>>"
         );
         assert_eq!(structs[1].name, "CephClusterSpecCephConfigFromSecret");
+    }
+
+    #[test]
+    fn array_of_array() {
+        init();
+        let schema_str = r#"
+      properties:
+        mounts:
+          description: mounts specifies a list of mount points to be setup.
+          items:
+            description: MountPoints defines input for generated mounts in cloud-init.
+            items:
+              type: string
+            type: array
+          type: array
+      type: object
+      "#;
+
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+
+        let structs = analyze(schema, "KubeadmConfig", Cfg::default()).unwrap().0;
+
+        let root = &structs[0];
+        assert_eq!(root.name, "KubeadmConfig");
+        assert_eq!(root.level, 0);
+
+        let map = &root.members[0];
+        assert_eq!(map.name, "mounts");
+        assert_eq!(map.type_, "Option<Vec<Vec<String>>>");
     }
 }
