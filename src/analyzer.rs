@@ -22,7 +22,8 @@ pub struct Config {
 /// All found output structs will have its names prefixed by the kind it is for
 pub fn analyze(schema: JSONSchemaProps, kind: &str, cfg: Config) -> Result<Output> {
     let mut res = vec![];
-    analyze_(&schema, "", kind, 0, &mut res, &cfg)?;
+
+    analyze_(&schema, "", &kind.to_upper_camel_case(), 0, &mut res, &cfg)?;
     Ok(Output(res))
 }
 
@@ -1401,5 +1402,24 @@ type: object
 
         let structs = analyze(schema, "Reference", Cfg::default()).unwrap().0;
         assert_eq!(structs[0].members[0].type_, "Option<Vec<ObjectReference>>");
+    }
+
+    #[test]
+    fn lowercase_kind() {
+        init();
+
+        let schema_str = r#"
+        properties:
+          prop:
+            type: object
+        required:
+        - prop
+        type: object
+        "#;
+
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+
+        let structs = analyze(schema, "postgresql", Cfg::default()).unwrap().0;
+        assert_eq!(structs[0].members[0].type_, "PostgresqlProp");
     }
 }
