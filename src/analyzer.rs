@@ -58,6 +58,13 @@ fn analyze_(
                 debug!("Generating map struct for {} (under {})", current, stack);
                 let c = extract_container(extra_props, stack, &mut array_recurse_level, level, schema, cfg)?;
                 results.push(c);
+            } else if dict_type == "object" {
+                // recurse to see if we eventually find properties
+                debug!(
+                    "Recursing into nested additional properties for {} (under {})",
+                    current, stack
+                );
+                analyze_(s, current, stack, level, results, cfg)?;
             } else if !dict_type.is_empty() {
                 warn!("not generating type {} - using {} map", current, dict_type);
                 return Ok(()); // no members here - it'll be inlined
@@ -1421,5 +1428,52 @@ type: object
 
         let structs = analyze(schema, "postgresql", Cfg::default()).unwrap().0;
         assert_eq!(structs[0].members[0].type_, "PostgresqlProp");
+    }
+
+    #[test]
+    fn nested_additional_properties_object() {
+        init();
+
+        // as found in rook-cephcluster
+        let schema_str = r#"
+        properties:
+          cephConfigFromSecret:
+            additionalProperties:
+              additionalProperties:
+                description: "SecretKeySelector selects a key of a Secret."
+                properties:
+                  key:
+                    description: "The key of the secret to select from.  Must be a valid secret key."
+                    type: "string"
+                  name:
+                    default: ""
+                    description: "Name of the referent.\nThis field is effectively required, but due to backwards compatibility is\nallowed to be empty. Instances of this type with an empty value here are\nalmost certainly wrong.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names"
+                    type: "string"
+                  optional:
+                    description: "Specify whether the Secret or its key must be defined"
+                    type: "boolean"
+                required:
+                  - "key"
+                type: "object"
+                x-kubernetes-map-type: "atomic"
+              type: "object"
+            description: "CephConfigFromSecret works exactly like CephConfig but takes config value from Secret Key reference."
+            nullable: true
+            type: "object"
+        type: object
+        "#;
+
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+
+        let structs = analyze(schema, "CephClusterSpec", Cfg::default()).unwrap().0;
+
+        // debug!("got: {:#?}", structs);
+
+        assert_eq!(structs.len(), 2);
+        assert_eq!(
+            structs[0].members[0].type_,
+            "Option<BTreeMap<String, BTreeMap<String, CephClusterSpecCephConfigFromSecret>>>"
+        );
+        assert_eq!(structs[1].name, "CephClusterSpecCephConfigFromSecret");
     }
 }
