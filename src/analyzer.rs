@@ -366,6 +366,7 @@ fn resolve_additional_properties(
             }
         }
         "boolean" => Some("bool".to_string()),
+        "number" => Some(extract_number_type(s)?),
         "integer" => Some(extract_integer_type(s)?),
         // think the type we get is the value type
         x => Some(x.to_upper_camel_case()), // best guess
@@ -655,6 +656,32 @@ mod test {
         let map = &root.members[0];
         assert_eq!(map.name, "instances");
         assert_eq!(map.type_, "Option<BTreeMap<String, BTreeMap<String, String>>>");
+    }
+
+    #[test]
+    fn map_of_number() {
+        init();
+        // as found in aws-lambda-services-aliases
+        let schema_str = r#"
+        description: "The routing configuration (https://docs.aws.amazon.com/lambda/latest/dg/configuration-aliases.html#configuring-alias-routing)\nof the alias."
+        properties:
+          additionalVersionWeights:
+            additionalProperties:
+              type: "number"
+            type: "object"
+        type: "object"
+"#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+
+        let structs = analyze(schema, "AliasRoutingConfig", Cfg::default()).unwrap().0;
+        //println!("{:?}", structs);
+        let root = &structs[0];
+        assert_eq!(root.name, "AliasRoutingConfig");
+        assert_eq!(root.level, 0);
+        // should have a member with a key to the map:
+        let map = &root.members[0];
+        assert_eq!(map.name, "additionalVersionWeights");
+        assert_eq!(map.type_, "Option<BTreeMap<String, f64>>");
     }
 
     #[test]
