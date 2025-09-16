@@ -22,13 +22,8 @@ pub struct Config {
 /// All found output structs will have its names prefixed by the kind it is for
 pub fn analyze(schema: JSONSchemaProps, kind: &str, cfg: Config) -> Result<Output> {
     let mut res = vec![];
-    let upper_cased_kind: String = kind
-        .chars()
-        .take(1)
-        .flat_map(|c| c.to_uppercase())
-        .chain(kind.chars().skip(1))
-        .collect();
-    analyze_(&schema, "", &upper_cased_kind, 0, &mut res, &cfg)?;
+
+    analyze_(&schema, "", &kind.to_upper_camel_case(), 0, &mut res, &cfg)?;
     Ok(Output(res))
 }
 
@@ -1338,16 +1333,16 @@ type: object
         let structs = analyze(schema, "ArgoCDExport", Cfg::default()).unwrap().0;
 
         let root = &structs[0];
-        assert_eq!(root.name, "ArgoCDExport");
+        assert_eq!(root.name, "ArgoCdExport");
         assert_eq!(root.level, 0);
 
-        let other = &structs[1];
-        assert_eq!(other.name, "ArgoCDExportSpec");
-        assert_eq!(other.level, 1);
+        let spec = &structs[1];
+        assert_eq!(spec.name, "ArgoCdExportSpec");
+        assert_eq!(spec.level, 1);
 
-        let other = &structs[2];
-        assert_eq!(other.name, "ArgoCDExportStatus");
-        assert_eq!(other.level, 1);
+        let status = &structs[2];
+        assert_eq!(status.name, "ArgoCdExportStatus");
+        assert_eq!(status.level, 1);
     }
 
     #[test]
