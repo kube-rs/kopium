@@ -22,8 +22,12 @@ pub struct Config {
 /// All found output structs will have its names prefixed by the kind it is for
 pub fn analyze(schema: JSONSchemaProps, kind: &str, cfg: Config) -> Result<Output> {
     let mut res = vec![];
-
-    analyze_(&schema, "", &kind.to_upper_camel_case(), 0, &mut res, &cfg)?;
+    let upper_cased_kind: String = kind.chars()
+        .take(1)
+        .flat_map(|c| c.to_uppercase())
+        .chain(kind.chars().skip(1))
+        .collect();
+    analyze_(&schema, "", &upper_cased_kind, 0, &mut res, &cfg)?;
     Ok(Output(res))
 }
 
@@ -1314,6 +1318,34 @@ type: object
 
         let other = &structs[1];
         assert_eq!(other.name, "AgentValidationsInfo");
+        assert_eq!(other.level, 1);
+    }
+
+    #[test]
+    fn camel_case_of_kinds_with_consecutive_upper_case_letters() {
+        init();
+        let schema_str = r#"
+        properties:
+          spec:
+            type: object
+          status:
+            type: object
+        type: object
+"#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+
+        let structs = analyze(schema, "ArgoCDExport", Cfg::default()).unwrap().0;
+
+        let root = &structs[0];
+        assert_eq!(root.name, "ArgoCDExport");
+        assert_eq!(root.level, 0);
+
+        let other = &structs[1];
+        assert_eq!(other.name, "ArgoCDExportSpec");
+        assert_eq!(other.level, 1);
+
+        let other = &structs[2];
+        assert_eq!(other.name, "ArgoCDExportStatus");
         assert_eq!(other.level, 1);
     }
 
