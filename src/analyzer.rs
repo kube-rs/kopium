@@ -22,7 +22,8 @@ pub struct Config {
 /// All found output structs will have its names prefixed by the kind it is for
 pub fn analyze(schema: JSONSchemaProps, kind: &str, cfg: Config) -> Result<Output> {
     let mut res = vec![];
-    let upper_cased_kind: String = kind.chars()
+    let upper_cased_kind: String = kind
+        .chars()
         .take(1)
         .flat_map(|c| c.to_uppercase())
         .chain(kind.chars().skip(1))
