@@ -51,6 +51,7 @@ features = ["derive"]
 
 [dev-dependencies]
 schemars = "1.0.4"
+trycmd = { version = "0.15.10" }
 typed-builder = "0.21.2"
 
 [dev-dependencies.k8s-openapi]

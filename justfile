@@ -7,7 +7,7 @@ fmt:
 lint:
   cargo clippy
 
-test: test-pr test-sm test-mv test-argo test-agent test-certmanager test-cluster test-gateway-route test-linkerd-serverauth test-linkerd-server
+test: test-pr test-sm test-mv test-argo test-agent test-certmanager test-cluster test-gateway-route test-linkerd-serverauth test-linkerd-server test-trycmd-verify
 
 test-pr:
   kubectl apply --force-conflicts --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.52.0/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml
@@ -99,6 +99,12 @@ test-podmon:
   echo "pub type CR = PodMonitor;" >> tests/gen.rs
   kubectl apply -f tests/podmon.yaml
   cargo test --test runner -- --nocapture
+
+test-trycmd:
+  TRYCMD=overwrite cargo test --test trycmd_tests
+
+test-trycmd-verify:
+  cargo test --test trycmd_tests
 
 release:
   cargo release minor --execute

@@ -22,6 +22,8 @@ jobs:
       - run: cargo test --lib
       # integration tests
       - run: cargo build --bin kopium
+      # Test stdout of commands
+      - run: just test-trycmd-verify
       # Test reasonably complicated CRDs; promethesurules and servicemonitors
       - run: just test-pr
       - run: just test-sm
