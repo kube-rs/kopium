@@ -326,7 +326,7 @@ fn extract_container(
         }
     }
     Ok(Container {
-        name: stack.to_string(),
+        name: stack.to_string().to_upper_camel_case(),
         members,
         level,
         docs: schema.description.clone(),
