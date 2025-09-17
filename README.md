@@ -136,6 +136,7 @@ Unit tests and running `kopium` from a file do not require a cluster and can be 
 ```sh
 cargo test --lib
 cargo run --bin kopium -- -f mycrd.yaml -A
+cargo test --test trycmd_tests
 ```
 
 Full integration tests use your current cluster to try to read a CRD and a `gen` object (instance of the CRD type) and parse it into the generated type:

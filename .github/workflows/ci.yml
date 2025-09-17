@@ -36,6 +36,8 @@ jobs:
       # Test some linkerd crds
       - run: just test-linkerd-serverauth
       - run: just test-linkerd-server
+      # Test stdout of commands
+      - run: just test-trycmd-verify
 
 
   rustfmt:
