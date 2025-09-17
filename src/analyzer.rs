@@ -57,8 +57,18 @@ fn analyze_(
             // object with additionalProperties == map
             if let Some(extra_props) = &s.properties {
                 // map values is an object with properties
-                debug!("Generating map struct for {} (under {})", current, camel_cased_stack);
-                let c = extract_container(extra_props, camel_cased_stack, &mut array_recurse_level, level, schema, cfg)?;
+                debug!(
+                    "Generating map struct for {} (under {})",
+                    current, camel_cased_stack
+                );
+                let c = extract_container(
+                    extra_props,
+                    camel_cased_stack,
+                    &mut array_recurse_level,
+                    level,
+                    schema,
+                    cfg,
+                )?;
                 results.push(c);
             } else if dict_type == "object" {
                 // recurse to see if we eventually find properties
@@ -79,7 +89,14 @@ fn analyze_(
                 warn!("not generating type {} - using map", current);
                 return Ok(());
             }
-            let c = extract_container(&props, camel_cased_stack, &mut array_recurse_level, level, schema, cfg)?;
+            let c = extract_container(
+                &props,
+                camel_cased_stack,
+                &mut array_recurse_level,
+                level,
+                schema,
+                cfg,
+            )?;
             results.push(c);
         }
     }
@@ -93,10 +110,24 @@ fn analyze_(
     // again; additionalProperties XOR properties
     let extras = if let Some(JSONSchemaPropsOrBool::Schema(s)) = schema.additional_properties.as_ref() {
         let extra_props = s.properties.clone().unwrap_or_default();
-        find_containers(&extra_props, camel_cased_stack, &mut array_recurse_level, level, schema, cfg)?
+        find_containers(
+            &extra_props,
+            camel_cased_stack,
+            &mut array_recurse_level,
+            level,
+            schema,
+            cfg,
+        )?
     } else {
         // regular properties only
-        find_containers(&props, camel_cased_stack, &mut array_recurse_level, level, schema, cfg)?
+        find_containers(
+            &props,
+            camel_cased_stack,
+            &mut array_recurse_level,
+            level,
+            schema,
+            cfg,
+        )?
     };
     results.extend(extras);
 
