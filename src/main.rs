@@ -308,7 +308,10 @@ impl Kopium {
                 }
             } else {
                 self.print_derives(s, &structs);
-                let spec_trimmed_name = s.name.as_str().replace(&format!("{}Spec", kind), kind);
+                let spec_trimmed_name = s.name.as_str().replace(
+                    &format!("{}Spec", kind.to_upper_camel_case()),
+                    &kind.to_upper_camel_case(),
+                );
                 if s.is_enum {
                     println!("pub enum {} {{", spec_trimmed_name);
                 } else {
@@ -324,7 +327,10 @@ impl Kopium {
                 for annot in &m.extra_annot {
                     println!("    {}", annot);
                 }
-                let spec_trimmed_type = m.type_.as_str().replace(&format!("{}Spec", kind), kind);
+                let spec_trimmed_type = m.type_.as_str().replace(
+                    &format!("{}Spec", kind.to_upper_camel_case()),
+                    &kind.to_upper_camel_case(),
+                );
                 if s.is_enum {
                     // NB: only supporting plain enumerations atm, not oneOf
                     println!("    {},", name);

@@ -23,7 +23,7 @@ pub struct Config {
 pub fn analyze(schema: JSONSchemaProps, kind: &str, cfg: Config) -> Result<Output> {
     let mut res = vec![];
 
-    analyze_(&schema, "", &kind.to_upper_camel_case(), 0, &mut res, &cfg)?;
+    analyze_(&schema, "", kind, 0, &mut res, &cfg)?;
     Ok(Output(res))
 }
 
@@ -45,6 +45,8 @@ fn analyze_(
     let props = schema.properties.clone().unwrap_or_default();
     let mut array_recurse_level: HashMap<String, u8> = Default::default();
 
+    let camel_cased_stack = &stack.to_upper_camel_case();
+
     // create a Container if we have a container type:
     //trace!("analyze_ with {} + {}", current, stack);
     if schema.type_.clone().unwrap_or_default() == "object" {
@@ -55,29 +57,29 @@ fn analyze_(
             // object with additionalProperties == map
             if let Some(extra_props) = &s.properties {
                 // map values is an object with properties
-                debug!("Generating map struct for {} (under {})", current, stack);
-                let c = extract_container(extra_props, stack, &mut array_recurse_level, level, schema, cfg)?;
+                debug!("Generating map struct for {} (under {})", current, camel_cased_stack);
+                let c = extract_container(extra_props, camel_cased_stack, &mut array_recurse_level, level, schema, cfg)?;
                 results.push(c);
             } else if dict_type == "object" {
                 // recurse to see if we eventually find properties
                 debug!(
                     "Recursing into nested additional properties for {} (under {})",
-                    current, stack
+                    current, camel_cased_stack
                 );
-                analyze_(s, current, stack, level, results, cfg)?;
+                analyze_(s, current, camel_cased_stack, level, results, cfg)?;
             } else if !dict_type.is_empty() {
                 warn!("not generating type {} - using {} map", current, dict_type);
                 return Ok(()); // no members here - it'll be inlined
             }
         } else {
             // else, regular properties only
-            debug!("Generating struct for {} (under {})", current, stack);
+            debug!("Generating struct for {} (under {})", current, camel_cased_stack);
             // initial analysis of properties (we do not recurse here, we need to find members first)
             if props.is_empty() && schema.x_kubernetes_preserve_unknown_fields.unwrap_or(false) {
                 warn!("not generating type {} - using map", current);
                 return Ok(());
             }
-            let c = extract_container(&props, stack, &mut array_recurse_level, level, schema, cfg)?;
+            let c = extract_container(&props, camel_cased_stack, &mut array_recurse_level, level, schema, cfg)?;
             results.push(c);
         }
     }
@@ -91,10 +93,10 @@ fn analyze_(
     // again; additionalProperties XOR properties
     let extras = if let Some(JSONSchemaPropsOrBool::Schema(s)) = schema.additional_properties.as_ref() {
         let extra_props = s.properties.clone().unwrap_or_default();
-        find_containers(&extra_props, stack, &mut array_recurse_level, level, schema, cfg)?
+        find_containers(&extra_props, camel_cased_stack, &mut array_recurse_level, level, schema, cfg)?
     } else {
         // regular properties only
-        find_containers(&props, stack, &mut array_recurse_level, level, schema, cfg)?
+        find_containers(&props, camel_cased_stack, &mut array_recurse_level, level, schema, cfg)?
     };
     results.extend(extras);
 
