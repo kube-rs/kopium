@@ -8,7 +8,7 @@
 
 Generates rust structs from `customresourcedefinitions` in your kubernetes cluster following the spec/status model, by using their embedded openapi schema.
 
-**⚠️ WARNING: [not feature complete](https://github.com/kube-rs/kopium/issues) ⚠️**
+**NB: currently [compatible with all known CRDs](https://github.com/metio/kube-custom-resources-rs)**
 
 Requirements:
 
@@ -116,9 +116,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 Note that you will need to depend on `kube`, along with `k8s-openapi` and `schemars` at **semver compatible versions** with the latest kube release (which can be seen in the [last release cargo.toml for kube](https://docs.rs/crate/kube/latest/source/Cargo.toml)). E.g. with `kube` 1:
 
 ```toml
-kube = { version = "1", features = ["derive"] }
-schemars = { version = "0.8" }
-k8s-openapi = { version = "0.25", features = ["latest", "schemars"] }
+kube = { version = "2", features = ["derive"] }
+schemars = { version = "1" }
+k8s-openapi = { version = "0.26", features = ["latest", "schemars"] }
 ```
 
 ## Autocomplete
