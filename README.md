@@ -6,20 +6,18 @@
 
 **K**ubernetes **op**enap**i** **u**n**m**angler.
 
-Generates rust structs from `customresourcedefinitions` in your kubernetes cluster following the spec/status model, by using their embedded openapi schema.
+Generates [Rust](https://www.rust-lang.org/) data structs from [Kubernetes `customresourcedefinitions`](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) and their embedded openapi schemas.
 
-**NB: currently [compatible with all known CRDs](https://github.com/metio/kube-custom-resources-rs)**
+> [!NOTE]
+> Compatible with [all catalogued CRDs](https://github.com/metio/kube-custom-resources-rs). If a CRD does not work, please [raise an issue](https://github.com/kube-rs/kopium/issues)!
 
-Requirements:
-
-- [stable](https://kubernetes.io/blog/2019/09/18/kubernetes-1-16-release-announcement/#custom-resources-reach-general-availability) `customresourcedefinition` with schema
-- crd following standard [spec/status model](https://kubernetes.io/docs/concepts/overview/working-with-objects/kubernetes-objects/#object-spec-and-status)
+Requires stable [CustomResourceDefinition/v1](https://kubernetes.io/blog/2019/09/18/kubernetes-1-16-release-announcement/#custom-resources-reach-general-availability) schemas (Kubernetes >=1.16) following the standard [spec/status model](https://kubernetes.io/docs/concepts/overview/working-with-objects/kubernetes-objects/#object-spec-and-status).
 
 ## Features
 
-- **Instantly queryable**: generated type uses [`kube-derive`](https://docs.rs/kube/latest/kube/derive.CustomResource.html) to provide api integration with `kube`
+- **Instantly queryable**: generated type optionally implements [`kube::CustomResource`](https://docs.rs/kube/latest/kube/derive.CustomResource.html) to provide api integration with `kube`
 - **[Rust doc comments](https://doc.rust-lang.org/rust-by-example/meta/doc.html#doc-comments)**: optionally extracted from `description` values in schema
-- **Safe case [conversion](https://github.com/withoutboats/heck)**: generated types uses rust standard camel_case with occasional [serde rename attributes](https://serde.rs/field-attrs.html)
+- **Safe case [conversion](https://github.com/withoutboats/heck)**: generated types uses rust standard casing with occasional [serde rename attributes](https://serde.rs/field-attrs.html)
 - **Usable locally and in CI**: Can read crds by name in cluster via `mycrd.group.io` or from file via `-f crd.yaml`
 
 ## Installation
