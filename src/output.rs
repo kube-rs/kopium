@@ -212,7 +212,7 @@ impl Container {
 }
 
 impl Output {
-    /// Rename all structs and all all their members to rust conventions
+    /// Rename all structs and all their members to rust conventions
     ///
     /// Converts [*].members[*].name to snake_case for structs, PascalCase for enums,
     /// and adds a serde(rename = "orig_name") annotation to `serde_annot`.
