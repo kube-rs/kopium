@@ -1,5 +1,6 @@
 use std::{path::PathBuf, str::FromStr};
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 use anyhow::{anyhow, Context, Result};
 use clap::{CommandFactory, Parser, Subcommand};
 use heck::ToUpperCamelCase;
@@ -245,7 +246,7 @@ impl Kopium {
         let structs = analyze(schema, kind, cfg)?
             .rename()
             .builder_fields(self.builders)
-            .0;
+            .output();
 
         if !self.hide_prelude {
             self.print_prelude(&structs);

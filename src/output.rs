@@ -4,7 +4,59 @@ use heck::{ToPascalCase, ToSnakeCase};
 use regex::{Regex, RegexBuilder};
 
 /// All found containers
-pub struct Output(pub Vec<Container>);
+#[derive(Default, Debug)]
+pub struct Output(Vec<Container>);
+
+impl Output {
+    /// Safe container inserter
+    ///
+    /// Using this to insert, and encapulating the underlying vector ensures that we;
+    ///
+    /// 1. repeat struct with pathological names are distinguished https://github.com/kube-rs/kopium/issues/66
+    /// 2. identical structs with different names are deduplicated https://github.com/kube-rs/kopium/issues/298
+    pub fn insert(&mut self, mut value: Container) -> bool {
+        let mut name_clashes = 0;
+        for c in &self.0 {
+            if c == &value {
+                return false; // no new value inserted
+            }
+            if &c.name == &value.name {
+                // there is a struct with the same name
+                name_clashes += 1;
+            }
+        }
+        // keep adding X suffixes to the struct/enum name until we are past the number of clashes
+        // this setup is not foolproof, but should be good enough for a POC
+        while name_clashes > 0 {
+            value.name = format!("{}X", value.name);
+            name_clashes -= 1;
+        }
+        // push the struct/enum (possibly with a new unique name)
+        self.0.push(value);
+        true // new value inserted
+    }
+
+    /// Consume self and return the final container vec
+    pub fn output(self) -> Vec<Container> {
+        self.0
+    }
+
+    /// Extend the inner vector with another Output instance
+    pub fn extend(&mut self, extras: Output) {
+        self.0.extend(extras.0);
+    }
+}
+
+impl PartialEq for Container {
+    fn eq(&self, other: &Self) -> bool {
+        (&self.name, &self.members, &self.is_enum) == (&other.name, &other.members, &other.is_enum)
+    }
+}
+impl PartialEq for Member {
+    fn eq(&self, other: &Self) -> bool {
+        (&self.name, &self.type_, &self.serde_annot) == (&other.name, &other.type_, &other.serde_annot)
+    }
+}
 
 /// Output container found by analyzer
 #[derive(Default, Debug)]
