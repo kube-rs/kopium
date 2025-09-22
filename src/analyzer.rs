@@ -316,7 +316,12 @@ fn extract_container(
                 let map_type = cfg.map.name();
                 if value.x_kubernetes_int_or_string.is_some() {
                     "IntOrString".into()
-                } else if value.x_kubernetes_preserve_unknown_fields == Some(true) {
+                } else if value.x_kubernetes_preserve_unknown_fields == Some(true)
+                    || value
+                        .one_of
+                        .as_deref()
+                        .is_some_and(|items| items.iter().all(|item| item.type_.is_some()))
+                {
                     "serde_json::Value".into()
                 } else if cfg.relaxed {
                     debug!("found empty object at {} key: {}", stack, key);
@@ -862,6 +867,43 @@ type: object
         assert_eq!(member.type_, "IntOrString");
         assert!(root.uses_int_or_string());
         // TODO: check that anyOf: [type: integer, type: string] also works
+    }
+
+    #[test]
+    fn string_or_string_array() {
+        init();
+        let schema_str = r#"
+            type: object
+            required:
+              - ambassadorId
+            properties:
+              ambassadorId:
+                items:
+                  type: "string"
+                oneOf:
+                  - type: "string"
+                  - type: "array"
+              other:
+                items:
+                  type: "string"
+                oneOf:
+                  - type: "string"
+                  - type: "array"
+"#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+
+        let structs = analyze(schema, "Host", Cfg::default()).unwrap().0;
+
+        let root = &structs[0];
+        assert_eq!(root.name, "Host");
+
+        let member = &root.members[0];
+        assert_eq!(member.name, "ambassadorId");
+        assert_eq!(member.type_, "serde_json::Value");
+
+        let member = &root.members[1];
+        assert_eq!(member.name, "other");
+        assert_eq!(member.type_, "Option<serde_json::Value>");
     }
 
     #[test]
