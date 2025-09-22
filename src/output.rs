@@ -20,7 +20,7 @@ impl Output {
             if c == &value {
                 return false; // no new value inserted
             }
-            if &c.name == &value.name {
+            if c.name == value.name {
                 // there is a struct with the same name
                 name_clashes += 1;
             }
