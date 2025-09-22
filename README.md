@@ -9,7 +9,7 @@
 Generates [Rust](https://www.rust-lang.org/) data structs from [Kubernetes `customresourcedefinitions`](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) and their embedded openapi schemas.
 
 > [!NOTE]
-> Compatible with [almost](https://github.com/search?q=repo%3Ametio%2Fkube-custom-resources-rs+path%3Aignore&type=code&p=2)(*)(https://github.com/kube-rs/kopium/pull/370#issuecomment-3316697683) all [catalogued CRDs](https://github.com/metio/kube-custom-resources-rs). If a CRD does not work, please [raise an issue](https://github.com/kube-rs/kopium/issues)!
+> Compatible with [almost](https://github.com/search?q=repo%3Ametio%2Fkube-custom-resources-rs+path%3Aignore&type=code&p=2)[^*](https://github.com/kube-rs/kopium/pull/370#issuecomment-3316697683) all [catalogued CRDs](https://github.com/metio/kube-custom-resources-rs). If a CRD does not work, please [raise an issue](https://github.com/kube-rs/kopium/issues)!
 
 Requires stable [CustomResourceDefinition/v1](https://kubernetes.io/blog/2019/09/18/kubernetes-1-16-release-announcement/#custom-resources-reach-general-availability) schemas (Kubernetes >=1.16) following the standard [spec/status model](https://kubernetes.io/docs/concepts/overview/working-with-objects/kubernetes-objects/#object-spec-and-status).
 
