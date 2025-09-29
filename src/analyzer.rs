@@ -1,11 +1,12 @@
 //! Deals entirely with schema analysis for the purpose of creating output structs + members
-use crate::{Container, MapType, Member, Output};
-use anyhow::{bail, Result};
+use std::collections::{BTreeMap, HashMap};
+
 use heck::ToUpperCamelCase;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     JSONSchemaProps, JSONSchemaPropsOrArray, JSONSchemaPropsOrBool, JSON,
 };
-use std::collections::{BTreeMap, HashMap};
+
+use crate::{Container, MapType, Member, Output};
 
 const IGNORED_KEYS: [&str; 3] = ["metadata", "apiVersion", "kind"];
 
@@ -19,21 +20,21 @@ pub struct Config {
 
 /// Scan a schema for structs and members, and recurse to find all structs
 ///
-/// All found output structs will have its names prefixed by the kind it is for
-pub fn analyze(schema: JSONSchemaProps, kind: &str, cfg: Config) -> Result<Output> {
+/// All found output structs will have their names prefixed by the kind it is for
+pub fn analyze(schema: JSONSchemaProps, kind: &str, cfg: Config) -> anyhow::Result<Output> {
     let mut res = vec![];
 
     analyze_(&schema, "", kind, 0, &mut res, &cfg)?;
     Ok(Output(res))
 }
 
-/// Scan a schema for structs and members, and recurse to find all structs
+/// Scan a schema for structs and members, recursing to find all structs.
 ///
-/// schema: root schema / sub schema
-/// current: current key name (or empty string for first call) - must capitalize first letter
-/// stack: stacked concat of kind + current_{n-1} + ... + current (used to create dedup names/types)
-/// level: recursion level (start at 0)
-/// results: multable list of generated structs (not deduplicated)
+/// - `schema`: root schema / sub schema
+/// - `current`: current key name (or empty string for first call) - must capitalize first letter
+/// - `stack`: stacked concat of kind + current_{n-1} + ... + current (used to create dedup names/types)
+/// - `level`: recursion level (start at 0)
+/// - `results`: multable list of generated structs (not deduplicated)
 fn analyze_(
     schema: &JSONSchemaProps,
     current: &str,
@@ -41,7 +42,7 @@ fn analyze_(
     level: u8,
     results: &mut Vec<Container>,
     cfg: &Config,
-) -> Result<()> {
+) -> anyhow::Result<()> {
     let props = schema.properties.clone().unwrap_or_default();
     let mut array_recurse_level: HashMap<String, u8> = Default::default();
 
@@ -57,9 +58,10 @@ fn analyze_(
             // object with additionalProperties == map
             if let Some(extra_props) = &s.properties {
                 // map values is an object with properties
-                debug!(
+                log::debug!(
                     "Generating map struct for {} (under {})",
-                    current, camel_cased_stack
+                    current,
+                    camel_cased_stack
                 );
                 let c = extract_container(
                     extra_props,
@@ -72,21 +74,22 @@ fn analyze_(
                 results.push(c);
             } else if dict_type == "object" {
                 // recurse to see if we eventually find properties
-                debug!(
+                log::debug!(
                     "Recursing into nested additional properties for {} (under {})",
-                    current, camel_cased_stack
+                    current,
+                    camel_cased_stack
                 );
                 analyze_(s, current, camel_cased_stack, level, results, cfg)?;
             } else if !dict_type.is_empty() {
-                warn!("not generating type {} - using {} map", current, dict_type);
+                log::warn!("not generating type {} - using {} map", current, dict_type);
                 return Ok(()); // no members here - it'll be inlined
             }
         } else {
             // else, regular properties only
-            debug!("Generating struct for {} (under {})", current, camel_cased_stack);
+            log::debug!("Generating struct for {} (under {})", current, camel_cased_stack);
             // initial analysis of properties (we do not recurse here, we need to find members first)
             if props.is_empty() && schema.x_kubernetes_preserve_unknown_fields.unwrap_or(false) {
-                warn!("not generating type {} - using map", current);
+                log::warn!("not generating type {} - using map", current);
                 return Ok(());
             }
             let c = extract_container(
@@ -104,8 +107,8 @@ fn analyze_(
 
     // If the container has members, we recurse through these members to find more containers.
     // NB: find_containers initiates recursion **for this container** and will end up invoking this fn,
-    // so that we can create the Container with its members (same fn, above) in one step.
-    // Once the Container has been made, we drop down here and restarting the process for its members.
+    // so that we can create the Container with its members (the same fn, above) in one step.
+    // Once the Container has been made, we drop down here and restart the process for its members.
     //
     // again; additionalProperties XOR properties
     let extras = if let Some(JSONSchemaPropsOrBool::Schema(s)) = schema.additional_properties.as_ref() {
@@ -146,12 +149,12 @@ fn find_containers(
     level: u8,
     schema: &JSONSchemaProps,
     cfg: &Config,
-) -> Result<Vec<Container>> {
+) -> anyhow::Result<Vec<Container>> {
     //trace!("finding containers in: {}", serde_yaml::to_string(&props)?);
     let mut results = vec![];
     for (key, value) in props {
         if level == 0 && IGNORED_KEYS.contains(&(key.as_ref())) {
-            debug!("not recursing into ignored {}", key); // handled elsewhere
+            log::debug!("not recursing into ignored {}", key); // handled elsewhere
             continue;
         }
         let next_key = key.to_upper_camel_case();
@@ -166,7 +169,7 @@ fn find_containers(
                     if dict_type == "array" {
                         // unpack the inner object from the array wrap
                         if let Some(JSONSchemaPropsOrArray::Schema(items)) = &s.as_ref().items {
-                            debug!("..recursing into object member {}", key);
+                            log::debug!("..recursing into object member {}", key);
                             analyze_(items, &next_key, &next_stack, level + 1, &mut results, cfg)?;
                             handled_inner = true;
                         }
@@ -174,7 +177,7 @@ fn find_containers(
                     // TODO: not sure if these nested recurses are necessary - cluster test case does not have enough data
                     //if let Some(extra_props) = &s.properties {
                     //    for (_key, value) in extra_props {
-                    //        debug!("..nested recurse into {} {} - key: {}", next_key, next_stack, _key);
+                    //        log::debug!("..nested recurse into {} {} - key: {}", next_key, next_stack, _key);
                     //        analyze_(value.clone(), &next_key, &next_stack, level +1, results)?;
                     //    }
                     //}
@@ -188,17 +191,17 @@ fn find_containers(
                 if let Some(recurse) = array_recurse_level.get(key).cloned() {
                     let mut inner = value.clone();
                     for _i in 0..recurse {
-                        debug!("..recursing into props for {}", key);
+                        log::debug!("..recursing into props for {}", key);
                         if let Some(sub) = inner.items {
                             match sub {
                                 JSONSchemaPropsOrArray::Schema(s) => {
                                     //info!("got inner: {}", serde_json::to_string_pretty(&s)?);
                                     inner = *s.clone();
                                 }
-                                _ => bail!("only handling single type in arrays"),
+                                _ => anyhow::bail!("only handling single type in arrays"),
                             }
                         } else {
-                            bail!("could not recurse into vec");
+                            anyhow::bail!("could not recurse into vec");
                         }
                     }
                     analyze_(&inner, &next_key, &next_stack, level + 1, &mut results, cfg)?;
@@ -206,9 +209,9 @@ fn find_containers(
             }
             "" => {
                 if value.x_kubernetes_int_or_string.is_some() {
-                    debug!("..not recursing into IntOrString {}", key)
+                    log::debug!("..not recursing into IntOrString {}", key)
                 } else {
-                    debug!("..not recursing into unknown empty type {}", key)
+                    log::debug!("..not recursing into unknown empty type {}", key)
                 }
             }
             x => {
@@ -219,7 +222,7 @@ fn find_containers(
                     let new_result = analyze_enum_properties(en, &next_stack, level, schema)?;
                     results.push(new_result);
                 } else {
-                    debug!("..not recursing into {} ('{}' is not a container)", key, x)
+                    log::debug!("..not recursing into {} ('{}' is not a container)", key, x)
                 }
             }
         }
@@ -233,26 +236,27 @@ fn analyze_enum_properties(
     stack: &str,
     level: u8,
     schema: &JSONSchemaProps,
-) -> Result<Container, anyhow::Error> {
+) -> anyhow::Result<Container> {
     let mut members = vec![];
-    debug!("analyzing enum {}", serde_json::to_string(&schema).unwrap());
+    log::debug!("analyzing enum {}", serde_json::to_string(&schema)?);
+
     for en in items {
-        debug!("got enum {:?}", en);
+        log::debug!("got enum {:?}", en);
         // TODO: do we need to verify enum elements? only in oneOf only right?
         let name = match &en.0 {
             serde_json::Value::String(name) => name.to_string(),
             serde_json::Value::Number(val) => {
                 if !val.is_u64() {
-                    bail!("enum member cannot have signed/floating discriminants");
+                    anyhow::bail!("enum member cannot have signed/floating discriminants");
                 }
                 val.to_string()
             }
-            _ => bail!("not handling non-string/int enum outside oneOf block"),
+            _ => anyhow::bail!("not handling non-string/int enum outside oneOf block"),
         };
         let rust_type = "".to_string();
         // Create member and wrap types correctly
         let member_doc = None;
-        debug!("with enum member {}", name);
+        log::debug!("with enum member {}", name);
         members.push(Member {
             type_: rust_type,
             name: name.to_string(),
@@ -279,7 +283,7 @@ fn extract_container(
     level: u8,
     schema: &JSONSchemaProps,
     cfg: &Config,
-) -> Result<Container, anyhow::Error> {
+) -> anyhow::Result<Container> {
     let mut members = vec![];
     //debug!("analyzing object {}", serde_json::to_string(&schema).unwrap());
     let reqs = schema.required.clone().unwrap_or_default();
@@ -289,7 +293,7 @@ fn extract_container(
             "object" => extract_object_type(value, stack, key, cfg)?,
             "string" => {
                 if let Some(_en) = &value.enum_ {
-                    trace!("got enum string: {}", serde_json::to_string(&schema).unwrap());
+                    log::trace!("got enum string: {}", serde_json::to_string(&schema)?);
                     format!("{}{}", stack, key.to_upper_camel_case())
                 } else {
                     "String".to_string()
@@ -302,7 +306,7 @@ fn extract_container(
             "array" => {
                 // recurse through repeated arrays until we find a concrete type (keep track of how deep we went)
                 let (mut array_type, recurse_level) = array_recurse_for_type(value, stack, key, 1, cfg)?;
-                trace!("got array {} for {} in level {}", array_type, key, recurse_level);
+                log::trace!("got array {} for {} in level {}", array_type, key, recurse_level);
                 if !cfg.no_condition && key == "conditions" && is_conditions(value) {
                     array_type = "Vec<Condition>".into();
                 } else if !cfg.no_object_reference && is_object_ref_list(value) {
@@ -324,19 +328,19 @@ fn extract_container(
                 {
                     "serde_json::Value".into()
                 } else if cfg.relaxed {
-                    debug!("found empty object at {} key: {}", stack, key);
+                    log::debug!("found empty object at {} key: {}", stack, key);
                     format!("{map_type}<String, serde_json::Value>")
                 } else {
-                    bail!("unknown empty dict type for {}", key)
+                    anyhow::bail!("unknown empty dict type for {}", key)
                 }
             }
-            x => bail!("unknown type {}", x),
+            x => anyhow::bail!("unknown type {}", x),
         };
 
         // Create member and wrap types correctly
         let member_doc = value.description.clone();
         if reqs.contains(key) {
-            debug!("with required member {} of type {}", key, &rust_type);
+            log::debug!("with required member {} of type {}", key, &rust_type);
             members.push(Member {
                 type_: rust_type,
                 name: key.to_string(),
@@ -346,7 +350,7 @@ fn extract_container(
             })
         } else {
             // option wrapping needed if not required
-            debug!("with optional member {} of type {}", key, rust_type);
+            log::debug!("with optional member {} of type {}", key, rust_type);
             members.push(Member {
                 type_: format!("Option<{}>", rust_type),
                 name: key.to_string(),
@@ -378,19 +382,19 @@ fn resolve_additional_properties(
     stack: &str,
     key: &str,
     cfg: &Config,
-) -> Result<Option<String>, anyhow::Error> {
-    debug!("got additional: {}", serde_json::to_string(&additional)?);
+) -> anyhow::Result<Option<String>> {
+    log::debug!("got additional: {}", serde_json::to_string(&additional)?);
     let JSONSchemaPropsOrBool::Schema(s) = additional else {
         return Ok(None);
     };
 
     // This case is for maps. It is generally String -> Something, depending on the type key:
     let dict_type = s.type_.clone().unwrap_or_default();
-    debug!("dict type is {dict_type}");
+    log::debug!("dict type is {dict_type}");
     let dict_key = match dict_type.as_ref() {
         "string" => Some("String".into()),
-        // We are not 100% sure the array and object subcases here are correct but they pass tests atm.
-        // authoratative, but more detailed sources than crd validation docs below are welcome
+        // We are not 100% sure the array and object subcases here are correct, but they pass tests atm.
+        // Authoritative, but more detailed sources than the CRD validation docs below are welcome.
         // https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation
         "array" => Some(array_recurse_for_type(s, stack, key, 1, cfg)?.0),
         "object" => Some(extract_object_type(s, stack, key, cfg)?),
@@ -400,7 +404,7 @@ fn resolve_additional_properties(
             } else if s.x_kubernetes_preserve_unknown_fields == Some(true) {
                 Some("serde_json::Value".into())
             } else {
-                bail!("unknown empty dict type for {}", key)
+                anyhow::bail!("unknown empty dict type for {}", key)
             }
         }
         "boolean" => Some("bool".to_string()),
@@ -414,14 +418,14 @@ fn resolve_additional_properties(
 }
 
 // recurse into an array type to find its nested type
-// this recursion is intialised and ended within a single step of the outer recursion
+// this recursion is initialized and ended within a single step of the outer recursion
 fn array_recurse_for_type(
     value: &JSONSchemaProps,
     stack: &str,
     key: &str,
     level: u8,
     cfg: &Config,
-) -> Result<(String, u8)> {
+) -> anyhow::Result<(String, u8)> {
     if let Some(items) = &value.items {
         match items {
             JSONSchemaPropsOrArray::Schema(s) => {
@@ -447,30 +451,30 @@ fn array_recurse_for_type(
 
                             Ok((format!("Vec<{}>", array_type), recurse_level))
                         } else if cfg.relaxed {
-                            warn!("Empty inner array in: {} key: {}", stack, key);
+                            log::warn!("Empty inner array in: {} key: {}", stack, key);
                             let map_type = cfg.map.name();
                             Ok((format!("{}<String, serde_json::Value>", map_type), level))
                         } else {
-                            bail!("Empty inner array in: {} key: {}", stack, key);
+                            anyhow::bail!("Empty inner array in: {} key: {}", stack, key);
                         }
                     }
                     "" => {
                         if s.x_kubernetes_int_or_string.is_some() {
                             Ok(("Vec<IntOrString>".into(), level))
                         } else {
-                            bail!("unknown empty array type for {}", key)
+                            anyhow::bail!("unknown empty array type for {}", key)
                         }
                     }
                     unknown => {
-                        bail!("unsupported recursive array type \"{unknown}\" for {key}")
+                        anyhow::bail!("unsupported recursive array type \"{unknown}\" for {key}")
                     }
                 }
             }
             // maybe fallback to serde_json::Value
-            _ => bail!("only support single schema in array {}", key),
+            _ => anyhow::bail!("only support single schema in array {}", key),
         }
     } else {
-        bail!("missing items in array type")
+        anyhow::bail!("missing items in array type")
     }
 }
 
@@ -527,7 +531,7 @@ fn extract_object_type(
     stack: &str,
     key: &str,
     cfg: &Config,
-) -> Result<String, anyhow::Error> {
+) -> anyhow::Result<String> {
     let mut dict_key = None;
     if let Some(additional) = &value.additional_properties {
         dict_key = resolve_additional_properties(additional, stack, key, cfg)?;
@@ -543,16 +547,16 @@ fn extract_object_type(
     })
 }
 
-fn extract_date_type(value: &JSONSchemaProps) -> Result<String> {
+fn extract_date_type(value: &JSONSchemaProps) -> anyhow::Result<String> {
     Ok(if let Some(f) = &value.format {
         // NB: these need chrono feature on serde
         match f.as_ref() {
-            // Not sure if the first actually works properly..
+            // Not sure if the first actually works properly...
             // might need a Date<Utc> but chrono docs advocated for NaiveDate
             "date" => "NaiveDate".to_string(),
             "date-time" => "DateTime<Utc>".to_string(),
             x => {
-                bail!("unknown date {}", x);
+                anyhow::bail!("unknown date {}", x);
             }
         }
     } else {
@@ -560,7 +564,7 @@ fn extract_date_type(value: &JSONSchemaProps) -> Result<String> {
     })
 }
 
-fn extract_number_type(value: &JSONSchemaProps) -> Result<String> {
+fn extract_number_type(value: &JSONSchemaProps) -> anyhow::Result<String> {
     // TODO: byte / password here?
     Ok(if let Some(f) = &value.format {
         match f.as_ref() {
@@ -573,8 +577,8 @@ fn extract_number_type(value: &JSONSchemaProps) -> Result<String> {
     })
 }
 
-fn extract_integer_type(value: &JSONSchemaProps) -> Result<String> {
-    // Think kubernetes go types just do signed ints, but set a minimum to zero..
+fn extract_integer_type(value: &JSONSchemaProps) -> anyhow::Result<String> {
+    // Think kubernetes go types just do signed ints, but set a minimum to zero...
     // rust will set uint, so emitting that when possible
     Ok(if let Some(f) = &value.format {
         match f.as_ref() {
@@ -598,10 +602,11 @@ fn extract_integer_type(value: &JSONSchemaProps) -> Result<String> {
 // unit tests particular schema patterns
 #[cfg(test)]
 mod test {
-    use super::{analyze, Config as Cfg};
+    use std::sync::Once;
+
     use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::JSONSchemaProps;
 
-    use std::sync::Once;
+    use super::{analyze, Config as Cfg};
 
     static START: Once = Once::new();
     fn init() {
@@ -907,7 +912,7 @@ type: object
     }
 
     #[test]
-    fn boolean_in_additionals() {
+    fn boolean_in_additional_properties() {
         // as found in argo-app
         init();
         let schema_str = r#"
@@ -1120,7 +1125,7 @@ type: object
         assert_eq!(&me.members[2].name, "values");
         assert_eq!(&me.members[2].type_, " Option<Vec<String>>");
 
-        // last struct being the innermost enum operator:
+        // the last struct being the innermost enum operator:
         let op = &structs[3];
         assert_eq!(op.name, "ServerPodSelectorMatchExpressionsOperator");
         assert_eq!(op.level, 3);
@@ -1167,11 +1172,11 @@ type: object
         assert_eq!(member.name, "endpoints");
         assert_eq!(member.type_, "Vec<ServiceMonitorEndpoints>");
 
-        // Should have a endpoints struct:
+        // Should have an endpoint(s) struct:
         let eps = &structs[1];
         assert_eq!(eps.name, "ServiceMonitorEndpoints");
         assert_eq!(eps.level, 1);
-        // should have an params member:
+        // should have a params member:
         let member = &eps.members[0];
         assert_eq!(member.name, "params");
         assert_eq!(member.type_, "Option<BTreeMap<String, Vec<String>>>");
@@ -1181,6 +1186,7 @@ type: object
     fn integer_handling_in_maps() {
         init();
         // via https://istio.io/latest/docs/reference/config/networking/destination-rule/
+        // ```YAML
         // distribute:
         // - from: us-west/zone1/*
         //   to:
@@ -1190,8 +1196,9 @@ type: object
         //   to:
         //     "us-west/zone1/*": 20
         //     "us-west/zone2/*": 80
+        // ```
 
-        // i.e. distribute is an array of {from: String, to: BTreeMap<String, Integer>}
+        // i.e., distribute is an array of {from: String, to: BTreeMap<String, Integer>}
         // with the correct integer type
 
         // the schema is found in destinationrule-crd.yaml with this excerpt:
@@ -1222,10 +1229,10 @@ type: object
         let structs = analyze(schema, "DestinationRule", Cfg::default()).unwrap().0;
         //println!("{:#?}", structs);
 
-        // this should produce the root struct struct
+        // this should produce the root struct
         let root = &structs[0];
         assert_eq!(root.name, "DestinationRule");
-        // which contains the distribute member:
+        // which contains the "distribute" member:
         let distmember = &root.members[0];
         assert_eq!(distmember.name, "distribute");
         assert_eq!(distmember.type_, "Option<Vec<DestinationRuleDistribute>>");
@@ -1567,7 +1574,7 @@ type: object
     fn nested_additional_properties_object() {
         init();
 
-        // as found in rook-cephcluster
+        // as found in `rook-cephcluster`
         let schema_str = r#"
         properties:
           cephConfigFromSecret:
@@ -1600,7 +1607,7 @@ type: object
 
         let structs = analyze(schema, "CephClusterSpec", Cfg::default()).unwrap().0;
 
-        // debug!("got: {:#?}", structs);
+        // log::debug!("got: {:#?}", structs);
 
         assert_eq!(structs.len(), 2);
         assert_eq!(

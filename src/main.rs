@@ -1,491 +1,183 @@
-use std::{path::PathBuf, str::FromStr};
-#[macro_use] extern crate log;
-use anyhow::{anyhow, Context, Result};
-use clap::{CommandFactory, Parser, Subcommand};
-use heck::ToUpperCamelCase;
-use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
-    CustomResourceDefinition, CustomResourceDefinitionVersion,
-};
-use kopium::{analyze, format_docstr, Config, Container, Derive, MapType};
-use kube::{api, core::Version, Api, Client, ResourceExt};
-use quote::format_ident;
-
-#[derive(Parser)]
-#[command(
-    version = clap::crate_version!(),
-    author = "clux <sszynrae@gmail.com>",
-    about = "Kubernetes OPenapI UnMangler",
-)]
-struct Kopium {
-    /// Give the name of the input CRD to use e.g. prometheusrules.monitoring.coreos.com
-    #[arg(conflicts_with("file"))]
-    crd: Option<String>,
-
-    /// Point to the location of a CRD to use on disk
-    #[arg(long = "filename", short, conflicts_with("crd"))]
-    file: Option<PathBuf>,
-
-    /// Use this CRD version if multiple versions are present
-    #[arg(long)]
-    api_version: Option<String>,
-
-    /// Do not emit prelude
-    #[arg(long)]
-    hide_prelude: bool,
-
-    /// Do not derive CustomResource nor set kube-derive attributes
-    ///
-    /// If this is set, it makes any kube-derive specific options such as `--schema` unnecessary
-    #[arg(long)]
-    hide_kube: bool,
-
-    /// Emit doc comments from descriptions
-    #[arg(long, short)]
-    docs: bool,
-
-    /// Emit builder derives via the typed_builder crate
-    #[arg(long, short)]
-    builders: bool,
-
-    /// Schema mode to use for kube-derive
-    ///
-    /// The default is --schema=disabled and will compile without a schema,
-    /// but the resulting crd cannot be applied into a cluster.
-    ///
-    /// --schema=manual requires the user to `impl JsonSchema for MyCrdSpec` elsewhere for the code to compile.
-    /// Once this is done, the crd via `CustomResourceExt::crd()` can be applied into Kubernetes directly.
-    ///
-    /// --schema=derived implies `--derive JsonSchema`. The resulting schema will compile without external user action.
-    /// The crd via `CustomResourceExt::crd()` can be applied into Kubernetes directly.
-    #[arg(
-        long,
-        default_value = "disabled",
-        value_parser = ["disabled", "manual", "derived"],
-    )]
-    schema: String,
-
-    /// Derive these additional traits on generated objects
-    ///
-    /// There are three different ways of specifying traits to derive:
-    ///
-    /// 1. A plain trait name will implement the trait for *all* objects generated from
-    ///    the custom resource definition: `--derive PartialEq`
-    ///
-    /// 2. Constraining the derivation to a singular struct or enum:
-    ///    `--derive IssuerAcmeSolversDns01CnameStrategy=PartialEq`
-    ///
-    /// 3. Constraining the derivation to only structs (@struct), enums (@enum) or *unit-only* enums (@enum:simple),
-    ///    meaning enums where no variants are tuple or structs:
-    ///    `--derive @struct=PartialEq`, `--derive @enum=PartialEq`, `--derive @enum:simple=PartialEq`
-    ///
-    /// See also: https://doc.rust-lang.org/reference/items/enumerations.html
-    #[arg(long,
-        short = 'D',
-        value_parser = Derive::from_str,
-    )]
-    derive: Vec<Derive>,
-
-    #[command(subcommand)]
-    command: Option<Command>,
-
-    /// Enable all automatation features
-    ///
-    /// This is a recommended, but early set of features that generates the most rust native code.
-    ///
-    /// It contains an unstable set of of features and may get expanded in the future.
-    ///
-    /// Setting --auto enables: --schema=derived --derive=JsonSchema --docs
-    #[arg(long, short = 'A')]
-    auto: bool,
-
-    /// Elide the following containers from the output
-    ///
-    /// This allows manual customization of structs from the output without having to remove it from
-    /// the output first. Takes precise generated struct names.
-    #[arg(long, short = 'e')]
-    elide: Vec<String>,
-
-    /// Relaxed interpretation
-    ///
-    /// This allows certain invalid openapi specs to be interpreted as arbitrary objects as used by argo workflows for example.
-    /// the output first.
-    #[arg(long)]
-    relaxed: bool,
-
-    /// Disable standardised Condition API
-    ///
-    /// By default, kopium detects Condition objects and uses a standard
-    /// Condition API from k8s_openapi instead of generating a custom definition.
-    #[arg(long)]
-    no_condition: bool,
-
-    /// Disable standardised ObjectReference API
-    ///
-    /// By default, kopium detects ObjectReference objects and uses a standard
-    /// ObjectReference from k8s_openapi instead of generating a custom definition.
-    #[arg(long)]
-    no_object_reference: bool,
-
-    /// Type used to represent maps via additionalProperties
-    #[arg(long, value_enum, default_value_t)]
-    map_type: MapType,
-
-    /// Automatically removes #[derive(Default)] from structs that contain fields for which a default can not be automatically derived.
-    ///
-    /// This option only has an effect if `--derive Default` is set.
-    #[arg(long)]
-    smart_derive_elision: bool,
-}
-
-#[derive(Clone, Copy, Debug, Subcommand)]
-#[command(args_conflicts_with_subcommands = true)]
-enum Command {
-    #[command(about = "List available CRDs", hide = true)]
-    ListCrds,
-    #[command(about = "Generate completions", hide = true)]
-    Completions {
-        #[arg(help = "The shell to generate completions for")]
-        shell: clap_complete::Shell,
-    },
-}
-
 #[tokio::main]
-async fn main() -> Result<()> {
-    env_logger::init();
-    // Ignore SIGPIPE errors to avoid having to use let _ = write! everywhere
-    // See https://github.com/rust-lang/rust/issues/46016
-    #[cfg(unix)]
-    unsafe {
-        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+async fn main() -> anyhow::Result<()> {
+    #[cfg(not(feature = "cli"))]
+    anyhow::bail!("please build `kopium` with the 'cli' feature enabled");
+
+    #[cfg(feature = "cli")]
+    cli::kopium_cli().await
+}
+
+
+#[cfg(feature = "cli")]
+mod cli {
+    use std::path::PathBuf;
+
+    use anyhow::Context;
+    use clap::CommandFactory;
+    use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
+
+    #[derive(clap::Parser)]
+    #[command(
+        version = clap::crate_version!(),
+        author = "clux <sszynrae@gmail.com>",
+        about = "Kubernetes OPenapI UnMangler",
+    )]
+    struct Kopium {
+        /// Give the name of the input CRD to use (e.g., `prometheusrules.monitoring.coreos.com`)
+        #[arg(conflicts_with("file"))]
+        crd: Option<String>,
+
+        /// Point to the location of a CRD to use on disk
+        #[arg(long = "filename", short, conflicts_with("crd"))]
+        file: Option<PathBuf>,
+
+        #[command(subcommand)]
+        command: Option<Command>,
+
+        /// Enable all automation features
+        ///
+        /// This is a recommended, but early set of features that generates the most rust native code.
+        ///
+        /// It contains an unstable set of features and may get expanded in the future.
+        ///
+        /// Setting --auto enables: --schema=derived --derive=JsonSchema --docs
+        #[arg(long, short = 'A')]
+        auto: bool,
+
+        #[command(flatten)]
+        generator: kopium::TypeGenerator,
     }
 
-    let mut args = Kopium::parse();
-    if args.auto {
-        args.docs = true;
-        args.schema = "derived".into();
+    #[derive(Clone, Copy, Debug, clap::Subcommand)]
+    #[command(args_conflicts_with_subcommands = true)]
+    enum Command {
+        #[command(about = "List available CRDs", hide = true)]
+        ListCrds,
+        #[command(about = "Generate completions", hide = true)]
+        Completions {
+            #[arg(help = "The shell to generate completions for")]
+            shell: clap_complete::Shell,
+        },
     }
-    if args.schema == "derived" {
-        let json_schema = Derive::all("JsonSchema");
 
-        if !args.derive.contains(&json_schema) {
-            args.derive.push(json_schema)
+    pub async fn kopium_cli() -> anyhow::Result<()> {
+        env_logger::init();
+        // Ignore SIGPIPE errors to avoid having to use let _ = write! everywhere
+        // See https://github.com/rust-lang/rust/issues/46016
+        #[cfg(unix)]
+        unsafe {
+            libc::signal(libc::SIGPIPE, libc::SIG_DFL);
         }
+
+        let mut args: Kopium = clap::Parser::parse();
+
+        if args.auto {
+            args.generator.emit_docs = true;
+            args.generator.schema_mode = kopium::SchemaMode::Derived;
+        }
+
+        if args.generator.schema_mode == kopium::SchemaMode::Derived {
+            let json_schema = kopium::Derive::all("JsonSchema");
+
+            if !args.generator.derive_traits.contains(&json_schema) {
+                args.generator.derive_traits.push(json_schema)
+            }
+        }
+
+        args.dispatch().await
     }
 
-    args.dispatch().await
-}
+    fn get_stdin_data() -> anyhow::Result<String> {
+        use std::io::{stdin, Read};
+        let mut buf = Vec::new();
+        stdin().read_to_end(&mut buf)?;
+        let input = String::from_utf8(buf)?;
+        Ok(input)
+    }
 
-fn get_stdin_data() -> Result<String> {
-    use std::io::{stdin, Read};
-    let mut buf = Vec::new();
-    stdin().read_to_end(&mut buf)?;
-    let input = String::from_utf8(buf)?;
-    Ok(input)
-}
+    impl Kopium {
+        async fn dispatch(&self) -> anyhow::Result<()> {
+            if let Some(name) = self.crd.as_deref() {
+                return self.generate_types_for_fetched_crd(name).await;
+            }
 
-impl Kopium {
-    async fn dispatch(&self) -> Result<()> {
-        if let Some(name) = self.crd.as_deref() {
-            let api = Client::try_default()
+            if let Some(file) = self.file.as_deref() {
+                return self.generate_types_for_file(file).await;
+            }
+
+            match self.command {
+                None => self.help(),
+                Some(Command::ListCrds) => self.list_crds().await,
+                Some(Command::Completions { shell }) => self.completions(shell),
+            }
+        }
+
+        fn help(&self) -> anyhow::Result<()> {
+            Self::command().print_help()?;
+            Ok(())
+        }
+
+        fn completions(&self, shell: clap_complete::Shell) -> anyhow::Result<()> {
+            let mut command = Self::command();
+
+            clap_complete::generate(shell, &mut command, "kopium", &mut std::io::stdout());
+
+            Ok(())
+        }
+
+        async fn list_crds(&self) -> anyhow::Result<()> {
+            let api = kube::Client::try_default()
                 .await
-                .map(Api::<CustomResourceDefinition>::all)?;
-            let crd = api.get(name).await?;
-            self.generate(crd).await
-        } else if let Some(f) = self.file.as_deref() {
+                .map(kube::Api::<CustomResourceDefinition>::all)?;
+
+            for crd_name in api
+                .list(&Default::default())
+                .await?
+                .items
+                .iter()
+                .map(kube::ResourceExt::name_any)
+            {
+                println!("{crd_name}");
+            }
+
+
+            Ok(())
+        }
+
+        async fn generate_types_for(&self, crd: &CustomResourceDefinition) -> anyhow::Result<()> {
+            let args = std::env::args().skip(1).collect::<Vec<_>>().join(" ");
+
+            let generated = self.generator.generate_rust_types_for(crd, Some(args)).await?;
+
+            println!("{generated}");
+
+            Ok(())
+        }
+
+        async fn generate_types_for_file(&self, target: impl AsRef<std::path::Path>) -> anyhow::Result<()> {
+            let target = target.as_ref();
+
             // no cluster access needed in this case
-            let data = if f.to_string_lossy() == "-" {
+            let data = if target == <str as AsRef<std::path::Path>>::as_ref("-") {
                 get_stdin_data().with_context(|| "Failed to read from stdin".to_string())?
             } else {
-                std::fs::read_to_string(f).with_context(|| format!("Failed to read {}", f.display()))?
+                std::fs::read_to_string(target)
+                    .with_context(|| format!("Failed to read {}", target.display()))?
             };
 
-            let crd: CustomResourceDefinition = serde_yaml::from_str(&data)?;
-            self.generate(crd).await
-        } else if let Some(command) = self.command {
-            match command {
-                Command::ListCrds => {
-                    let api = Client::try_default()
-                        .await
-                        .map(Api::<CustomResourceDefinition>::all)?;
-                    self.list_crds(api).await
-                }
-                Command::Completions { shell } => self.completions(shell),
-            }
-        } else {
-            self.help()
+            let crd = serde_yaml::from_str::<CustomResourceDefinition>(&data)?;
+
+            self.generate_types_for(&crd).await
+        }
+
+        async fn generate_types_for_fetched_crd(&self, target: &str) -> anyhow::Result<()> {
+            let api = kube::Client::try_default()
+                .await
+                .map(kube::Api::<CustomResourceDefinition>::all)?;
+
+            let crd = api.get(target).await?;
+
+            self.generate_types_for(&crd).await
         }
     }
-
-    async fn generate(&self, crd: CustomResourceDefinition) -> Result<()> {
-        let version = self.api_version.as_deref();
-        let version = find_crd_version(&crd, version)?;
-        let data = version
-            .schema
-            .as_ref()
-            .and_then(|schema| schema.open_api_v3_schema.clone());
-        let version_name = version.name.clone();
-
-        let kind = &crd.spec.names.kind;
-        let plural = &crd.spec.names.plural;
-        let group = &crd.spec.group;
-        let scope = &crd.spec.scope;
-
-        self.print_generation_warning();
-
-        let Some(schema) = data else {
-            anyhow::bail!("no schema found for crd");
-        };
-        log::debug!("schema: {}", serde_json::to_string_pretty(&schema)?);
-        let cfg = Config {
-            no_condition: self.no_condition,
-            no_object_reference: self.no_object_reference,
-            map: self.map_type,
-            relaxed: self.relaxed,
-        };
-        let structs = analyze(schema, kind, cfg)?
-            .rename()
-            .builder_fields(self.builders)
-            .0;
-
-        if !self.hide_prelude {
-            self.print_prelude(&structs);
-        }
-
-        for s in &structs {
-            if s.level == 0 {
-                continue; // ignoring root struct
-            }
-            if self.elide.contains(&s.name) {
-                debug!("eliding {} from the output", s.name);
-                continue;
-            }
-            self.print_docstr(&s.docs, "");
-            if s.is_main_container() {
-                self.print_derives(s, &structs);
-                //root struct gets kube derives unless opted out
-                if !self.hide_kube {
-                    println!(
-                        r#"#[kube(group = "{}", version = "{}", kind = "{}", plural = "{}")]"#,
-                        group, version_name, kind, plural
-                    );
-                    if scope == "Namespaced" {
-                        println!(r#"#[kube(namespaced)]"#);
-                    }
-                    // status should be listed as a subresource
-                    // but also check for top-level .status for certain non-conforming crds like argo application
-                    if (version.subresources.as_ref().is_some_and(|c| c.status.is_some())
-                        || version
-                            .schema
-                            .as_ref()
-                            .and_then(|c| c.open_api_v3_schema.as_ref())
-                            .and_then(|c| c.properties.as_ref())
-                            .is_some_and(|c| c.contains_key("status")))
-                        && self.has_status_resource(&structs)
-                    {
-                        println!(r#"#[kube(status = "{}Status")]"#, kind.to_upper_camel_case());
-                    }
-                    if self.schema != "derived" {
-                        println!(r#"#[kube(schema = "{}")]"#, self.schema);
-                    }
-                    for derive in &self.derive {
-                        if derive.derived_trait == "JsonSchema" {
-                            continue;
-                        }
-                        if derive.derived_trait == "Default"
-                            && self.smart_derive_elision
-                            && !s.can_derive_default(&structs)
-                        {
-                            continue;
-                        }
-                        println!(r#"#[kube(derive="{}")]"#, derive.derived_trait);
-                    }
-                }
-                if s.is_enum {
-                    println!("pub enum {} {{", s.name);
-                } else {
-                    println!("pub struct {} {{", s.name);
-                }
-            } else {
-                self.print_derives(s, &structs);
-                let spec_trimmed_name = s.name.as_str().replace(
-                    &format!("{}Spec", kind.to_upper_camel_case()),
-                    &kind.to_upper_camel_case(),
-                );
-                if s.is_enum {
-                    println!("pub enum {} {{", spec_trimmed_name);
-                } else {
-                    println!("pub struct {} {{", spec_trimmed_name);
-                }
-            }
-            for m in &s.members {
-                self.print_docstr(&m.docs, "    ");
-                if !m.serde_annot.is_empty() {
-                    println!("    #[serde({})]", m.serde_annot.join(", "));
-                }
-                let name = format_ident!("{}", m.name);
-                for annot in &m.extra_annot {
-                    println!("    {}", annot);
-                }
-                let spec_trimmed_type = m.type_.as_str().replace(
-                    &format!("{}Spec", kind.to_upper_camel_case()),
-                    &kind.to_upper_camel_case(),
-                );
-                if s.is_enum {
-                    // NB: only supporting plain enumerations atm, not oneOf
-                    println!("    {},", name);
-                } else {
-                    println!("    pub {}: {},", name, spec_trimmed_type);
-                }
-            }
-            println!("}}");
-            println!();
-        }
-
-        Ok(())
-    }
-
-    async fn list_crds(&self, api: Api<CustomResourceDefinition>) -> Result<()> {
-        let lp = api::ListParams::default();
-        api.list(&lp).await?.items.iter().for_each(|crd| {
-            println!("{}", crd.name_any());
-        });
-        Ok(())
-    }
-
-    fn completions(&self, shell: clap_complete::Shell) -> Result<()> {
-        let mut command = Self::command();
-        clap_complete::generate(shell, &mut command, "kopium", &mut std::io::stdout());
-        Ok(())
-    }
-
-    fn help(&self) -> Result<()> {
-        Self::command().print_help()?;
-        Ok(())
-    }
-
-    fn print_docstr(&self, doc: &Option<String>, indent: &str) {
-        // print doc strings if requested in arguments
-        if self.docs {
-            if let Some(d) = doc {
-                println!("{}", format_docstr(indent, d));
-            }
-        }
-    }
-
-    fn print_derives(&self, s: &Container, containers: &[Container]) {
-        let mut derives = vec!["Serialize", "Deserialize", "Clone", "Debug"];
-
-        if s.is_main_container() && !self.hide_kube {
-            // CustomResource first for root struct
-            derives.insert(0, "CustomResource");
-        }
-
-        // TypedBuilder does not work with enums
-        if self.builders && !s.is_enum {
-            derives.push("TypedBuilder");
-        }
-
-        for derive in &self.derive {
-            if derive.derived_trait == "Default"
-                && ((self.smart_derive_elision && !s.can_derive_default(containers)) || s.is_enum)
-            {
-                continue;
-            }
-
-            if derive.is_applicable_to(s) && !derives.contains(&derive.derived_trait.as_str()) {
-                derives.push(&derive.derived_trait)
-            }
-        }
-
-        println!("#[derive({})]", derives.join(", "));
-    }
-
-    fn has_status_resource(&self, results: &[Container]) -> bool {
-        results
-            .iter()
-            .any(|o| o.is_status_container() && !o.members.is_empty())
-    }
-
-    fn print_prelude(&self, results: &[Container]) {
-        println!("#[allow(unused_imports)]");
-        println!("mod prelude {{");
-        if !self.hide_kube {
-            println!("    pub use kube::CustomResource;");
-        }
-        if self.builders {
-            println!("    pub use typed_builder::TypedBuilder;");
-        }
-        if self
-            .derive
-            .iter()
-            .any(|derive| derive.derived_trait == "JsonSchema")
-        {
-            println!("    pub use schemars::JsonSchema;");
-        }
-        println!("    pub use serde::{{Serialize, Deserialize}};");
-        if results.iter().any(|o| o.uses_btreemaps()) {
-            println!("    pub use std::collections::BTreeMap;");
-        }
-        if results.iter().any(|o| o.uses_hashmaps()) {
-            println!("    pub use std::collections::HashMap;");
-        }
-        if results.iter().any(|o| o.uses_datetime()) {
-            println!("    pub use chrono::{{DateTime, Utc}};");
-        }
-        if results.iter().any(|o| o.uses_date()) {
-            println!("    pub use chrono::naive::NaiveDate;");
-        }
-        if results.iter().any(|o| o.uses_int_or_string()) {
-            println!("    pub use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;");
-        }
-        if results.iter().any(|o| o.contains_conditions()) && !self.no_condition {
-            println!("    pub use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;");
-        }
-        if results.iter().any(|o| o.contains_object_ref()) && !self.no_object_reference {
-            println!("    pub use k8s_openapi::api::core::v1::ObjectReference;");
-        }
-        println!("}}");
-        println!("use self::prelude::*;\n");
-    }
-
-    fn print_generation_warning(&self) {
-        println!("// WARNING: generated by kopium - manual changes will be overwritten");
-        let args = std::env::args().skip(1).collect::<Vec<_>>().join(" ");
-        println!("// kopium command: kopium {}", args);
-        println!("// kopium version: {}", clap::crate_version!());
-        println!();
-    }
-}
-
-fn find_crd_version<'a>(
-    crd: &'a CustomResourceDefinition,
-    version: Option<&str>,
-) -> Result<&'a CustomResourceDefinitionVersion> {
-    let mut iter = crd.spec.versions.iter();
-    if let Some(version) = version {
-        // pick specified version
-        iter.find(|v| v.name == version).ok_or_else(|| {
-            anyhow!(
-                "Version '{}' not found in CRD '{}'\navailable versions are '{}'",
-                version,
-                crd.name_any(),
-                all_versions(crd)
-            )
-        })
-    } else {
-        // pick version with highest version priority
-        iter.max_by_key(|v| Version::parse(&v.name).priority())
-            .ok_or_else(|| anyhow!("CRD '{}' has no versions", crd.name_any()))
-    }
-}
-
-fn all_versions(crd: &CustomResourceDefinition) -> String {
-    let mut vers = crd
-        .spec
-        .versions
-        .iter()
-        .map(|v| v.name.as_str())
-        .collect::<Vec<_>>();
-    vers.sort_by_cached_key(|v| std::cmp::Reverse(Version::parse(v).priority()));
-    vers.join(", ")
 }

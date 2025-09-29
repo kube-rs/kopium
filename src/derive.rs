@@ -1,10 +1,11 @@
-use anyhow::anyhow;
 use std::str::FromStr;
+
+use anyhow::anyhow;
 
 use crate::Container;
 
 /// Target object for which the trait must be derived.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 enum Target {
     /// Derive the trait for all types
     All,
@@ -21,7 +22,7 @@ enum Target {
 }
 
 /// A trait to derive, as well as the object for which to derive it.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub struct Derive {
     /// Target object (type, structs, enums) to derive the trait for.
     target: Target,
@@ -72,7 +73,7 @@ impl Derive {
 impl FromStr for Derive {
     type Err = anyhow::Error;
 
-    fn from_str(value: &str) -> std::prelude::v1::Result<Self, Self::Err> {
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
         if let Some((target, derived_trait)) = value.split_once('=') {
             if target.is_empty() {
                 return Err(anyhow!("derive target cannot be empty in '{value}'"));
