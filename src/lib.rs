@@ -30,7 +30,7 @@ pub use self::{
     PartialEq,
     // strum
     strum::Display,
-    strum::AsRefStr,
+    strum::IntoStaticStr,
 )]
 #[cfg_attr(feature = "cli", derive(strum::EnumString))]
 #[strum(ascii_case_insensitive, serialize_all = "lowercase")]
@@ -46,6 +46,19 @@ pub enum SchemaMode {
     /// **NOTE**: the resulting CRD cannot be applied to a cluster without manual fiddling to add an OpenAPI schema.
     #[default]
     Disabled,
+}
+
+#[cfg(feature = "cli")]
+impl clap::ValueEnum for SchemaMode {
+    fn value_variants<'a>() -> &'a [Self] {
+        &[Self::Manual, Self::Derived, Self::Disabled]
+    }
+
+    fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
+        Some(clap::builder::PossibleValue::new(
+            <Self as Into<&'static str>>::into(*self),
+        ))
+    }
 }
 
 
@@ -87,7 +100,10 @@ pub struct TypeGenerator {
     pub emit_docs: bool,
 
     /// Emit builder derives via the [`typed-builder`](typed_builder) crate
-    #[cfg_attr(feature = "cli", arg(long))]
+    #[cfg_attr(
+        feature = "cli",
+        arg(long, help = "Emit builder derives via the `typed-builder` crate")
+    )]
     pub builders: bool,
 
     /// Schema mode to use for kube-derive
@@ -122,9 +138,11 @@ pub struct TypeGenerator {
     ///
     /// See also: https://doc.rust-lang.org/reference/items/enumerations.html
     #[cfg_attr(feature = "cli", arg(
+        id = "TRAIT",
         short = 'D',
         long = "derive",
         value_parser = Derive::from_str,
+        action = clap::ArgAction::Append,
     ))]
     #[builder(via_mutators(init = Default::default()))]
     pub derive_traits: Vec<Derive>,
@@ -341,6 +359,11 @@ impl TypeGenerator {
             writeln!(&mut generated)?;
         }
 
+        let trim_to = generated.trim_end().len();
+
+        generated.truncate(trim_to);
+        generated.push_str("\n");
+
         Ok(generated)
     }
 
@@ -452,7 +475,7 @@ impl TypeGenerator {
             writeln!(buffer, "    pub use k8s_openapi::api::core::v1::ObjectReference;")?;
         }
 
-        writeln!(buffer, "}}")?;
+        writeln!(buffer, "}}\n")?;
         writeln!(buffer, "use self::prelude::*;\n")?;
 
         Ok(())
