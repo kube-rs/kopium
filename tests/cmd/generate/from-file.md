@@ -11,6 +11,7 @@ mod prelude {
     pub use std::collections::BTreeMap;
     pub use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;
 }
+
 use self::prelude::*;
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
@@ -114,6 +115,7 @@ mod prelude {
     pub use std::collections::BTreeMap;
     pub use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 }
+
 use self::prelude::*;
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
@@ -227,6 +229,7 @@ mod prelude {
     pub use serde::{Serialize, Deserialize};
     pub use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;
 }
+
 use self::prelude::*;
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
@@ -316,6 +319,7 @@ mod prelude {
     pub use serde::{Serialize, Deserialize};
     pub use std::collections::BTreeMap;
 }
+
 use self::prelude::*;
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
