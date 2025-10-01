@@ -39,22 +39,22 @@ clap = { version = "4.5", features = ["cargo", "derive"], optional = true }
 clap_complete = { version = "4.5", optional = true }
 env_logger = { version = "0.11.8", optional = true }
 heck = "0.5.0"
-k8s-openapi = { features = ["latest"], version = "0.26.0" }
-kube = { features = ["derive"], version = "2.0.1" }
+k8s-openapi = { version = "0.26.0", features = ["latest"] }
+kube = { version = "2.0.1", features = ["derive"] }
 libc = "0.2.175"
 log = "0.4.28"
 quote = "1.0.41"
 regex = "1.11.3"
-serde = { features = ["derive"], version = "1.0.228" }
+serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 serde_yaml = "0.9.34"
-strum = { features = ["derive"], version = "0.27.2" }
+strum = { version = "0.27.2", features = ["derive"] }
 syn = "2.0.106"
-tokio = { features = ["full"], version = "1.47.1" }
+tokio = { version = "1.47.1", features = ["full"] }
 typed-builder = "0.22.0"
 
 [dev-dependencies]
 env_logger = "0.11.8"
-k8s-openapi = { features = ["latest", "schemars"], version = "0.26.0" }
+k8s-openapi = { version = "0.26.0", features = ["latest", "schemars"] }
 schemars = "1.0.4"
-trycmd = { version = "0.15.10" }
+trycmd = "0.15.10"
