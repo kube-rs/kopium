@@ -102,7 +102,7 @@ pub struct TypeGenerator {
     /// Emit builder derives via the [`typed-builder`](typed_builder) crate
     #[cfg_attr(
         feature = "cli",
-        arg(long, help = "Emit builder derives via the `typed-builder` crate")
+        arg(short, long, help = "Emit builder derives via the `typed-builder` crate")
     )]
     pub builders: bool,
 
