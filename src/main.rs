@@ -245,7 +245,7 @@ impl Kopium {
         let structs = analyze(schema, kind, cfg)?
             .rename()
             .builder_fields(self.builders)
-            .0;
+            .output();
 
         if !self.hide_prelude {
             self.print_prelude(&structs);
