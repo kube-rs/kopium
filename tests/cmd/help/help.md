@@ -35,7 +35,7 @@ Options:
   -d, --docs
           Emit doc comments from CRD field descriptions
 
-      --builders
+  -b, --builders
           Emit builder derives via the `typed-builder` crate
 
       --schema <SCHEMA_MODE>
