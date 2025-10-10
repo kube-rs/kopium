@@ -5,8 +5,7 @@ use std::fmt::Write;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     env_logger::init();
     let src_dir = initialize_source_dir()?;
 
@@ -37,7 +36,7 @@ async fn main() -> Result<()> {
         // generate and write
         let generated = generator
             .generate_rust_types_for(&crd, Option::<String>::None)
-            .await?;
+            .context("failed to generate rust types for {name}")?;
         if let Err(error) = fs::write(&path, generated).context("failed to write generated file") {
             log::error!("failed to write generated types to: {}", path.display());
             log::error!("{error:#?}\n");

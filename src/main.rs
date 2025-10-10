@@ -145,7 +145,7 @@ mod cli {
         async fn generate_types_for(&self, crd: &CustomResourceDefinition) -> anyhow::Result<()> {
             let args = std::env::args().skip(1).collect::<Vec<_>>().join(" ");
 
-            let generated = self.generator.generate_rust_types_for(crd, Some(args)).await?;
+            let generated = self.generator.generate_rust_types_for(crd, Some(args))?;
 
             println!("{generated}");
 

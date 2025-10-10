@@ -1,4 +1,5 @@
-#[cfg(feature = "cli")] use std::str::FromStr;
+#[cfg(feature = "cli")]
+use std::str::FromStr;
 
 use heck::ToUpperCamelCase;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
@@ -200,7 +201,7 @@ impl Default for TypeGenerator {
 }
 
 impl TypeGenerator {
-    pub async fn generate_rust_types_for(
+    pub fn generate_rust_types_for(
         &self,
         crd: &CustomResourceDefinition,
         args: Option<impl std::fmt::Display>,
