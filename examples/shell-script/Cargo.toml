@@ -1,5 +1,5 @@
 [package]
-name = "prometheus-operator-types"
+name = "prometheus-operator-types-shell"
 description = "Auto-generated Prometheus Operator CRD types"
 version = "0.0.1"
 edition = "2024"

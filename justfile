@@ -106,5 +106,8 @@ test-trycmd:
 test-trycmd-verify:
   cargo test --test trycmd_tests
 
+examples:
+  cd examples && cargo build
+
 release:
   cargo release minor --execute
