@@ -485,7 +485,10 @@ mod test {
         );
         assert_eq!(
             "/// Some docs\n/// ```text\n/// foobar\n/// ```\n/// Some more docs\n/// ```text\n/// foobar.more\n/// ```",
-            format_docstr("", "Some docs\n```\nfoobar\n```\nSome more docs\n```\nfoobar.more\n```")
+            format_docstr(
+                "",
+                "Some docs\n```\nfoobar\n```\nSome more docs\n```\nfoobar.more\n```"
+            )
         );
     }
 
@@ -501,7 +504,10 @@ mod test {
         );
         assert_eq!(
             "/// Some docs\n/// ```text\n/// <https://kube-rs.io/kopium> testing string, not url\n/// ```\n/// ",
-            format_docstr("", "Some docs\n```\nhttps://kube-rs.io/kopium testing string, not url\n```\n")
+            format_docstr(
+                "",
+                "Some docs\n```\nhttps://kube-rs.io/kopium testing string, not url\n```\n"
+            )
         );
     }
 }

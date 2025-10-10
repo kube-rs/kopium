@@ -200,7 +200,7 @@ impl Default for TypeGenerator {
 }
 
 impl TypeGenerator {
-    pub async fn generate_rust_types_for(
+    pub fn generate_rust_types_for(
         &self,
         crd: &CustomResourceDefinition,
         args: Option<impl std::fmt::Display>,

@@ -39,6 +39,20 @@ jobs:
       - run: just test-linkerd-serverauth
       - run: just test-linkerd-server
 
+  examples:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: extractions/setup-just@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # install cli for examples
+      - run: cargo install --path .
+      - run: just examples
 
   rustfmt:
     name: Run rustfmt

@@ -91,7 +91,7 @@ impl FromStr for Derive {
                     other => {
                         return Err(anyhow!(
                             "unknown derive target @{other}, must be one of @struct, @enum, or @enum:simple"
-                        ))
+                        ));
                     }
                 }
             } else {
