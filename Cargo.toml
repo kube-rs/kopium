@@ -41,7 +41,7 @@ env_logger = { version = "0.11.8", optional = true }
 heck = "0.5.0"
 k8s-openapi = { version = "0.26.0", features = ["latest"] }
 kube = { version = "2.0.1", features = ["derive"] }
-libc = "0.2.175"
+libc = "0.2.177"
 log = "0.4.28"
 quote = "1.0.41"
 regex = "1.11.3"
