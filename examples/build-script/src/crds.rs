@@ -1,0 +1,10 @@
+pub mod alertmanagerconfig;
+pub mod alertmanager;
+pub mod podmonitor;
+pub mod probe;
+pub mod prometheusagent;
+pub mod prometheus;
+pub mod prometheusrule;
+pub mod scrapeconfig;
+pub mod servicemonitor;
+pub mod thanosruler;
