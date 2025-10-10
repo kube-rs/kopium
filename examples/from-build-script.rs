@@ -42,6 +42,8 @@ categories = ["data-structures"]
 [dependencies]
 k8s-openapi = { version = "0.26.0", features = ["latest", "schemars"] }
 kube = { version = "2.0.1", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["std"] }
 schemars = { version = "1", features = ["derive"] }
 typed-builder = { version = "0.22", default-features = false }
 
@@ -105,6 +107,7 @@ async fn main() -> anyhow::Result<()> {
         reqwest::Client::new(),
         kopium::TypeGenerator::builder()
             .schema_mode(kopium::SchemaMode::Derived)
+            .derive(kopium::Derive::all("JsonSchema"))
             .smart_derive_elision(true)
             .emit_docs(true)
             .builders(true)
