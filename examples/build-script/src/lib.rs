@@ -4,8 +4,7 @@
 
 mod crds;
 
-#[allow(unused_imports)]
-pub use crds::*;
+#[allow(unused_imports)] pub use crds::*;
 
 // Note: anything added to or changed in the `crds` modules (i.e. `crds.rs`, *or* `crds/*.rs`)
 // will be overwritten by the build script, so any extension methods/impls for the generated types should be added outside the crds module.

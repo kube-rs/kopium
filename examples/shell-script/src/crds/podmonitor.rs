@@ -4,11 +4,10 @@
 
 #[allow(unused_imports)]
 mod prelude {
+    pub use k8s_openapi::apimachinery::pkg::{apis::meta::v1::Condition, util::intstr::IntOrString};
     pub use schemars::JsonSchema;
-    pub use serde::{Serialize, Deserialize};
+    pub use serde::{Deserialize, Serialize};
     pub use std::collections::BTreeMap;
-    pub use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
-    pub use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;
 }
 
 use self::prelude::*;
@@ -19,27 +18,63 @@ pub struct PodMonitorSpec {
     pub attach_metadata: Option<PodMonitorAttachMetadata>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "bodySizeLimit")]
     pub body_size_limit: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "convertClassicHistogramsToNHCB")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "convertClassicHistogramsToNHCB"
+    )]
     pub convert_classic_histograms_to_nhcb: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "fallbackScrapeProtocol")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "fallbackScrapeProtocol"
+    )]
     pub fallback_scrape_protocol: Option<PodMonitorFallbackScrapeProtocol>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "jobLabel")]
     pub job_label: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "keepDroppedTargets")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "keepDroppedTargets"
+    )]
     pub keep_dropped_targets: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "labelLimit")]
     pub label_limit: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "labelNameLengthLimit")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "labelNameLengthLimit"
+    )]
     pub label_name_length_limit: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "labelValueLengthLimit")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "labelValueLengthLimit"
+    )]
     pub label_value_length_limit: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "namespaceSelector")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "namespaceSelector"
+    )]
     pub namespace_selector: Option<PodMonitorNamespaceSelector>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "nativeHistogramBucketLimit")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "nativeHistogramBucketLimit"
+    )]
     pub native_histogram_bucket_limit: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "nativeHistogramMinBucketFactor")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "nativeHistogramMinBucketFactor"
+    )]
     pub native_histogram_min_bucket_factor: Option<IntOrString>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "podMetricsEndpoints")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "podMetricsEndpoints"
+    )]
     pub pod_metrics_endpoints: Option<Vec<PodMonitorPodMetricsEndpoints>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "podTargetLabels")]
     pub pod_target_labels: Option<Vec<String>>,
@@ -47,12 +82,20 @@ pub struct PodMonitorSpec {
     pub sample_limit: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "scrapeClass")]
     pub scrape_class: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "scrapeClassicHistograms")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "scrapeClassicHistograms"
+    )]
     pub scrape_classic_histograms: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "scrapeProtocols")]
     pub scrape_protocols: Option<Vec<String>>,
     pub selector: PodMonitorSelector,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "selectorMechanism")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "selectorMechanism"
+    )]
     pub selector_mechanism: Option<PodMonitorSelectorMechanism>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "targetLimit")]
     pub target_limit: Option<i64>,
@@ -91,7 +134,11 @@ pub struct PodMonitorPodMetricsEndpoints {
     pub authorization: Option<PodMonitorPodMetricsEndpointsAuthorization>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "basicAuth")]
     pub basic_auth: Option<PodMonitorPodMetricsEndpointsBasicAuth>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "bearerTokenSecret")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "bearerTokenSecret"
+    )]
     pub bearer_token_secret: Option<PodMonitorPodMetricsEndpointsBearerTokenSecret>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "enableHttp2")]
     pub enable_http2: Option<bool>,
@@ -105,7 +152,11 @@ pub struct PodMonitorPodMetricsEndpoints {
     pub honor_timestamps: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub interval: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "metricRelabelings")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "metricRelabelings"
+    )]
     pub metric_relabelings: Option<Vec<PodMonitorPodMetricsEndpointsMetricRelabelings>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
     pub no_proxy: Option<String>,
@@ -119,9 +170,17 @@ pub struct PodMonitorPodMetricsEndpoints {
     pub port: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "portNumber")]
     pub port_number: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     pub proxy_connect_header: Option<BTreeMap<String, Vec<PodMonitorPodMetricsEndpointsProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
     pub proxy_url: Option<String>,
@@ -135,7 +194,11 @@ pub struct PodMonitorPodMetricsEndpoints {
     pub target_port: Option<IntOrString>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "tlsConfig")]
     pub tls_config: Option<PodMonitorPodMetricsEndpointsTlsConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "trackTimestampsStaleness")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "trackTimestampsStaleness"
+    )]
     pub track_timestamps_staleness: Option<bool>,
 }
 
@@ -261,9 +324,18 @@ pub struct PodMonitorPodMetricsEndpointsOauth2 {
     pub endpoint_params: Option<BTreeMap<String, String>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
     pub no_proxy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
-    pub proxy_connect_header: Option<BTreeMap<String, Vec<PodMonitorPodMetricsEndpointsOauth2ProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
+    pub proxy_connect_header:
+        Option<BTreeMap<String, Vec<PodMonitorPodMetricsEndpointsOauth2ProxyConnectHeader>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
     pub proxy_url: Option<String>,
@@ -325,7 +397,11 @@ pub struct PodMonitorPodMetricsEndpointsOauth2TlsConfig {
     pub ca: Option<PodMonitorPodMetricsEndpointsOauth2TlsConfigCa>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cert: Option<PodMonitorPodMetricsEndpointsOauth2TlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
     pub key_secret: Option<PodMonitorPodMetricsEndpointsOauth2TlsConfigKeySecret>,
@@ -505,7 +581,11 @@ pub struct PodMonitorPodMetricsEndpointsTlsConfig {
     pub ca: Option<PodMonitorPodMetricsEndpointsTlsConfigCa>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cert: Option<PodMonitorPodMetricsEndpointsTlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
     pub key_secret: Option<PodMonitorPodMetricsEndpointsTlsConfigKeySecret>,
@@ -657,4 +737,3 @@ pub enum PodMonitorStatusBindingsResource {
     #[serde(rename = "alertmanagers")]
     Alertmanagers,
 }
-

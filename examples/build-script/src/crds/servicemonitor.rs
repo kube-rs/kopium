@@ -3,19 +3,23 @@
 
 #[allow(unused_imports)]
 mod prelude {
+    pub use k8s_openapi::apimachinery::pkg::{apis::meta::v1::Condition, util::intstr::IntOrString};
     pub use kube::CustomResource;
-    pub use typed_builder::TypedBuilder;
     pub use schemars::JsonSchema;
-    pub use serde::{Serialize, Deserialize};
+    pub use serde::{Deserialize, Serialize};
     pub use std::collections::BTreeMap;
-    pub use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
-    pub use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;
+    pub use typed_builder::TypedBuilder;
 }
 
 use self::prelude::*;
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug, TypedBuilder, JsonSchema)]
-#[kube(group = "monitoring.coreos.com", version = "v1", kind = "ServiceMonitor", plural = "servicemonitors")]
+#[kube(
+    group = "monitoring.coreos.com",
+    version = "v1",
+    kind = "ServiceMonitor",
+    plural = "servicemonitors"
+)]
 #[kube(namespaced)]
 #[kube(status = "ServiceMonitorStatus")]
 pub struct ServiceMonitorSpec {
@@ -25,36 +29,68 @@ pub struct ServiceMonitorSpec {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "bodySizeLimit")]
     #[builder(default, setter(strip_option))]
     pub body_size_limit: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "convertClassicHistogramsToNHCB")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "convertClassicHistogramsToNHCB"
+    )]
     #[builder(default, setter(strip_option))]
     pub convert_classic_histograms_to_nhcb: Option<bool>,
     #[builder(default)]
     pub endpoints: Vec<ServiceMonitorEndpoints>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "fallbackScrapeProtocol")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "fallbackScrapeProtocol"
+    )]
     #[builder(default, setter(strip_option))]
     pub fallback_scrape_protocol: Option<ServiceMonitorFallbackScrapeProtocol>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "jobLabel")]
     #[builder(default, setter(strip_option))]
     pub job_label: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "keepDroppedTargets")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "keepDroppedTargets"
+    )]
     #[builder(default, setter(strip_option))]
     pub keep_dropped_targets: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "labelLimit")]
     #[builder(default, setter(strip_option))]
     pub label_limit: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "labelNameLengthLimit")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "labelNameLengthLimit"
+    )]
     #[builder(default, setter(strip_option))]
     pub label_name_length_limit: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "labelValueLengthLimit")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "labelValueLengthLimit"
+    )]
     #[builder(default, setter(strip_option))]
     pub label_value_length_limit: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "namespaceSelector")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "namespaceSelector"
+    )]
     #[builder(default, setter(strip_option))]
     pub namespace_selector: Option<ServiceMonitorNamespaceSelector>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "nativeHistogramBucketLimit")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "nativeHistogramBucketLimit"
+    )]
     #[builder(default, setter(strip_option))]
     pub native_histogram_bucket_limit: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "nativeHistogramMinBucketFactor")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "nativeHistogramMinBucketFactor"
+    )]
     #[builder(default, setter(strip_option))]
     pub native_histogram_min_bucket_factor: Option<IntOrString>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "podTargetLabels")]
@@ -66,17 +102,29 @@ pub struct ServiceMonitorSpec {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "scrapeClass")]
     #[builder(default, setter(strip_option))]
     pub scrape_class: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "scrapeClassicHistograms")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "scrapeClassicHistograms"
+    )]
     #[builder(default, setter(strip_option))]
     pub scrape_classic_histograms: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "scrapeProtocols")]
     #[builder(default, setter(strip_option))]
     pub scrape_protocols: Option<Vec<String>>,
     pub selector: ServiceMonitorSelector,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "selectorMechanism")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "selectorMechanism"
+    )]
     #[builder(default, setter(strip_option))]
     pub selector_mechanism: Option<ServiceMonitorSelectorMechanism>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "serviceDiscoveryRole")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "serviceDiscoveryRole"
+    )]
     #[builder(default, setter(strip_option))]
     pub service_discovery_role: Option<ServiceMonitorServiceDiscoveryRole>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "targetLabels")]
@@ -105,7 +153,11 @@ pub struct ServiceMonitorEndpoints {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "bearerTokenFile")]
     #[builder(default, setter(strip_option))]
     pub bearer_token_file: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "bearerTokenSecret")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "bearerTokenSecret"
+    )]
     #[builder(default, setter(strip_option))]
     pub bearer_token_secret: Option<ServiceMonitorEndpointsBearerTokenSecret>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "enableHttp2")]
@@ -126,7 +178,11 @@ pub struct ServiceMonitorEndpoints {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub interval: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "metricRelabelings")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "metricRelabelings"
+    )]
     #[builder(default, setter(strip_option))]
     pub metric_relabelings: Option<Vec<ServiceMonitorEndpointsMetricRelabelings>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
@@ -144,10 +200,18 @@ pub struct ServiceMonitorEndpoints {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub port: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_connect_header: Option<BTreeMap<String, Vec<ServiceMonitorEndpointsProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -168,7 +232,11 @@ pub struct ServiceMonitorEndpoints {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "tlsConfig")]
     #[builder(default, setter(strip_option))]
     pub tls_config: Option<ServiceMonitorEndpointsTlsConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "trackTimestampsStaleness")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "trackTimestampsStaleness"
+    )]
     #[builder(default, setter(strip_option))]
     pub track_timestamps_staleness: Option<bool>,
 }
@@ -316,10 +384,18 @@ pub struct ServiceMonitorEndpointsOauth2 {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
     #[builder(default, setter(strip_option))]
     pub no_proxy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_connect_header: Option<BTreeMap<String, Vec<ServiceMonitorEndpointsOauth2ProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -397,7 +473,11 @@ pub struct ServiceMonitorEndpointsOauth2TlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ServiceMonitorEndpointsOauth2TlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -613,7 +693,11 @@ pub struct ServiceMonitorEndpointsTlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "certFile")]
     #[builder(default, setter(strip_option))]
     pub cert_file: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keyFile")]

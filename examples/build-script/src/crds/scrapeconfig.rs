@@ -3,19 +3,23 @@
 
 #[allow(unused_imports)]
 mod prelude {
+    pub use k8s_openapi::apimachinery::pkg::{apis::meta::v1::Condition, util::intstr::IntOrString};
     pub use kube::CustomResource;
-    pub use typed_builder::TypedBuilder;
     pub use schemars::JsonSchema;
-    pub use serde::{Serialize, Deserialize};
+    pub use serde::{Deserialize, Serialize};
     pub use std::collections::BTreeMap;
-    pub use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
-    pub use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;
+    pub use typed_builder::TypedBuilder;
 }
 
 use self::prelude::*;
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug, TypedBuilder, JsonSchema)]
-#[kube(group = "monitoring.coreos.com", version = "v1alpha1", kind = "ScrapeConfig", plural = "scrapeconfigs")]
+#[kube(
+    group = "monitoring.coreos.com",
+    version = "v1alpha1",
+    kind = "ScrapeConfig",
+    plural = "scrapeconfigs"
+)]
 #[kube(namespaced)]
 #[kube(status = "ScrapeConfigStatus")]
 pub struct ScrapeConfigSpec {
@@ -31,10 +35,18 @@ pub struct ScrapeConfigSpec {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "consulSDConfigs")]
     #[builder(default, setter(strip_option))]
     pub consul_sd_configs: Option<Vec<ScrapeConfigConsulSdConfigs>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "convertClassicHistogramsToNHCB")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "convertClassicHistogramsToNHCB"
+    )]
     #[builder(default, setter(strip_option))]
     pub convert_classic_histograms_to_nhcb: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "digitalOceanSDConfigs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "digitalOceanSDConfigs"
+    )]
     #[builder(default, setter(strip_option))]
     pub digital_ocean_sd_configs: Option<Vec<ScrapeConfigDigitalOceanSdConfigs>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "dnsSDConfigs")]
@@ -43,13 +55,21 @@ pub struct ScrapeConfigSpec {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "dockerSDConfigs")]
     #[builder(default, setter(strip_option))]
     pub docker_sd_configs: Option<Vec<ScrapeConfigDockerSdConfigs>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "dockerSwarmSDConfigs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "dockerSwarmSDConfigs"
+    )]
     #[builder(default, setter(strip_option))]
     pub docker_swarm_sd_configs: Option<Vec<ScrapeConfigDockerSwarmSdConfigs>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "ec2SDConfigs")]
     #[builder(default, setter(strip_option))]
     pub ec2_sd_configs: Option<Vec<ScrapeConfigEc2SdConfigs>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "enableCompression")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "enableCompression"
+    )]
     #[builder(default, setter(strip_option))]
     pub enable_compression: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "enableHTTP2")]
@@ -58,7 +78,11 @@ pub struct ScrapeConfigSpec {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "eurekaSDConfigs")]
     #[builder(default, setter(strip_option))]
     pub eureka_sd_configs: Option<Vec<ScrapeConfigEurekaSdConfigs>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "fallbackScrapeProtocol")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "fallbackScrapeProtocol"
+    )]
     #[builder(default, setter(strip_option))]
     pub fallback_scrape_protocol: Option<ScrapeConfigFallbackScrapeProtocol>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "fileSDConfigs")]
@@ -85,10 +109,18 @@ pub struct ScrapeConfigSpec {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "jobName")]
     #[builder(default, setter(strip_option))]
     pub job_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "keepDroppedTargets")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "keepDroppedTargets"
+    )]
     #[builder(default, setter(strip_option))]
     pub keep_dropped_targets: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "kubernetesSDConfigs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "kubernetesSDConfigs"
+    )]
     #[builder(default, setter(strip_option))]
     pub kubernetes_sd_configs: Option<Vec<ScrapeConfigKubernetesSdConfigs>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "kumaSDConfigs")]
@@ -97,34 +129,66 @@ pub struct ScrapeConfigSpec {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "labelLimit")]
     #[builder(default, setter(strip_option))]
     pub label_limit: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "labelNameLengthLimit")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "labelNameLengthLimit"
+    )]
     #[builder(default, setter(strip_option))]
     pub label_name_length_limit: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "labelValueLengthLimit")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "labelValueLengthLimit"
+    )]
     #[builder(default, setter(strip_option))]
     pub label_value_length_limit: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "lightSailSDConfigs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "lightSailSDConfigs"
+    )]
     #[builder(default, setter(strip_option))]
     pub light_sail_sd_configs: Option<Vec<ScrapeConfigLightSailSdConfigs>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "linodeSDConfigs")]
     #[builder(default, setter(strip_option))]
     pub linode_sd_configs: Option<Vec<ScrapeConfigLinodeSdConfigs>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "metricRelabelings")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "metricRelabelings"
+    )]
     #[builder(default, setter(strip_option))]
     pub metric_relabelings: Option<Vec<ScrapeConfigMetricRelabelings>>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "metricsPath")]
     #[builder(default, setter(strip_option))]
     pub metrics_path: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "nameEscapingScheme")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "nameEscapingScheme"
+    )]
     #[builder(default, setter(strip_option))]
     pub name_escaping_scheme: Option<ScrapeConfigNameEscapingScheme>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "nameValidationScheme")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "nameValidationScheme"
+    )]
     #[builder(default, setter(strip_option))]
     pub name_validation_scheme: Option<ScrapeConfigNameValidationScheme>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "nativeHistogramBucketLimit")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "nativeHistogramBucketLimit"
+    )]
     #[builder(default, setter(strip_option))]
     pub native_histogram_bucket_limit: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "nativeHistogramMinBucketFactor")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "nativeHistogramMinBucketFactor"
+    )]
     #[builder(default, setter(strip_option))]
     pub native_histogram_min_bucket_factor: Option<IntOrString>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
@@ -136,25 +200,45 @@ pub struct ScrapeConfigSpec {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub oauth2: Option<ScrapeConfigOauth2>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "openstackSDConfigs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "openstackSDConfigs"
+    )]
     #[builder(default, setter(strip_option))]
     pub openstack_sd_configs: Option<Vec<ScrapeConfigOpenstackSdConfigs>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "ovhcloudSDConfigs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "ovhcloudSDConfigs"
+    )]
     #[builder(default, setter(strip_option))]
     pub ovhcloud_sd_configs: Option<Vec<ScrapeConfigOvhcloudSdConfigs>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub params: Option<BTreeMap<String, Vec<String>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
     #[builder(default, setter(strip_option))]
     pub proxy_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "puppetDBSDConfigs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "puppetDBSDConfigs"
+    )]
     #[builder(default, setter(strip_option))]
     pub puppet_dbsd_configs: Option<Vec<ScrapeConfigPuppetDbsdConfigs>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -163,7 +247,11 @@ pub struct ScrapeConfigSpec {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "sampleLimit")]
     #[builder(default, setter(strip_option))]
     pub sample_limit: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "scalewaySDConfigs")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "scalewaySDConfigs"
+    )]
     #[builder(default, setter(strip_option))]
     pub scaleway_sd_configs: Option<Vec<ScrapeConfigScalewaySdConfigs>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -172,7 +260,11 @@ pub struct ScrapeConfigSpec {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "scrapeClass")]
     #[builder(default, setter(strip_option))]
     pub scrape_class: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "scrapeClassicHistograms")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "scrapeClassicHistograms"
+    )]
     #[builder(default, setter(strip_option))]
     pub scrape_classic_histograms: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "scrapeInterval")]
@@ -193,7 +285,11 @@ pub struct ScrapeConfigSpec {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "tlsConfig")]
     #[builder(default, setter(strip_option))]
     pub tls_config: Option<ScrapeConfigTlsConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "trackTimestampsStaleness")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "trackTimestampsStaleness"
+    )]
     #[builder(default, setter(strip_option))]
     pub track_timestamps_staleness: Option<bool>,
 }
@@ -221,7 +317,11 @@ pub struct ScrapeConfigAuthorizationCredentials {
 
 #[derive(Serialize, Deserialize, Clone, Debug, TypedBuilder, JsonSchema)]
 pub struct ScrapeConfigAzureSdConfigs {
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "authenticationMethod")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "authenticationMethod"
+    )]
     #[builder(default, setter(strip_option))]
     pub authentication_method: Option<ScrapeConfigAzureSdConfigsAuthenticationMethod>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -254,10 +354,18 @@ pub struct ScrapeConfigAzureSdConfigs {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub port: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigAzureSdConfigsProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -363,10 +471,19 @@ pub struct ScrapeConfigAzureSdConfigsOauth2 {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
     #[builder(default, setter(strip_option))]
     pub no_proxy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
-    pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigAzureSdConfigsOauth2ProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    pub proxy_connect_header:
+        Option<BTreeMap<String, Vec<ScrapeConfigAzureSdConfigsOauth2ProxyConnectHeader>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -444,7 +561,11 @@ pub struct ScrapeConfigAzureSdConfigsOauth2TlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigAzureSdConfigsOauth2TlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -579,7 +700,11 @@ pub struct ScrapeConfigAzureSdConfigsTlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigAzureSdConfigsTlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -768,10 +893,18 @@ pub struct ScrapeConfigConsulSdConfigs {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "pathPrefix")]
     #[builder(default, setter(strip_option))]
     pub path_prefix: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigConsulSdConfigsProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -866,10 +999,19 @@ pub struct ScrapeConfigConsulSdConfigsOauth2 {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
     #[builder(default, setter(strip_option))]
     pub no_proxy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
-    pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigConsulSdConfigsOauth2ProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    pub proxy_connect_header:
+        Option<BTreeMap<String, Vec<ScrapeConfigConsulSdConfigsOauth2ProxyConnectHeader>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -947,7 +1089,11 @@ pub struct ScrapeConfigConsulSdConfigsOauth2TlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigConsulSdConfigsOauth2TlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -1090,7 +1236,11 @@ pub struct ScrapeConfigConsulSdConfigsTlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigConsulSdConfigsTlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -1237,10 +1387,19 @@ pub struct ScrapeConfigDigitalOceanSdConfigs {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub port: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
-    pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigDigitalOceanSdConfigsProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    pub proxy_connect_header:
+        Option<BTreeMap<String, Vec<ScrapeConfigDigitalOceanSdConfigsProxyConnectHeader>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -1287,10 +1446,19 @@ pub struct ScrapeConfigDigitalOceanSdConfigsOauth2 {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
     #[builder(default, setter(strip_option))]
     pub no_proxy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
-    pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigDigitalOceanSdConfigsOauth2ProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    pub proxy_connect_header:
+        Option<BTreeMap<String, Vec<ScrapeConfigDigitalOceanSdConfigsOauth2ProxyConnectHeader>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -1368,7 +1536,11 @@ pub struct ScrapeConfigDigitalOceanSdConfigsOauth2TlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigDigitalOceanSdConfigsOauth2TlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -1503,7 +1675,11 @@ pub struct ScrapeConfigDigitalOceanSdConfigsTlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigDigitalOceanSdConfigsTlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -1665,10 +1841,18 @@ pub struct ScrapeConfigDockerSdConfigs {
     #[builder(default, setter(strip_option))]
     pub follow_redirects: Option<bool>,
     pub host: String,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "hostNetworkingHost")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "hostNetworkingHost"
+    )]
     #[builder(default, setter(strip_option))]
     pub host_networking_host: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "matchFirstNetwork")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "matchFirstNetwork"
+    )]
     #[builder(default, setter(strip_option))]
     pub match_first_network: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
@@ -1680,10 +1864,18 @@ pub struct ScrapeConfigDockerSdConfigs {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub port: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigDockerSdConfigsProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -1769,10 +1961,19 @@ pub struct ScrapeConfigDockerSdConfigsOauth2 {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
     #[builder(default, setter(strip_option))]
     pub no_proxy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
-    pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigDockerSdConfigsOauth2ProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    pub proxy_connect_header:
+        Option<BTreeMap<String, Vec<ScrapeConfigDockerSdConfigsOauth2ProxyConnectHeader>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -1850,7 +2051,11 @@ pub struct ScrapeConfigDockerSdConfigsOauth2TlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigDockerSdConfigsOauth2TlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -1985,7 +2190,11 @@ pub struct ScrapeConfigDockerSdConfigsTlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigDockerSdConfigsTlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -2128,10 +2337,19 @@ pub struct ScrapeConfigDockerSwarmSdConfigs {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub port: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
-    pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigDockerSwarmSdConfigsProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    pub proxy_connect_header:
+        Option<BTreeMap<String, Vec<ScrapeConfigDockerSwarmSdConfigsProxyConnectHeader>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -2218,10 +2436,19 @@ pub struct ScrapeConfigDockerSwarmSdConfigsOauth2 {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
     #[builder(default, setter(strip_option))]
     pub no_proxy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
-    pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigDockerSwarmSdConfigsOauth2ProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    pub proxy_connect_header:
+        Option<BTreeMap<String, Vec<ScrapeConfigDockerSwarmSdConfigsOauth2ProxyConnectHeader>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -2299,7 +2526,11 @@ pub struct ScrapeConfigDockerSwarmSdConfigsOauth2TlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigDockerSwarmSdConfigsOauth2TlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -2441,7 +2672,11 @@ pub struct ScrapeConfigDockerSwarmSdConfigsTlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigDockerSwarmSdConfigsTlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -2577,10 +2812,18 @@ pub struct ScrapeConfigEc2SdConfigs {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub port: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigEc2SdConfigsProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -2651,7 +2894,11 @@ pub struct ScrapeConfigEc2SdConfigsTlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigEc2SdConfigsTlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -2787,10 +3034,18 @@ pub struct ScrapeConfigEurekaSdConfigs {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub oauth2: Option<ScrapeConfigEurekaSdConfigsOauth2>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigEurekaSdConfigsProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -2870,10 +3125,19 @@ pub struct ScrapeConfigEurekaSdConfigsOauth2 {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
     #[builder(default, setter(strip_option))]
     pub no_proxy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
-    pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigEurekaSdConfigsOauth2ProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    pub proxy_connect_header:
+        Option<BTreeMap<String, Vec<ScrapeConfigEurekaSdConfigsOauth2ProxyConnectHeader>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -2951,7 +3215,11 @@ pub struct ScrapeConfigEurekaSdConfigsOauth2TlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigEurekaSdConfigsOauth2TlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -3086,7 +3354,11 @@ pub struct ScrapeConfigEurekaSdConfigsTlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigEurekaSdConfigsTlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -3268,10 +3540,18 @@ pub struct ScrapeConfigHetznerSdConfigs {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub port: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigHetznerSdConfigsProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -3351,10 +3631,19 @@ pub struct ScrapeConfigHetznerSdConfigsOauth2 {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
     #[builder(default, setter(strip_option))]
     pub no_proxy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
-    pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigHetznerSdConfigsOauth2ProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    pub proxy_connect_header:
+        Option<BTreeMap<String, Vec<ScrapeConfigHetznerSdConfigsOauth2ProxyConnectHeader>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -3432,7 +3721,11 @@ pub struct ScrapeConfigHetznerSdConfigsOauth2TlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigHetznerSdConfigsOauth2TlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -3579,7 +3872,11 @@ pub struct ScrapeConfigHetznerSdConfigsTlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigHetznerSdConfigsTlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -3715,10 +4012,18 @@ pub struct ScrapeConfigHttpSdConfigs {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub oauth2: Option<ScrapeConfigHttpSdConfigsOauth2>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigHttpSdConfigsProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -3798,10 +4103,19 @@ pub struct ScrapeConfigHttpSdConfigsOauth2 {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
     #[builder(default, setter(strip_option))]
     pub no_proxy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
-    pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigHttpSdConfigsOauth2ProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    pub proxy_connect_header:
+        Option<BTreeMap<String, Vec<ScrapeConfigHttpSdConfigsOauth2ProxyConnectHeader>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -3879,7 +4193,11 @@ pub struct ScrapeConfigHttpSdConfigsOauth2TlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigHttpSdConfigsOauth2TlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -4014,7 +4332,11 @@ pub struct ScrapeConfigHttpSdConfigsTlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigHttpSdConfigsTlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -4150,10 +4472,18 @@ pub struct ScrapeConfigIonosSdConfigs {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub port: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigIonosSdConfigsProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -4200,10 +4530,19 @@ pub struct ScrapeConfigIonosSdConfigsOauth2 {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
     #[builder(default, setter(strip_option))]
     pub no_proxy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
-    pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigIonosSdConfigsOauth2ProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    pub proxy_connect_header:
+        Option<BTreeMap<String, Vec<ScrapeConfigIonosSdConfigsOauth2ProxyConnectHeader>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -4281,7 +4620,11 @@ pub struct ScrapeConfigIonosSdConfigsOauth2TlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigIonosSdConfigsOauth2TlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -4416,7 +4759,11 @@ pub struct ScrapeConfigIonosSdConfigsTlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigIonosSdConfigsTlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -4561,10 +4908,19 @@ pub struct ScrapeConfigKubernetesSdConfigs {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub oauth2: Option<ScrapeConfigKubernetesSdConfigsOauth2>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
-    pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigKubernetesSdConfigsProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    pub proxy_connect_header:
+        Option<BTreeMap<String, Vec<ScrapeConfigKubernetesSdConfigsProxyConnectHeader>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -4661,10 +5017,19 @@ pub struct ScrapeConfigKubernetesSdConfigsOauth2 {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
     #[builder(default, setter(strip_option))]
     pub no_proxy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
-    pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigKubernetesSdConfigsOauth2ProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    pub proxy_connect_header:
+        Option<BTreeMap<String, Vec<ScrapeConfigKubernetesSdConfigsOauth2ProxyConnectHeader>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -4742,7 +5107,11 @@ pub struct ScrapeConfigKubernetesSdConfigsOauth2TlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigKubernetesSdConfigsOauth2TlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -4908,7 +5277,11 @@ pub struct ScrapeConfigKubernetesSdConfigsTlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigKubernetesSdConfigsTlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -5050,10 +5423,18 @@ pub struct ScrapeConfigKumaSdConfigs {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub oauth2: Option<ScrapeConfigKumaSdConfigsOauth2>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigKumaSdConfigsProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -5133,10 +5514,19 @@ pub struct ScrapeConfigKumaSdConfigsOauth2 {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
     #[builder(default, setter(strip_option))]
     pub no_proxy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
-    pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigKumaSdConfigsOauth2ProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    pub proxy_connect_header:
+        Option<BTreeMap<String, Vec<ScrapeConfigKumaSdConfigsOauth2ProxyConnectHeader>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -5214,7 +5604,11 @@ pub struct ScrapeConfigKumaSdConfigsOauth2TlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigKumaSdConfigsOauth2TlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -5349,7 +5743,11 @@ pub struct ScrapeConfigKumaSdConfigsTlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigKumaSdConfigsTlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -5494,10 +5892,18 @@ pub struct ScrapeConfigLightSailSdConfigs {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub port: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigLightSailSdConfigsProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -5596,10 +6002,19 @@ pub struct ScrapeConfigLightSailSdConfigsOauth2 {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
     #[builder(default, setter(strip_option))]
     pub no_proxy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
-    pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigLightSailSdConfigsOauth2ProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    pub proxy_connect_header:
+        Option<BTreeMap<String, Vec<ScrapeConfigLightSailSdConfigsOauth2ProxyConnectHeader>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -5677,7 +6092,11 @@ pub struct ScrapeConfigLightSailSdConfigsOauth2TlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigLightSailSdConfigsOauth2TlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -5823,7 +6242,11 @@ pub struct ScrapeConfigLightSailSdConfigsTlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigLightSailSdConfigsTlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -5959,10 +6382,18 @@ pub struct ScrapeConfigLinodeSdConfigs {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub port: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigLinodeSdConfigsProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -6015,10 +6446,19 @@ pub struct ScrapeConfigLinodeSdConfigsOauth2 {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
     #[builder(default, setter(strip_option))]
     pub no_proxy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
-    pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigLinodeSdConfigsOauth2ProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    pub proxy_connect_header:
+        Option<BTreeMap<String, Vec<ScrapeConfigLinodeSdConfigsOauth2ProxyConnectHeader>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -6096,7 +6536,11 @@ pub struct ScrapeConfigLinodeSdConfigsOauth2TlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigLinodeSdConfigsOauth2TlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -6231,7 +6675,11 @@ pub struct ScrapeConfigLinodeSdConfigsTlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigLinodeSdConfigsTlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -6456,10 +6904,18 @@ pub struct ScrapeConfigNomadSdConfigs {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub oauth2: Option<ScrapeConfigNomadSdConfigsOauth2>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigNomadSdConfigsProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -6545,10 +7001,19 @@ pub struct ScrapeConfigNomadSdConfigsOauth2 {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
     #[builder(default, setter(strip_option))]
     pub no_proxy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
-    pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigNomadSdConfigsOauth2ProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    pub proxy_connect_header:
+        Option<BTreeMap<String, Vec<ScrapeConfigNomadSdConfigsOauth2ProxyConnectHeader>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -6626,7 +7091,11 @@ pub struct ScrapeConfigNomadSdConfigsOauth2TlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigNomadSdConfigsOauth2TlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -6761,7 +7230,11 @@ pub struct ScrapeConfigNomadSdConfigsTlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigNomadSdConfigsTlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -6889,10 +7362,18 @@ pub struct ScrapeConfigOauth2 {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
     #[builder(default, setter(strip_option))]
     pub no_proxy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigOauth2ProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -6970,7 +7451,11 @@ pub struct ScrapeConfigOauth2TlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigOauth2TlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -7091,13 +7576,25 @@ pub struct ScrapeConfigOpenstackSdConfigs {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "allTenants")]
     #[builder(default, setter(strip_option))]
     pub all_tenants: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "applicationCredentialId")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "applicationCredentialId"
+    )]
     #[builder(default, setter(strip_option))]
     pub application_credential_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "applicationCredentialName")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "applicationCredentialName"
+    )]
     #[builder(default, setter(strip_option))]
     pub application_credential_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "applicationCredentialSecret")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "applicationCredentialSecret"
+    )]
     #[builder(default, setter(strip_option))]
     pub application_credential_secret: Option<ScrapeConfigOpenstackSdConfigsApplicationCredentialSecret>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -7190,7 +7687,11 @@ pub struct ScrapeConfigOpenstackSdConfigsTlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigOpenstackSdConfigsTlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -7377,7 +7878,11 @@ pub struct ScrapeConfigPuppetDbsdConfigs {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "followRedirects")]
     #[builder(default, setter(strip_option))]
     pub follow_redirects: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "includeParameters")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "includeParameters"
+    )]
     #[builder(default, setter(strip_option))]
     pub include_parameters: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
@@ -7389,10 +7894,18 @@ pub struct ScrapeConfigPuppetDbsdConfigs {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub port: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigPuppetDbsdConfigsProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -7473,10 +7986,19 @@ pub struct ScrapeConfigPuppetDbsdConfigsOauth2 {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "noProxy")]
     #[builder(default, setter(strip_option))]
     pub no_proxy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
-    pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigPuppetDbsdConfigsOauth2ProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    pub proxy_connect_header:
+        Option<BTreeMap<String, Vec<ScrapeConfigPuppetDbsdConfigsOauth2ProxyConnectHeader>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -7554,7 +8076,11 @@ pub struct ScrapeConfigPuppetDbsdConfigsOauth2TlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigPuppetDbsdConfigsOauth2TlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -7689,7 +8215,11 @@ pub struct ScrapeConfigPuppetDbsdConfigsTlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigPuppetDbsdConfigsTlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -7896,10 +8426,18 @@ pub struct ScrapeConfigScalewaySdConfigs {
     pub port: Option<i32>,
     #[serde(rename = "projectID")]
     pub project_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyConnectHeader")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyConnectHeader"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_connect_header: Option<BTreeMap<String, Vec<ScrapeConfigScalewaySdConfigsProxyConnectHeader>>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyFromEnvironment")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "proxyFromEnvironment"
+    )]
     #[builder(default, setter(strip_option))]
     pub proxy_from_environment: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "proxyUrl")]
@@ -7958,7 +8496,11 @@ pub struct ScrapeConfigScalewaySdConfigsTlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigScalewaySdConfigsTlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]
@@ -8099,7 +8641,11 @@ pub struct ScrapeConfigTlsConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub cert: Option<ScrapeConfigTlsConfigCert>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "insecureSkipVerify")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "insecureSkipVerify"
+    )]
     #[builder(default, setter(strip_option))]
     pub insecure_skip_verify: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "keySecret")]

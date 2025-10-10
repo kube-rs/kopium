@@ -4,6 +4,7 @@ default:
 
 fmt:
   cargo +nightly fmt
+  cd examples && cargo +nightly fmt
 lint:
   cargo clippy
 

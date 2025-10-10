@@ -1,8 +1,6 @@
 use anyhow::{Context, Result};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
-use std::fmt::Write;
-use std::fs;
-use std::path::PathBuf;
+use std::{fmt::Write, fs, path::PathBuf};
 
 macro_rules! p {
     ($($tokens: tt)*) => {

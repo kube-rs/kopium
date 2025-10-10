@@ -2,8 +2,7 @@
 //!
 //! For more information, see the [kopium examples](https://github.com/kube-rs/kopium/blob/main/examples/)
 
-#[allow(unused_imports)]
-mod crds;
+#[allow(unused_imports)] mod crds;
 
 pub use crds::*;
 
