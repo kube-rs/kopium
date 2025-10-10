@@ -61,7 +61,6 @@ impl clap::ValueEnum for SchemaMode {
     }
 }
 
-
 #[cfg_attr(feature = "cli", derive(clap::Args))]
 #[derive(Clone, Debug, typed_builder::TypedBuilder)]
 #[builder(
@@ -74,7 +73,7 @@ impl clap::ValueEnum for SchemaMode {
         }
 
         /// Add all the supplied [`Derive`] directives to the
-        /// list of traits to be derived  on generated types
+        /// list of traits to be derived on generated types
         pub fn derive_all(&mut self, values: impl IntoIterator<Item = Derive>) {
             self.derive_traits.extend(values);
         }
@@ -118,8 +117,8 @@ pub struct TypeGenerator {
     ///
     /// See: https://docs.rs/kube/latest/kube/derive.CustomResource.html#kubeschema--mode and
     /// https://docs.rs/kube/latest/kube/trait.CustomResourceExt.html#tymethod.crd
+    #[builder(default)]
     #[cfg_attr(feature = "cli", arg(long = "schema", default_value_t))]
-    #[builder(via_mutators(init = SchemaMode::Disabled))]
     pub schema_mode: SchemaMode,
 
     /// Derive these additional traits on generated objects

@@ -7,7 +7,6 @@ async fn main() -> anyhow::Result<()> {
     cli::kopium_cli().await
 }
 
-
 #[cfg(feature = "cli")]
 mod cli {
     use std::path::PathBuf;
@@ -139,7 +138,6 @@ mod cli {
             {
                 println!("{crd_name}");
             }
-
 
             Ok(())
         }
