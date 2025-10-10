@@ -240,19 +240,30 @@ impl Output {
 }
 
 /// Type used for additionalProperties maps
-#[derive(clap::ValueEnum, Clone, Copy, Default, Debug)]
-#[clap(rename_all = "PascalCase")]
+#[derive(
+    // std
+    Eq,
+    Copy,
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    // strum
+    strum::Display,
+    strum::AsRefStr,
+)]
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
+#[cfg_attr(feature = "cli", clap(rename_all = "PascalCase"))]
+#[strum(ascii_case_insensitive, serialize_all = "PascalCase")]
 pub enum MapType {
     #[default]
     BTreeMap,
     HashMap,
 }
+
 impl MapType {
     pub fn name(&self) -> &str {
-        match self {
-            Self::BTreeMap => "BTreeMap",
-            Self::HashMap => "HashMap",
-        }
+        <Self as AsRef<str>>::as_ref(self)
     }
 }
 

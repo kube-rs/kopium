@@ -11,6 +11,7 @@ mod prelude {
     pub use std::collections::BTreeMap;
     pub use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;
 }
+
 use self::prelude::*;
 
 /// ApiSpec defines the desired state of Api.
@@ -202,6 +203,7 @@ mod prelude {
     pub use std::collections::BTreeMap;
     pub use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 }
+
 use self::prelude::*;
 
 /// ArgoCDExportSpec defines the desired state of ArgoCDExport
@@ -459,6 +461,7 @@ mod prelude {
     pub use serde::{Serialize, Deserialize};
     pub use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;
 }
+
 use self::prelude::*;
 
 /// AuthorizerSpec defines the desired state of Authorizer.
@@ -647,6 +650,7 @@ mod prelude {
     pub use serde::{Serialize, Deserialize};
     pub use std::collections::BTreeMap;
 }
+
 use self::prelude::*;
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
