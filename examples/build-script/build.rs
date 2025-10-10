@@ -43,6 +43,10 @@ fn main() -> Result<()> {
         // prom operator has unique kind names
         let name = crd.spec.names.kind.to_lowercase();
         let path = crd_dir.join(&name).with_extension("rs");
+        if !["scrapeconfig", "podmonitor", "servicemonitor"].contains(&name.as_ref()) {
+            // only doing a couple of the servicemonitors for the example
+            continue;
+        }
 
         // generate and write
         let generated = generator

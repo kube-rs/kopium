@@ -1,0 +1,16 @@
+# renovate: datasource=github-releases depName=prometheus-operator/prometheus-operator
+PROMETHEUS_OPERATOR_VERSION := "0.86.0"
+
+# generation method
+#
+# relies on lq atm https://github.com/clux/lq
+update:
+    curl -sSL https://github.com/prometheus-operator/prometheus-operator/releases/download/v{{PROMETHEUS_OPERATOR_VERSION}}/stripped-down-crds.yaml | lq . -y --split '"crds/" + (.metadata.name) + ".yaml"'
+
+gen:
+    rm -rf src/crds
+    mkdir -p src/crds
+    # Note enumerate the modules in src/crds.rs if adding more
+    kopium -d -D PartialEq -D JsonSchema --derive="@struct=Default" --smart-derive-elision --hide-kube -f crds/servicemonitors.monitoring.coreos.com.yaml > src/crds/servicemonitor.rs
+    kopium -d -D PartialEq -D JsonSchema --derive="@struct=Default" --smart-derive-elision --hide-kube -f crds/podmonitors.monitoring.coreos.com.yaml > src/crds/podmonitor.rs
+    kopium -d -D PartialEq -D JsonSchema --derive="@struct=Default" --smart-derive-elision --hide-kube -f crds/scrapeconfigs.monitoring.coreos.com.yaml > src/crds/scrapeconfig.rs

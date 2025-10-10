@@ -1,0 +1,16 @@
+[package]
+name = "prometheus-operator-types"
+description = "Auto-generated Prometheus Operator CRD types"
+version = "0.0.1"
+edition = "2024"
+publish = false
+authors = ["kopium <kopium@example.dev>"]
+license = "Apache-2.0"
+repository = "https://example.com/kopium/prometheus-operator-types"
+keywords = ["kubernetes", "openapi", "monitoring", "prometheus"]
+categories = ["data-structures"]
+
+[dependencies]
+k8s-openapi = { version = "0.26.0", features = ["latest", "schemars"] }
+schemars = { version = "1", features = ["derive"] }
+serde = { version = "1", features=["derive"] }

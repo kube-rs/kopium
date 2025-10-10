@@ -2,15 +2,16 @@
 //!
 //! For more information, see the [kopium examples](https://github.com/kube-rs/kopium/blob/main/examples/)
 
+#[allow(unused_imports)]
 mod crds;
 
-#[allow(unused_imports)]
 pub use crds::*;
 
-// Note: anything added to or changed in the `crds` modules (i.e. `crds.rs`, *or* `crds/*.rs`)
-// will be overwritten by the build script, so any extension methods/impls for the generated types should be added outside the crds module.
+// Note: anything added to or changed in the crds/ folder
+// will be overwritten by the generation step in the just file
+// so any extension methods/impls for the generated types should be added outside that folder
 
-impl servicemonitor::ServiceMonitor {
+impl servicemonitor::ServiceMonitorSpec {
     /// A custom method for one of the generated types that won't be overwritten by the build script
     pub fn some_custom_method(&self) -> bool {
         todo!()
