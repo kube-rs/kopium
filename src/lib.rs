@@ -69,13 +69,19 @@ impl clap::ValueEnum for SchemaMode {
         /// Add the supplied [`Derive`] directive to the list
         /// of traits to be derived on generated types
         pub fn derive(&mut self, value: Derive) {
-            self.derive_traits.push(value);
+            if !self.derive_traits.contains(&value) {
+                self.derive_traits.push(value);
+            }
         }
 
         /// Add all the supplied [`Derive`] directives to the
         /// list of traits to be derived on generated types
         pub fn derive_all(&mut self, values: impl IntoIterator<Item = Derive>) {
-            self.derive_traits.extend(values);
+            for target in values {
+                if !self.derive_traits.contains(&target) {
+                    self.derive_traits.push(target);
+                }
+            }
         }
     )
 )]
