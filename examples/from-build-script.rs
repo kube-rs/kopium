@@ -176,6 +176,11 @@ async fn main() -> anyhow::Result<()> {
 
     log::info!("wrote `generated` module to: {}", generated_rs.display());
 
+    println!(
+        "\n\ngenerated complete example crate to: {}\n",
+        crate_path.display()
+    );
+
     Ok(())
 }
 
