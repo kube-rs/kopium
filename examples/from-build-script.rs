@@ -83,6 +83,13 @@ impl Alertmanager {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var(
+            "RUST_LOG",
+            format!("info,{}=trace", env!("CARGO_BIN_NAME").replace("-", "_")),
+        );
+    }
+
     env_logger::init();
 
     let crate_dir = std::env::args().nth(1);
