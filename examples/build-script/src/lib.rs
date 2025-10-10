@@ -2,10 +2,10 @@
 //!
 //! For more information, see the [kopium examples](https://github.com/kube-rs/kopium/blob/main/examples/)
 
-mod generated;
+mod crds;
 
 #[allow(unused_imports)]
-pub use generated::*;
+pub use crds::*;
 
 // Note: anything added to or changed in the `generated` modules (i.e. `generated.rs`, *or* `generated/*.rs`)
 // will be overwritten by the build script, so any extension methods/impls for the generated types should be added here

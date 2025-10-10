@@ -11,9 +11,8 @@ async fn main() -> Result<()> {
     let src_dir = initialize_source_dir()?;
 
     // crd source
-    let crds_yaml = std::fs::read("./stripped-down-crds.yaml").context("could read crd yaml")?;
-    let crds: Vec<CustomResourceDefinition> = serde_yaml::from_slice(&crds_yaml)
-        .context("failed to parse crd yaml as Vector of CustomResourceDefinition")?;
+    let crds_yaml = std::fs::read_to_string("./stripped-down-crds.yaml").context("could read crd yaml")?;
+    let crd_values = multidoc_deserialize(&crds_yaml).context("could deserialize crd yaml as yaml")?;
 
     // kopium configuration
     let generator = kopium::TypeGenerator::builder()
@@ -29,7 +28,9 @@ async fn main() -> Result<()> {
     let crd_dir = src_dir.join("crds");
     let mut imports = String::new();
 
-    for crd in crds {
+    for crd_value in crd_values {
+        let crd: CustomResourceDefinition =
+            serde_yaml::from_value(crd_value).context("could read crd as CustomResourceDefinition")?;
         let name = crd.name_any(); // kube method on a Resource
         let path = crd_dir.join(&name).with_extension("rs");
 
@@ -54,9 +55,18 @@ async fn main() -> Result<()> {
     fs::write(&import_rs, header)?;
     fs::write(&import_rs, imports)?;
 
-    // log::info!("wrote `generated` module to: {}", generated_rs.display());
+    log::info!("wrote `crds` module to: {}", import_rs.display());
 
     Ok(())
+}
+
+pub fn multidoc_deserialize(data: &str) -> Result<Vec<serde_yaml::Value>> {
+    use serde::Deserialize;
+    let mut docs = vec![];
+    for de in serde_yaml::Deserializer::from_str(data) {
+        docs.push(serde_yaml::Value::deserialize(de)?);
+    }
+    Ok(docs)
 }
 
 fn initialize_source_dir() -> Result<PathBuf> {
