@@ -142,7 +142,7 @@ jobs:
           path: ~/.cargo/bin
           key: sign-tools-${{ hashFiles('.github/workflows/release.yml') }}
 
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v7
         with:
           pattern: builds-*
           merge-multiple: true
