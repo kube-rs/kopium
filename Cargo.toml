@@ -43,13 +43,13 @@ k8s-openapi = { version = "0.26.1", features = ["latest"] }
 kube = { version = "2.0.1", features = ["derive"] }
 libc = "0.2.179"
 log = "0.4.29"
-quote = "1.0.42"
+quote = "1.0.43"
 regex = "1.12.2"
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.148"
+serde_json = "1.0.149"
 serde_yaml = "0.9.34"
 strum = { version = "0.27.2", features = ["derive"] }
-syn = "2.0.113"
+syn = "2.0.114"
 tokio = { version = "1.49.0", features = ["full"] }
 typed-builder = "0.23.2"
 
