@@ -278,13 +278,16 @@ impl TypeGenerator {
 
                     // status should be listed as a subresource
                     // but also check for top-level .status for certain non-conforming crds like argo application
+
+                    use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::JSONSchemaProps as JProps;
+                    type TempMap = std::collections::BTreeMap<String, JProps>;
                     if (version.subresources.as_ref().is_some_and(|c| c.status.is_some())
                         || version
                             .schema
                             .as_ref()
                             .and_then(|c| c.open_api_v3_schema.as_ref())
                             .and_then(|c| c.properties.as_ref())
-                            .is_some_and(|c| c.contains_key("status")))
+                            .is_some_and(|c: &TempMap| c.contains_key("status")))
                         && has_status_resource(&structs)
                     {
                         writeln!(

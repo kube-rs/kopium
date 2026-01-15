@@ -5,6 +5,7 @@ use heck::ToUpperCamelCase;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
     JSONSchemaProps, JSONSchemaPropsOrArray, JSONSchemaPropsOrBool, JSON,
 };
+use JSONSchemaProps as JProps;
 
 use crate::{Container, MapType, Member, Output};
 
@@ -152,8 +153,9 @@ fn find_containers(
 ) -> anyhow::Result<Vec<Container>> {
     //trace!("finding containers in: {}", serde_yaml::to_string(&props)?);
     let mut results = vec![];
-    for (key, value) in props {
-        if level == 0 && IGNORED_KEYS.contains(&(key.as_ref())) {
+    for (key_, value) in props {
+        let key: &String = key_;
+        if level == 0 && IGNORED_KEYS.contains(&key.as_ref()) {
             log::debug!("not recursing into ignored {}", key); // handled elsewhere
             continue;
         }
@@ -312,7 +314,7 @@ fn extract_container(
                 } else if !cfg.no_object_reference && is_object_ref_list(value) {
                     array_type = "Vec<ObjectReference>".into()
                 } else {
-                    array_recurse_level.insert(key.clone(), recurse_level);
+                    array_recurse_level.insert(key.to_string(), recurse_level);
                 }
                 array_type
             }
@@ -324,7 +326,7 @@ fn extract_container(
                     || value
                         .one_of
                         .as_deref()
-                        .is_some_and(|items| items.iter().all(|item| item.type_.is_some()))
+                        .is_some_and(|items: &[JProps]| items.iter().all(|item| item.type_.is_some()))
                 {
                     "serde_json::Value".into()
                 } else if cfg.relaxed {
@@ -482,8 +484,9 @@ fn array_recurse_for_type(
 // helpers
 fn is_conditions(value: &JSONSchemaProps) -> bool {
     if let Some(JSONSchemaPropsOrArray::Schema(props)) = &value.items {
-        if let Some(p) = &props.properties {
-            let type_ = p.get("type");
+        if let Some(p_) = &props.properties {
+            let p: &BTreeMap<String, JProps> = p_;
+            let type_: Option<&JProps> = p.get("type");
             let status = p.get("status");
             let reason = p.get("reason");
             let message = p.get("message");
@@ -505,7 +508,8 @@ fn is_object_ref_list(value: &JSONSchemaProps) -> bool {
 }
 
 fn is_object_ref(value: &JSONSchemaProps) -> bool {
-    if let Some(p) = &value.properties {
+    if let Some(p_) = &value.properties {
+        let p: &BTreeMap<String, JProps> = p_;
         if p.len() != 7 {
             return false;
         }
@@ -518,7 +522,7 @@ fn is_object_ref(value: &JSONSchemaProps) -> bool {
         let uid = p.get("uid");
         if [api_version, field_path, kind, name, ns, rv, uid]
             .iter()
-            .all(|k| k.is_some())
+            .all(|k: &Option<&JProps>| k.is_some())
         {
             return true;
         }
@@ -548,13 +552,14 @@ fn extract_object_type(
 }
 
 fn extract_date_type(value: &JSONSchemaProps) -> anyhow::Result<String> {
-    Ok(if let Some(f) = &value.format {
+    Ok(if let Some(f_) = &value.format {
+        let f: &String = f_;
         // NB: these need chrono feature on serde
         match f.as_ref() {
             // Not sure if the first actually works properly...
             // might need a Date<Utc> but chrono docs advocated for NaiveDate
             "date" => "NaiveDate".to_string(),
-            "date-time" => "DateTime<Utc>".to_string(),
+            "date-time" => "DateTime<Utc>".to_string(), // TODO: jiff now?
             x => {
                 anyhow::bail!("unknown date {}", x);
             }
@@ -566,7 +571,8 @@ fn extract_date_type(value: &JSONSchemaProps) -> anyhow::Result<String> {
 
 fn extract_number_type(value: &JSONSchemaProps) -> anyhow::Result<String> {
     // TODO: byte / password here?
-    Ok(if let Some(f) = &value.format {
+    Ok(if let Some(f_) = &value.format {
+        let f: &String = f_;
         match f.as_ref() {
             "float" => "f32".to_string(),
             "double" => "f64".to_string(),
@@ -580,7 +586,8 @@ fn extract_number_type(value: &JSONSchemaProps) -> anyhow::Result<String> {
 fn extract_integer_type(value: &JSONSchemaProps) -> anyhow::Result<String> {
     // Think kubernetes go types just do signed ints, but set a minimum to zero...
     // rust will set uint, so emitting that when possible
-    Ok(if let Some(f) = &value.format {
+    Ok(if let Some(f_) = &value.format {
+        let f: &String = f_;
         match f.as_ref() {
             "int8" => "i8".to_string(),
             "int16" => "i16".to_string(),
