@@ -34,7 +34,7 @@ cli = [
 ]
 
 [dependencies]
-anyhow = "1.0.100"
+anyhow = "1.0.101"
 clap = { version = "4.5", features = ["cargo", "derive"], optional = true }
 clap_complete = { version = "4.5", optional = true }
 env_logger = { version = "0.11.8", optional = true }
