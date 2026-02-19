@@ -14,11 +14,12 @@ jobs:
       - uses: extractions/setup-just@v3
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: AbsaOSS/k3d-action@v2
+      - uses: AbsaOSS/k3d-action@v2.2.0
         with:
-          k3d-version: v5.2.2
           cluster-name: "kube"
-          args: --agents 1 --no-lb
+          args: >-
+            --agents 1 --no-lb
+            --k3s-arg "--no-deploy=traefik,servicelb,metrics-server@server:*"
       # unit tests
       - run: cargo test --lib
       # integration tests
