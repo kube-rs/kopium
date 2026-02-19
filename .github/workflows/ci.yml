@@ -16,6 +16,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: AbsaOSS/k3d-action@v2
         with:
+          k3d-version: v5.2.2
           cluster-name: "kube"
           args: --agents 1 --no-lb
       # unit tests
