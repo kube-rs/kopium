@@ -11,8 +11,8 @@ keywords = ["kubernetes", "openapi", "monitoring", "prometheus"]
 categories = ["data-structures"]
 
 [dependencies]
-kube = { version = "2.0.1", features = ["derive"] }
-k8s-openapi = { version = "0.26.0", features = ["latest", "schemars"] }
+kube = { version = "3.0.1", features = ["derive"] }
+k8s-openapi = { version = "0.27.0", features = ["latest", "schemars"] }
 serde_json = { version = "1", features = ["std"] }
 schemars = { version = "1", features = ["derive"] }
 tokio = { version = "1.47.1", features = ["full"] }
@@ -21,7 +21,7 @@ serde = { version = "1" }
 
 [build-dependencies]
 anyhow = "1"
-k8s-openapi = { version = "0.26.0", features = ["latest", "schemars"] }
+k8s-openapi = { version = "0.27.0", features = ["latest", "schemars"] }
 kopium = { path = "../..", default-features = false }
 serde_yaml = "0.9.34"
 serde = { version = "1" }

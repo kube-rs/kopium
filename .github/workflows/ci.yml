@@ -14,31 +14,18 @@ jobs:
       - uses: extractions/setup-just@v3
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: AbsaOSS/k3d-action@v2
+      - uses: actions/setup-go@v5
         with:
-          k3d-version: v5.2.2
-          cluster-name: "kube"
-          args: --agents 1 --no-lb
+          go-version: stable
+          cache: false
       # unit tests
       - run: cargo test --lib
       # integration tests
       - run: cargo build --bin kopium
       # Test stdout of commands
       - run: just test-trycmd-verify
-      # Test reasonably complicated CRDs; promethesurules and servicemonitors
-      - run: just test-pr
-      - run: just test-sm
-      # Test a fake CRD with multiple versions
-      - run: just test-mv
-      # Test argocd Application
-      - run: just test-argo
-      # Test openshift agent crd
-      - run: just test-agent
-      # Test around documentation in cert-manager certificates
-      - run: just test-certmanager
-      # Test some linkerd crds
-      - run: just test-linkerd-serverauth
-      - run: just test-linkerd-server
+      # Test different CRDs
+      - run: just test
 
   examples:
     strategy:
