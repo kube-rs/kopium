@@ -11,6 +11,6 @@ keywords = ["kubernetes", "openapi", "monitoring", "prometheus"]
 categories = ["data-structures"]
 
 [dependencies]
-k8s-openapi = { version = "0.26.0", features = ["latest", "schemars"] }
+k8s-openapi = { version = "0.27.0", features = ["latest", "schemars"] }
 schemars = { version = "1", features = ["derive"] }
 serde = { version = "1", features=["derive"] }
