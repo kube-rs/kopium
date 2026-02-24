@@ -1,4 +1,5 @@
-#[cfg(feature = "cli")] use std::str::FromStr;
+#[cfg(feature = "cli")]
+use std::str::FromStr;
 
 use heck::ToUpperCamelCase;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
@@ -207,7 +208,7 @@ impl TypeGenerator {
     ) -> anyhow::Result<String> {
         use std::fmt::Write;
 
-        let version = find_crd_version(&crd, self.api_version.as_deref())?;
+        let version = find_crd_version(crd, self.api_version.as_deref())?;
 
         let data = version
             .schema
@@ -367,7 +368,7 @@ impl TypeGenerator {
         let trim_to = generated.trim_end().len();
 
         generated.truncate(trim_to);
-        generated.push_str("\n");
+        generated.push('\n');
 
         Ok(generated)
     }
