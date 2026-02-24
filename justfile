@@ -9,25 +9,25 @@ fmt:
 lint:
   cargo clippy
 
-test: gen-tests test-runner test-trycmd-verify
+test: download-crds gen-tests test-runner test-trycmd-verify
 
 generate-runner-binding crd_path resource out_file extra_args='':
   RUNNER_GEN_CRD_PATH={{crd_path}} RUNNER_GEN_RESOURCE={{resource}} RUNNER_GEN_OUT_DIR=tests/generated RUNNER_GEN_OUT_FILE={{out_file}} RUNNER_GEN_EXTRA_ARGS="{{extra_args}}" cargo test --test generate_runner_bindings -- --ignored --nocapture
 
+download-crds: download-crd-prom download-crd-argo download-crd-certmanager
+  mkdir -p tests/generated
+
 download-crd-prom:
   #!/usr/bin/env bash
-  mkdir -p tests/generated
   version="0.89.0"
   curl -sSL https://github.com/prometheus-operator/prometheus-operator/releases/download/v${version}/stripped-down-crds.yaml \
   | lq . -y --split '"tests/" + (.metadata.name) + ".yaml"'
   rm tests/{alertmanager*,probes,prometheusagents,prometheuses,scrapeconfigs,thanosrulers}.monitoring.coreos.com.yaml
 
 download-crd-argo:
-  mkdir -p tests/generated
   curl -sSL https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/crds/application-crd.yaml -o tests/generated/application-crd.yaml
 
 download-crd-certmanager:
-  mkdir -p tests/generated
   curl -sSL https://github.com/jetstack/cert-manager/releases/download/v1.7.1/cert-manager.crds.yaml -o tests/generated/cert-manager.crds.yaml
 
 _gen file +ARGS:
