@@ -58,7 +58,7 @@ download-crd-prom:
   version="0.89.0"
   curl -sSL https://github.com/prometheus-operator/prometheus-operator/releases/download/v${version}/stripped-down-crds.yaml \
   | lq . -y --split '"tests/" + (.metadata.name) + ".yaml"'
-  rm tests/{alertmanager*,probes,prometheusagents,prometheuses,scrapeconfigs,thanosrulers}.monitoring.coreos.com.yaml
+  rm -f tests/{alertmanager*,probes,prometheusagents,prometheuses,scrapeconfigs,thanosrulers}.monitoring.coreos.com.yaml
 
 [group('download')]
 download-crd-argo:

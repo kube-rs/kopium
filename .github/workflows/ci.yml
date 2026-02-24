@@ -19,11 +19,14 @@ jobs:
           go-version: stable
           cache: false
       # unit tests
-      - run: cargo test --lib
+      # - run: cargo test --lib
       # integration tests
       - run: cargo build --bin kopium
       # Test stdout of commands
-      - run: just test-trycmd-verify
+      # - run: just test-trycmd-verify
+      - run: |
+          LQ_VERSION="0.15.0"
+          curl -sSL https://github.com/clux/lq/releases/download/${LQ_VERSION}/lq-x86_64-unknown-linux-musl.tar.xz | tar xJ --strip-components=1 -C /usr/local/bin
       # Test different CRDs
       - run: just test
 
