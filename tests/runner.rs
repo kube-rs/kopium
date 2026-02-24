@@ -2,45 +2,52 @@
 #[cfg(test)]
 #[allow(warnings)]
 mod tests {
-    mod agent {
-        include!("./generated/agent.rs");
+    // promstack
+    mod prometheusrule {
+        include!("./generated/prometheusrule.rs");
+    }
+    mod podmonitor {
+        include!("./generated/podmonitor.rs");
+    }
+    mod servicemonitor {
+        include!("./generated/servicemonitor.rs");
     }
 
-    mod application {
-        include!("./generated/application.rs");
-    }
-
-    mod certificate {
-        include!("./generated/certificate.rs");
-    }
-
-    mod destinationrule {
-        include!("./generated/destinationrule.rs");
-    }
-
-    mod httproute {
-        include!("./generated/httproute.rs");
-    }
-
+    // ad-hoc versioning
     mod multiversion {
         include!("./generated/multiversion.rs");
     }
 
-    mod podmonitor {
-        include!("./generated/podmonitor.rs");
+    // openshift
+    mod agent {
+        include!("./generated/agent.rs");
     }
 
-    mod prometheusrule {
-        include!("./generated/prometheusrule.rs");
+    // argo
+    mod application {
+        include!("./generated/application.rs");
     }
 
+    // certmanager
+    mod certificate {
+        include!("./generated/certificate.rs");
+    }
+
+    // istio
+    mod destinationrule {
+        include!("./generated/destinationrule.rs");
+    }
+
+    // gatewayapi
+    mod httproute {
+        include!("./generated/httproute.rs");
+    }
+
+    // linkerd
     mod serverauthorization {
         include!("./generated/serverauthorization.rs");
     }
 
-    mod servicemonitor {
-        include!("./generated/servicemonitor.rs");
-    }
     use agent::*;
     use application::*;
     use certificate::*;
@@ -208,7 +215,7 @@ mod tests {
     #[tokio::test]
     async fn verify_promstack_podmonitor() -> Result<()> {
         verify_gen::<PodMonitor>(
-            load_crd_from_env("tests/podmon-crd.yaml".into())?,
+            load_crd_from_env("tests/podmonitors.monitoring.coreos.com.yaml".into())?,
             load_resource_from_env("tests/podmon.yaml".into())?,
         )
         .await
@@ -217,7 +224,7 @@ mod tests {
     #[tokio::test]
     async fn verify_promstack_promrule() -> Result<()> {
         verify_gen::<PrometheusRule>(
-            load_crd_from_env("tests/generated/monitoring.coreos.com_prometheusrules.yaml".into())?,
+            load_crd_from_env("tests/prometheusrules.monitoring.coreos.com.yaml".into())?,
             load_resource_from_env("tests/pr.yaml".into())?,
         )
         .await
@@ -226,7 +233,7 @@ mod tests {
     #[tokio::test]
     async fn verify_promstack_servicemon() -> Result<()> {
         verify_gen::<ServiceMonitor>(
-            load_crd_from_env("tests/servicemon-crd.yaml".into())?,
+            load_crd_from_env("tests/servicemonitors.monitoring.coreos.com.yaml".into())?,
             load_resource_from_env("tests/servicemon.yaml".into())?,
         )
         .await
