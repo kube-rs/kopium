@@ -179,7 +179,7 @@ mod tests {
     #[tokio::test]
     async fn verify_certman_certificate() -> Result<()> {
         verify_gen::<Certificate>(
-            load_crd_from_env("tests/generated/cert-manager.crds.yaml".into())?,
+            load_crd_from_env("tests/certificates.cert-manager.io.yaml".into())?,
             load_resource_from_env("tests/cert.yaml".into())?,
         )
         .await
