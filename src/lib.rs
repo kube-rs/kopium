@@ -303,6 +303,10 @@ impl TypeGenerator {
                             continue;
                         }
 
+                        if !derive.is_applicable_to(container) {
+                            continue;
+                        }
+
                         if derive.derived_trait == "Default"
                             && self.smart_derive_elision
                             && !container.can_derive_default(&structs)
