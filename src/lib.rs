@@ -1,5 +1,4 @@
-#[cfg(feature = "cli")]
-use std::str::FromStr;
+#[cfg(feature = "cli")] use std::str::FromStr;
 
 use heck::ToUpperCamelCase;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::{
