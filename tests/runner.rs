@@ -170,7 +170,7 @@ mod tests {
     #[tokio::test]
     async fn verify_argo_application() -> Result<()> {
         verify_gen::<Application>(
-            load_crd_from_env("tests/generated/application-crd.yaml".into())?,
+            load_crd_from_env("tests/applications.argoproj.io.yaml".into())?,
             load_resource_from_env("tests/app.yaml".into())?,
         )
         .await
