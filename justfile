@@ -9,83 +9,80 @@ fmt:
 lint:
   cargo clippy
 
-test: generate-runner-bindings test-runner test-trycmd-verify
-
-generate-runner-binding crd_path resource out_file extra_args='':
-  RUNNER_GEN_CRD_PATH={{crd_path}} RUNNER_GEN_RESOURCE={{resource}} RUNNER_GEN_OUT_DIR=tests/generated RUNNER_GEN_OUT_FILE={{out_file}} RUNNER_GEN_EXTRA_ARGS="{{extra_args}}" cargo test --test generate_runner_bindings -- --ignored --nocapture
-
-download-crd-pr:
-  mkdir -p tests/generated
-  curl -sSL https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.52.0/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml -o tests/generated/monitoring.coreos.com_prometheusrules.yaml
-
-download-crd-argo:
-  mkdir -p tests/generated
-  curl -sSL https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/crds/application-crd.yaml -o tests/generated/application-crd.yaml
-
-download-crd-certmanager:
-  mkdir -p tests/generated
-  curl -sSL https://github.com/jetstack/cert-manager/releases/download/v1.7.1/cert-manager.crds.yaml -o tests/generated/cert-manager.crds.yaml
-
-generate-runner-bindings: generate-runner-bindings-parallel
-
-[parallel]
-generate-runner-bindings-parallel: \
-  generate-runner-binding-prometheusrule \
-  generate-runner-binding-servicemonitor \
-  generate-runner-binding-multiversion \
-  generate-runner-binding-agent \
-  generate-runner-binding-application \
-  generate-runner-binding-certificate \
-  generate-runner-binding-cluster \
-  generate-runner-binding-httproute \
-  generate-runner-binding-serverauthorization \
-  generate-runner-binding-destinationrule \
-generate-runner-binding-podmonitor
-
-generate-runner-binding-prometheusrule: download-crd-pr
-  just generate-runner-binding tests/generated/monitoring.coreos.com_prometheusrules.yaml prometheusrules.monitoring.coreos.com prometheusrule.rs
-
-generate-runner-binding-servicemonitor:
-  just generate-runner-binding tests/servicemon-crd.yaml servicemonitors.monitoring.coreos.com servicemonitor.rs -d
-
-generate-runner-binding-multiversion:
-  just generate-runner-binding tests/mv-crd.yaml multiversions.clux.dev multiversion.rs -A
-
-generate-runner-binding-agent:
-  just generate-runner-binding tests/agent-crd.yaml agents.agent-install.openshift.io agent.rs "-b -A"
-
-generate-runner-binding-application: download-crd-argo
-  just generate-runner-binding tests/generated/application-crd.yaml applications.argoproj.io application.rs
-
-generate-runner-binding-certificate: download-crd-certmanager
-  just generate-runner-binding tests/generated/cert-manager.crds.yaml certificates.cert-manager.io certificate.rs -d
-
-generate-runner-binding-cluster:
-  just generate-runner-binding tests/cluster-crd.yaml clusters.cluster.x-k8s.io cluster.rs -d
-
-generate-runner-binding-httproute:
-  just generate-runner-binding tests/httproute-crd.yaml httproutes.gateway.networking.k8s.io httproute.rs
-
-generate-runner-binding-serverauthorization:
-  just generate-runner-binding tests/serverauth-crd.yaml serverauthorizations.policy.linkerd.io serverauthorization.rs -d
-
-generate-runner-binding-destinationrule:
-  just generate-runner-binding tests/destinationrule-crd.yaml destinationrules.networking.istio.io destinationrule.rs
-
-generate-runner-binding-podmonitor:
-  just generate-runner-binding tests/podmon-crd.yaml podmonitors.monitoring.coreos.com podmonitor.rs
-
-test-runner:
-  cargo test --test runner
-
-test-trycmd:
-  TRYCMD=overwrite cargo test --test trycmd_tests
-
-test-trycmd-verify:
-  cargo test --test trycmd_tests
-
 examples:
   cd examples && cargo build
 
+[group('test'), doc('run all tests, and fully generate tests folder for integration tests')]
+test: download-crds gen-tests test-runner test-trycmd-verify
+
+[group('test'), doc('run integration tests with current tests/generated folder')]
+test-runner:
+  cargo test --test runner
+
+[group('test'), doc("run trycmd tests with OVERWRITE")]
+test-trycmd:
+  TRYCMD=overwrite cargo test --test trycmd_tests
+
+[group('test'), doc("run trycmd tests in VERIFY")]
+test-trycmd-verify:
+  cargo test --test trycmd_tests
+
+[private]
+_gen file +ARGS:
+  cargo run --bin kopium -- {{ARGS}} > tests/generated/{{file}}
+
+[group('test'), doc('generate rust files from crds via kopium')]
+gen-tests:
+  just _gen prometheusrule.rs -f tests/prometheusrules.monitoring.coreos.com.yaml
+  just _gen podmonitor.rs -f tests/podmonitors.monitoring.coreos.com.yaml
+  just _gen servicemonitor.rs -df tests/servicemonitors.monitoring.coreos.com.yaml
+  just _gen multiversion.rs -Af tests/mv-crd.yaml
+  just _gen agent.rs -bAf tests/agent-crd.yaml
+  just _gen application.rs -f tests/applications.argoproj.io.yaml
+  # ! just _gen unused.rs -f tests/argoproj.io_clusterworkflowtemplates.yaml
+  # ! just _gen unused2.rs --relaxed --filename tests/argoproj.io_clusterworkflowtemplates.yaml
+  just _gen certificate.rs -df tests/certificates.cert-manager.io.yaml
+  just _gen cluster.rs  -f tests/cluster-crd.yaml -d
+  just _gen httproute.rs -f tests/httproute-crd.yaml
+  just _gen serverauthorization.rs -df tests/serverauth-crd.yaml
+  just _gen policy.rs -bf tests/server-crd.yaml
+  just _gen destinationrule.rs -f tests/destinationrule-crd.yaml
+
+[group('download'), doc('download all crds for integration test runner')]
+download-crds: && download-crd-prom download-crd-argo download-crd-certmanager
+  mkdir -p tests/generated
+
+[group('download')]
+download-crd-prom:
+  #!/usr/bin/env bash
+  version="0.89.0"
+  curl -sSL https://github.com/prometheus-operator/prometheus-operator/releases/download/v${version}/stripped-down-crds.yaml \
+  | lq . -y --split '"tests/" + (.metadata.name) + ".yaml"'
+  rm -f tests/{alertmanager*,probes,prometheusagents,prometheuses,scrapeconfigs,thanosrulers}.monitoring.coreos.com.yaml
+
+[group('download')]
+download-crd-argo:
+  #!/usr/bin/env bash
+  curl -sSL https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/crds/application-crd.yaml | lq . -y --split '"tests/" + (.metadata.name) + ".yaml"'
+
+# inlining these instead atm
+# [group('download')]
+# download-crd-gateway:
+#   #!/usr/bin/env/bash
+#   version="1.4.1"
+#   curl -sSL https://github.com/kubernetes-sigs/gateway-api/releases/download/v${version}/standard-install.yaml > tests/generated/gateway-crds.yaml
+# [group('download')]
+# download-linkerd-crds:
+#   helm template linkerd-edge/linkerd-crds --version 2025.10.7 > tests/generated/linkerd-crds.yaml
+
+[group('download')]
+download-crd-certmanager:
+  #!/usr/bin/env bash
+  mkdir -p tests/generated/
+  version="1.19.1"
+  curl -sSL https://github.com/cert-manager/cert-manager/releases/download/v${version}/cert-manager.crds.yaml | lq . -y --split '"tests/" + (.metadata.name) + ".yaml"'
+  rm tests/{certificaterequests,challenges.acme,issuers,clusterissuers,orders.acme}.cert-manager.io.yaml
+
+[group('maintainer')]
 release:
   cargo release minor --execute

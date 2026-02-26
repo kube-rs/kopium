@@ -2,45 +2,52 @@
 #[cfg(test)]
 #[allow(warnings)]
 mod tests {
-    mod agent {
-        include!("./generated/agent.rs");
+    // promstack
+    mod prometheusrule {
+        include!("./generated/prometheusrule.rs");
+    }
+    mod podmonitor {
+        include!("./generated/podmonitor.rs");
+    }
+    mod servicemonitor {
+        include!("./generated/servicemonitor.rs");
     }
 
-    mod application {
-        include!("./generated/application.rs");
-    }
-
-    mod certificate {
-        include!("./generated/certificate.rs");
-    }
-
-    mod destinationrule {
-        include!("./generated/destinationrule.rs");
-    }
-
-    mod httproute {
-        include!("./generated/httproute.rs");
-    }
-
+    // ad-hoc versioning
     mod multiversion {
         include!("./generated/multiversion.rs");
     }
 
-    mod podmonitor {
-        include!("./generated/podmonitor.rs");
+    // openshift
+    mod agent {
+        include!("./generated/agent.rs");
     }
 
-    mod prometheusrule {
-        include!("./generated/prometheusrule.rs");
+    // argo
+    mod application {
+        include!("./generated/application.rs");
     }
 
+    // certmanager
+    mod certificate {
+        include!("./generated/certificate.rs");
+    }
+
+    // istio
+    mod destinationrule {
+        include!("./generated/destinationrule.rs");
+    }
+
+    // gatewayapi
+    mod httproute {
+        include!("./generated/httproute.rs");
+    }
+
+    // linkerd
     mod serverauthorization {
         include!("./generated/serverauthorization.rs");
     }
 
-    mod servicemonitor {
-        include!("./generated/servicemonitor.rs");
-    }
     use agent::*;
     use application::*;
     use certificate::*;
@@ -64,53 +71,6 @@ mod tests {
     };
     use serde::{de::DeserializeOwned, Deserialize, Serialize};
     use std::fmt::Debug;
-
-    async fn default_resource_for_cr_type() -> Result<()> {
-        tokio::try_join!(
-            verify_gen::<Agent>(
-                load_crd_from_env("tests/agent-crd.yaml".into())?,
-                load_resource_from_env("tests/agent.yaml".into())?,
-            ),
-            verify_gen::<Application>(
-                load_crd_from_env("tests/generated/application-crd.yaml".into())?,
-                load_resource_from_env("tests/app.yaml".into())?,
-            ),
-            verify_gen::<Certificate>(
-                load_crd_from_env("tests/generated/cert-manager.crds.yaml".into())?,
-                load_resource_from_env("tests/cert.yaml".into())?,
-            ),
-            verify_gen::<DestinationRule>(
-                load_crd_from_env("tests/destinationrule-crd.yaml".into())?,
-                load_resource_from_env("tests/destinationrule.yaml".into())?,
-            ),
-            verify_gen::<HTTPRoute>(
-                load_crd_from_env("tests/httproute-crd.yaml".into())?,
-                load_resource_from_env("tests/httproute.yaml".into())?,
-            ),
-            verify_gen::<MultiVersion>(
-                load_crd_from_env("tests/mv-crd.yaml".into())?,
-                load_resource_from_env("tests/mv.yaml".into())?,
-            ),
-            verify_gen::<PodMonitor>(
-                load_crd_from_env("tests/podmon-crd.yaml".into())?,
-                load_resource_from_env("tests/podmon.yaml".into())?,
-            ),
-            verify_gen::<PrometheusRule>(
-                load_crd_from_env("tests/generated/monitoring.coreos.com_prometheusrules.yaml".into())?,
-                load_resource_from_env("tests/pr.yaml".into())?,
-            ),
-            verify_gen::<ServerAuthorization>(
-                load_crd_from_env("tests/serverauth-crd.yaml".into())?,
-                load_resource_from_env("tests/serverauth.yaml".into())?,
-            ),
-            verify_gen::<ServiceMonitor>(
-                load_crd_from_env("tests/servicemon-crd.yaml".into())?,
-                load_resource_from_env("tests/servicemon.yaml".into())?,
-            ),
-        )?;
-
-        Ok(())
-    }
 
     fn load_crd_from_env(path: String) -> Result<serde_yaml::Value> {
         let contents = std::fs::read_to_string(path)?;
@@ -199,8 +159,92 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn verify() -> Result<()> {
-        default_resource_for_cr_type().await?;
-        Ok(())
+    async fn verify_openshift_agent() -> Result<()> {
+        verify_gen::<Agent>(
+            load_crd_from_env("tests/agent-crd.yaml".into())?,
+            load_resource_from_env("tests/agent.yaml".into())?,
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn verify_argo_application() -> Result<()> {
+        verify_gen::<Application>(
+            load_crd_from_env("tests/applications.argoproj.io.yaml".into())?,
+            load_resource_from_env("tests/app.yaml".into())?,
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn verify_certman_certificate() -> Result<()> {
+        verify_gen::<Certificate>(
+            load_crd_from_env("tests/certificates.cert-manager.io.yaml".into())?,
+            load_resource_from_env("tests/cert.yaml".into())?,
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn verify_istio_destinationrule() -> Result<()> {
+        verify_gen::<DestinationRule>(
+            load_crd_from_env("tests/destinationrule-crd.yaml".into())?,
+            load_resource_from_env("tests/destinationrule.yaml".into())?,
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn verify_gateway_route() -> Result<()> {
+        verify_gen::<HTTPRoute>(
+            load_crd_from_env("tests/httproute-crd.yaml".into())?,
+            load_resource_from_env("tests/httproute.yaml".into())?,
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn verify_multiversion_crd() -> Result<()> {
+        verify_gen::<MultiVersion>(
+            load_crd_from_env("tests/mv-crd.yaml".into())?,
+            load_resource_from_env("tests/mv.yaml".into())?,
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn verify_promstack_podmonitor() -> Result<()> {
+        verify_gen::<PodMonitor>(
+            load_crd_from_env("tests/podmonitors.monitoring.coreos.com.yaml".into())?,
+            load_resource_from_env("tests/podmon.yaml".into())?,
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn verify_promstack_promrule() -> Result<()> {
+        verify_gen::<PrometheusRule>(
+            load_crd_from_env("tests/prometheusrules.monitoring.coreos.com.yaml".into())?,
+            load_resource_from_env("tests/pr.yaml".into())?,
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn verify_promstack_servicemon() -> Result<()> {
+        verify_gen::<ServiceMonitor>(
+            load_crd_from_env("tests/servicemonitors.monitoring.coreos.com.yaml".into())?,
+            load_resource_from_env("tests/servicemon.yaml".into())?,
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn verify_linkerd_serverauth() -> Result<()> {
+        verify_gen::<ServerAuthorization>(
+            load_crd_from_env("tests/serverauth-crd.yaml".into())?,
+            load_resource_from_env("tests/serverauth.yaml".into())?,
+        )
+        .await
     }
 }
