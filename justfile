@@ -38,7 +38,7 @@ gen-tests:
   just _gen servicemonitor.rs -df tests/servicemonitors.monitoring.coreos.com.yaml
   just _gen multiversion.rs -Af tests/mv-crd.yaml
   just _gen agent.rs -bAf tests/agent-crd.yaml
-  just _gen application.rs -f tests/generated/application-crd.yaml
+  just _gen application.rs -f tests/applications.argoproj.io.yaml
   # ! just _gen unused.rs -f tests/argoproj.io_clusterworkflowtemplates.yaml
   # ! just _gen unused2.rs --relaxed --filename tests/argoproj.io_clusterworkflowtemplates.yaml
   just _gen certificate.rs -df tests/certificates.cert-manager.io.yaml
