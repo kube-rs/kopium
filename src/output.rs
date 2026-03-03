@@ -1,4 +1,4 @@
-use std::{cell::OnceCell, sync::OnceLock};
+use std::{cell::OnceCell, fmt::Write, sync::OnceLock};
 
 use heck::{ToPascalCase, ToSnakeCase};
 use regex::{Regex, RegexBuilder};
@@ -289,9 +289,24 @@ pub fn format_docstr(indent: &str, input: &str) -> String {
     )
 }
 
+pub fn format_selectable(
+    selectable_fields: &Vec<
+        k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::SelectableField,
+    >,
+) -> String {
+    let mut output = String::new();
+    for field in selectable_fields {
+        let _ = writeln!(output, "#[kube(selectable = {})]", field.json_path);
+    }
+    output
+}
+
 // unit tests
 #[cfg(test)]
 mod test {
+    use crate::format_selectable;
+    use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::SelectableField;
+
     use super::{format_docstr, Container, Member};
     fn name_only_enum_member(name: &str) -> Member {
         Member {
@@ -508,6 +523,24 @@ mod test {
                 "",
                 "Some docs\n```\nhttps://kube-rs.io/kopium testing string, not url\n```\n"
             )
+        );
+    }
+
+    #[test]
+    fn selectable_fields_exist() {
+        let selectable = vec![
+            SelectableField {
+                json_path: String::from("some.path"),
+            },
+            SelectableField {
+                json_path: String::from("some.other"),
+            },
+        ];
+
+        let output = format_selectable(&selectable);
+        assert_eq!(
+            "#[kube(selectable = some.path)]\n#[kube(selectable = some.other)]\n",
+            output
         );
     }
 }
