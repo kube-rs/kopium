@@ -14,7 +14,7 @@ mod output;
 pub use self::{
     analyzer::{analyze, Config},
     derive::Derive,
-    output::{format_docstr, Container, MapType, Member, Output},
+    output::{format_docstr, format_selectable, Container, MapType, Member, Output},
 };
 
 /// Supported values for `kube`'s [`schema`] attribute.
@@ -223,6 +223,8 @@ impl TypeGenerator {
             &crd.spec.scope,
         );
 
+        let selectable_fields = version.selectable_fields.as_ref();
+
         let mut generated = String::new();
 
         self.write_generation_warning(&mut generated, args)?;
@@ -315,6 +317,10 @@ impl TypeGenerator {
                         }
 
                         writeln!(&mut generated, r#"#[kube(derive="{}")]"#, derive.derived_trait)?;
+                    }
+
+                    if let Some(selectable) = selectable_fields {
+                        write!(&mut generated, "{}", format_selectable(selectable))?;
                     }
                 }
 
