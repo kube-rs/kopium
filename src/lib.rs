@@ -268,11 +268,24 @@ impl TypeGenerator {
 
                 //root struct gets kube derives unless opted out
                 if !self.hide_kube {
-                    writeln!(
-                        &mut generated,
-                        r#"#[kube(group = "{}", version = "{}", kind = "{}", plural = "{}")]"#,
-                        group, version_name, kind, plural
-                    )?;
+                    let kind_upper_camel_case = kind.to_upper_camel_case();
+                    if kind != &kind_upper_camel_case {
+                        writeln!(
+                            &mut generated,
+                            r#"#[kube(group = "{}", version = "{}", kind = "{}", root = "{}", plural = "{}")]"#,
+                            group,
+                            version_name,
+                            kind,
+                            kind.to_upper_camel_case(),
+                            plural
+                        )?;
+                    } else {
+                        writeln!(
+                            &mut generated,
+                            r#"#[kube(group = "{}", version = "{}", kind = "{}", plural = "{}")]"#,
+                            group, version_name, kind, plural
+                        )?;
+                    }
 
                     if scope == "Namespaced" {
                         writeln!(&mut generated, r#"#[kube(namespaced)]"#)?;

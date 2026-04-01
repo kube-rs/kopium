@@ -196,7 +196,7 @@ mod tests {
 
     #[tokio::test]
     async fn verify_gateway_route() -> Result<()> {
-        verify_gen::<HTTPRoute>(
+        verify_gen::<HttpRoute>(
             load_crd_from_env("tests/httproute-crd.yaml".into())?,
             load_resource_from_env("tests/httproute.yaml".into())?,
         )
