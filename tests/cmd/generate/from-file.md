@@ -826,10 +826,10 @@ use self::prelude::*;
 #[kube(namespaced)]
 #[kube(status = "ExternalSecretStatus")]
 #[kube(schema = "disabled")]
-#[kube(selectable = .spec.secretStoreRef.name)]
-#[kube(selectable = .spec.secretStoreRef.kind)]
-#[kube(selectable = .spec.target.name)]
-#[kube(selectable = .spec.refreshInterval)]
+#[kube(selectable = ".spec.secretStoreRef.name")]
+#[kube(selectable = ".spec.secretStoreRef.kind")]
+#[kube(selectable = ".spec.target.name")]
+#[kube(selectable = ".spec.refreshInterval")]
 pub struct ExternalSecretSpec {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub data: Option<Vec<ExternalSecretData>>,
