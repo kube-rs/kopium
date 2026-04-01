@@ -19,7 +19,7 @@ use self::prelude::*;
 /// 
 /// Represents an API.
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug, JsonSchema)]
-#[kube(group = "apigatewayv2.services.k8s.aws", version = "v1alpha1", kind = "API", plural = "apis")]
+#[kube(group = "apigatewayv2.services.k8s.aws", version = "v1alpha1", kind = "API", root = "Api", plural = "apis")]
 #[kube(namespaced)]
 #[kube(status = "ApiStatus")]
 pub struct ApiSpec {
@@ -209,7 +209,7 @@ use self::prelude::*;
 
 /// ArgoCDExportSpec defines the desired state of ArgoCDExport
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug, JsonSchema)]
-#[kube(group = "argoproj.io", version = "v1alpha1", kind = "ArgoCDExport", plural = "argocdexports")]
+#[kube(group = "argoproj.io", version = "v1alpha1", kind = "ArgoCDExport", root = "ArgoCdExport", plural = "argocdexports")]
 #[kube(namespaced)]
 #[kube(status = "ArgoCdExportStatus")]
 pub struct ArgoCdExportSpec {
@@ -655,7 +655,7 @@ mod prelude {
 use self::prelude::*;
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug, JsonSchema)]
-#[kube(group = "acid.zalan.do", version = "v1", kind = "postgresql", plural = "postgresqls")]
+#[kube(group = "acid.zalan.do", version = "v1", kind = "postgresql", root = "Postgresql", plural = "postgresqls")]
 #[kube(namespaced)]
 pub struct PostgresqlSpec {
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "additionalVolumes")]

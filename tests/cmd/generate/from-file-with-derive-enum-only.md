@@ -14,7 +14,7 @@ mod prelude {
 use self::prelude::*;
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
-#[kube(group = "acid.zalan.do", version = "v1", kind = "postgresql", plural = "postgresqls")]
+#[kube(group = "acid.zalan.do", version = "v1", kind = "postgresql", root = "Postgresql", plural = "postgresqls")]
 #[kube(namespaced)]
 #[kube(schema = "disabled")]
 pub struct PostgresqlSpec {
