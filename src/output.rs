@@ -296,7 +296,7 @@ pub fn format_selectable(
 ) -> String {
     let mut output = String::new();
     for field in selectable_fields {
-        let _ = writeln!(output, "#[kube(selectable = {})]", field.json_path);
+        let _ = writeln!(output, "#[kube(selectable = \"{}\")]", field.json_path);
     }
     output
 }
