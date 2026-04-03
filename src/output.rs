@@ -1,4 +1,4 @@
-use std::{cell::OnceCell, sync::OnceLock};
+use std::{cell::OnceCell, fmt::Write, sync::OnceLock};
 
 use heck::{ToPascalCase, ToSnakeCase};
 use regex::{Regex, RegexBuilder};
@@ -292,19 +292,30 @@ impl Output {
 }
 
 /// Type used for additionalProperties maps
-#[derive(clap::ValueEnum, Clone, Copy, Default, Debug)]
-#[clap(rename_all = "PascalCase")]
+#[derive(
+    // std
+    Eq,
+    Copy,
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    // strum
+    strum::Display,
+    strum::AsRefStr,
+)]
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
+#[cfg_attr(feature = "cli", clap(rename_all = "PascalCase"))]
+#[strum(ascii_case_insensitive, serialize_all = "PascalCase")]
 pub enum MapType {
     #[default]
     BTreeMap,
     HashMap,
 }
+
 impl MapType {
     pub fn name(&self) -> &str {
-        match self {
-            Self::BTreeMap => "BTreeMap",
-            Self::HashMap => "HashMap",
-        }
+        <Self as AsRef<str>>::as_ref(self)
     }
 }
 
@@ -330,9 +341,24 @@ pub fn format_docstr(indent: &str, input: &str) -> String {
     )
 }
 
+pub fn format_selectable(
+    selectable_fields: &Vec<
+        k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::SelectableField,
+    >,
+) -> String {
+    let mut output = String::new();
+    for field in selectable_fields {
+        let _ = writeln!(output, "#[kube(selectable = \"{}\")]", field.json_path);
+    }
+    output
+}
+
 // unit tests
 #[cfg(test)]
 mod test {
+    use crate::format_selectable;
+    use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::SelectableField;
+
     use super::{format_docstr, Container, Member};
     fn name_only_enum_member(name: &str) -> Member {
         Member {
@@ -526,7 +552,10 @@ mod test {
         );
         assert_eq!(
             "/// Some docs\n/// ```text\n/// foobar\n/// ```\n/// Some more docs\n/// ```text\n/// foobar.more\n/// ```",
-            format_docstr("", "Some docs\n```\nfoobar\n```\nSome more docs\n```\nfoobar.more\n```")
+            format_docstr(
+                "",
+                "Some docs\n```\nfoobar\n```\nSome more docs\n```\nfoobar.more\n```"
+            )
         );
     }
 
@@ -542,7 +571,28 @@ mod test {
         );
         assert_eq!(
             "/// Some docs\n/// ```text\n/// <https://kube-rs.io/kopium> testing string, not url\n/// ```\n/// ",
-            format_docstr("", "Some docs\n```\nhttps://kube-rs.io/kopium testing string, not url\n```\n")
+            format_docstr(
+                "",
+                "Some docs\n```\nhttps://kube-rs.io/kopium testing string, not url\n```\n"
+            )
+        );
+    }
+
+    #[test]
+    fn selectable_fields_exist() {
+        let selectable = vec![
+            SelectableField {
+                json_path: String::from("some.path"),
+            },
+            SelectableField {
+                json_path: String::from("some.other"),
+            },
+        ];
+
+        let output = format_selectable(&selectable);
+        assert_eq!(
+            "#[kube(selectable = some.path)]\n#[kube(selectable = some.other)]\n",
+            output
         );
     }
 }

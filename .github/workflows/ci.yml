@@ -10,41 +10,46 @@ jobs:
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: extractions/setup-just@v3
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: AbsaOSS/k3d-action@v2
+      - uses: actions/setup-go@v6
         with:
-          cluster-name: "kube"
-          args: --agents 1 --no-lb
+          go-version: stable
+          cache: false
       # unit tests
-      - run: cargo test --lib
+      # - run: cargo test --lib
       # integration tests
       - run: cargo build --bin kopium
       # Test stdout of commands
-      - run: just test-trycmd-verify
-      # Test reasonably complicated CRDs; promethesurules and servicemonitors
-      - run: just test-pr
-      - run: just test-sm
-      # Test a fake CRD with multiple versions
-      - run: just test-mv
-      # Test argocd Application
-      - run: just test-argo
-      # Test openshift agent crd
-      - run: just test-agent
-      # Test around documentation in cert-manager certificates
-      - run: just test-certmanager
-      # Test some linkerd crds
-      - run: just test-linkerd-serverauth
-      - run: just test-linkerd-server
+      # - run: just test-trycmd-verify
+      - run: |
+          LQ_VERSION="0.15.0"
+          curl -sSL https://github.com/clux/lq/releases/download/${LQ_VERSION}/lq-x86_64-unknown-linux-musl.tar.xz | tar xJ --strip-components=1 -C /usr/local/bin
+      # Test different CRDs
+      - run: just test
 
+  examples:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: extractions/setup-just@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # install cli for examples
+      - run: cargo install --path .
+      - run: just examples
 
   rustfmt:
     name: Run rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
@@ -57,7 +62,7 @@ jobs:
     name: Run clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: clippy

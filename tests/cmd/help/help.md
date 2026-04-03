@@ -6,17 +6,26 @@ Usage: kopium [OPTIONS] [CRD]
 
 Arguments:
   [CRD]
-          Give the name of the input CRD to use e.g. prometheusrules.monitoring.coreos.com
+          Give the name of the input CRD to use (e.g., `prometheusrules.monitoring.coreos.com`)
 
 Options:
   -f, --filename <FILE>
           Point to the location of a CRD to use on disk
 
+  -A, --auto
+          Enable all automation features
+          
+          This is a recommended, but early set of features that generates the most rust native code.
+          
+          It contains an unstable set of features and may get expanded in the future.
+          
+          Setting --auto enables: --schema=derived --derive=JsonSchema --docs
+
       --api-version <API_VERSION>
           Use this CRD version if multiple versions are present
 
       --hide-prelude
-          Do not emit prelude
+          Do not emit prelude(s)
 
       --hide-kube
           Do not derive CustomResource nor set kube-derive attributes
@@ -24,24 +33,26 @@ Options:
           If this is set, it makes any kube-derive specific options such as `--schema` unnecessary
 
   -d, --docs
-          Emit doc comments from descriptions
+          Emit doc comments from CRD field descriptions
 
   -b, --builders
-          Emit builder derives via the typed_builder crate
+          Emit builder derives via the `typed-builder` crate
 
-      --schema <SCHEMA>
+      --schema <SCHEMA_MODE>
           Schema mode to use for kube-derive
           
-          The default is --schema=disabled and will compile without a schema, but the resulting crd cannot be applied into a cluster.
+          The default is `disabled` and will compile without a schema, though the resulting CRD cannot be applied directly to a cluster.
           
-          --schema=manual requires the user to `impl JsonSchema for MyCrdSpec` elsewhere for the code to compile. Once this is done, the crd via `CustomResourceExt::crd()` can be applied into Kubernetes directly.
+          --schema=manual requires the user to `impl JsonSchema for <generated type>` elsewhere for the code to compile. Once this is done, the crd via `kube::CustomResourceExt::crd()` can be applied to a cluster directly.
           
           --schema=derived implies `--derive JsonSchema`. The resulting schema will compile without external user action. The crd via `CustomResourceExt::crd()` can be applied into Kubernetes directly.
           
+          See: https://docs.rs/kube/latest/kube/derive.CustomResource.html#kubeschema--mode and https://docs.rs/kube/latest/kube/trait.CustomResourceExt.html#tymethod.crd
+          
           [default: disabled]
-          [possible values: disabled, manual, derived]
+          [possible values: manual, derived, disabled]
 
-  -D, --derive <DERIVE>
+  -D, --derive <TRAIT>
           Derive these additional traits on generated objects
           
           There are three different ways of specifying traits to derive:
@@ -54,15 +65,6 @@ Options:
           
           See also: https://doc.rust-lang.org/reference/items/enumerations.html
 
-  -A, --auto
-          Enable all automatation features
-          
-          This is a recommended, but early set of features that generates the most rust native code.
-          
-          It contains an unstable set of of features and may get expanded in the future.
-          
-          Setting --auto enables: --schema=derived --derive=JsonSchema --docs
-
   -e, --elide <ELIDE>
           Elide the following containers from the output
           
@@ -71,10 +73,10 @@ Options:
       --relaxed
           Relaxed interpretation
           
-          This allows certain invalid openapi specs to be interpreted as arbitrary objects as used by argo workflows for example. the output first.
+          This allows certain invalid openapi specs to be interpreted as arbitrary objects as used by argo workflows, for example.
 
       --no-condition
-          Disable standardised Condition API
+          Disable standardized Condition API
           
           By default, kopium detects Condition objects and uses a standard Condition API from k8s_openapi instead of generating a custom definition.
 
@@ -84,13 +86,13 @@ Options:
           By default, kopium detects ObjectReference objects and uses a standard ObjectReference from k8s_openapi instead of generating a custom definition.
 
       --map-type <MAP_TYPE>
-          Type used to represent maps via additionalProperties
+          Type used to represent maps via `additionalProperties`
           
           [default: BTreeMap]
           [possible values: BTreeMap, HashMap]
 
       --smart-derive-elision
-          Automatically removes #[derive(Default)] from structs that contain fields for which a default can not be automatically derived.
+          Automatically removes `#[derive(Default)]` from structs that contain fields for which a default cannot be automatically derived.
           
           This option only has an effect if `--derive Default` is set.
 

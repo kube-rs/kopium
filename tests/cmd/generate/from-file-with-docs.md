@@ -11,13 +11,14 @@ mod prelude {
     pub use std::collections::BTreeMap;
     pub use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;
 }
+
 use self::prelude::*;
 
 /// ApiSpec defines the desired state of Api.
 /// 
 /// Represents an API.
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
-#[kube(group = "apigatewayv2.services.k8s.aws", version = "v1alpha1", kind = "API", plural = "apis")]
+#[kube(group = "apigatewayv2.services.k8s.aws", version = "v1alpha1", kind = "API", root = "Api", plural = "apis")]
 #[kube(namespaced)]
 #[kube(status = "ApiStatus")]
 #[kube(schema = "disabled")]
@@ -202,11 +203,12 @@ mod prelude {
     pub use std::collections::BTreeMap;
     pub use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 }
+
 use self::prelude::*;
 
 /// ArgoCDExportSpec defines the desired state of ArgoCDExport
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
-#[kube(group = "argoproj.io", version = "v1alpha1", kind = "ArgoCDExport", plural = "argocdexports")]
+#[kube(group = "argoproj.io", version = "v1alpha1", kind = "ArgoCDExport", root = "ArgoCdExport", plural = "argocdexports")]
 #[kube(namespaced)]
 #[kube(status = "ArgoCdExportStatus")]
 #[kube(schema = "disabled")]
@@ -459,6 +461,7 @@ mod prelude {
     pub use serde::{Serialize, Deserialize};
     pub use k8s_openapi::apimachinery::pkg::apis::meta::v1::Condition;
 }
+
 use self::prelude::*;
 
 /// AuthorizerSpec defines the desired state of Authorizer.
@@ -647,10 +650,11 @@ mod prelude {
     pub use serde::{Serialize, Deserialize};
     pub use std::collections::BTreeMap;
 }
+
 use self::prelude::*;
 
 #[derive(CustomResource, Serialize, Deserialize, Clone, Debug)]
-#[kube(group = "acid.zalan.do", version = "v1", kind = "postgresql", plural = "postgresqls")]
+#[kube(group = "acid.zalan.do", version = "v1", kind = "postgresql", root = "Postgresql", plural = "postgresqls")]
 #[kube(namespaced)]
 #[kube(schema = "disabled")]
 pub struct PostgresqlSpec {
