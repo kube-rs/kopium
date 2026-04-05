@@ -9,9 +9,6 @@ fmt:
 lint:
   cargo clippy
 
-lq:
-  cargo install lq
-
 examples:
   cd examples && cargo build
 
@@ -53,7 +50,7 @@ gen-tests:
   just _gen destinationrule.rs -f tests/destinationrule-crd.yaml
 
 [group('download'), doc('download all crds for integration test runner')]
-download-crds: lq && download-crd-prom download-crd-argo download-crd-certmanager
+download-crds: && download-crd-prom download-crd-argo download-crd-certmanager
   mkdir -p tests/generated
 
 [group('download')]
