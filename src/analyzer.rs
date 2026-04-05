@@ -20,12 +20,11 @@ pub struct Config {
 
 /// Scan a schema for structs and members, and recurse to find all structs
 ///
-/// All found output structs will have their names prefixed by the kind it is for
+/// All found output structs will have its names prefixed by the kind it is for
 pub fn analyze(schema: JSONSchemaProps, kind: &str, cfg: Config) -> anyhow::Result<Output> {
-    let mut res = vec![];
-
+    let mut res = Output::default();
     analyze_(&schema, "", kind, 0, &mut res, &cfg)?;
-    Ok(Output(res))
+    Ok(res)
 }
 
 /// Scan a schema for structs and members, recursing to find all structs.
@@ -40,7 +39,7 @@ fn analyze_(
     current: &str,
     stack: &str,
     level: u8,
-    results: &mut Vec<Container>,
+    results: &mut Output,
     cfg: &Config,
 ) -> anyhow::Result<()> {
     let props = schema.properties.clone().unwrap_or_default();
@@ -71,7 +70,7 @@ fn analyze_(
                     schema,
                     cfg,
                 )?;
-                results.push(c);
+                results.insert(c); // deduplicated insert
             } else if dict_type == "object" {
                 // recurse to see if we eventually find properties
                 log::debug!(
@@ -100,7 +99,7 @@ fn analyze_(
                 schema,
                 cfg,
             )?;
-            results.push(c);
+            results.insert(c); // deduplicated insert
         }
     }
     //trace!("full schema here: {}", serde_yaml::to_string(&schema).unwrap());
@@ -149,9 +148,9 @@ fn find_containers(
     level: u8,
     schema: &JSONSchemaProps,
     cfg: &Config,
-) -> anyhow::Result<Vec<Container>> {
+) -> anyhow::Result<Output> {
     //trace!("finding containers in: {}", serde_yaml::to_string(&props)?);
-    let mut results = vec![];
+    let mut results = Output::default();
     for (key, value) in props {
         if level == 0 && IGNORED_KEYS.contains(&(key.as_ref())) {
             log::debug!("not recursing into ignored {}", key); // handled elsewhere
@@ -220,7 +219,7 @@ fn find_containers(
                     // ....although this makes it impossible for us to handle enums at the top level
                     // TODO: move this to the top level
                     let new_result = analyze_enum_properties(en, &next_stack, level, schema)?;
-                    results.push(new_result);
+                    results.insert(new_result); // deduplicated insert
                 } else {
                     log::debug!("..not recursing into {} ('{}' is not a container)", key, x)
                 }
@@ -649,7 +648,7 @@ mod test {
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
         //println!("schema: {}", serde_json::to_string_pretty(&schema).unwrap());
 
-        let structs = analyze(schema, "Agent", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "Agent", Cfg::default()).unwrap().output();
         //println!("{:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "Agent");
@@ -693,7 +692,7 @@ mod test {
 
         let structs = analyze(schema, "ClusterStatusTopology", Cfg::default())
             .unwrap()
-            .0;
+            .output();
         //println!("{:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "ClusterStatusTopology");
@@ -719,8 +718,9 @@ mod test {
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
 
-        let structs = analyze(schema, "AliasRoutingConfig", Cfg::default()).unwrap().0;
-        //println!("{:?}", structs);
+        let structs = analyze(schema, "AliasRoutingConfig", Cfg::default())
+            .unwrap()
+            .output(); //println!("{:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "AliasRoutingConfig");
         assert_eq!(root.level, 0);
@@ -753,7 +753,7 @@ type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
         //println!("schema: {}", serde_json::to_string_pretty(&schema).unwrap());
-        let structs = analyze(schema, "Server", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "Server", Cfg::default()).unwrap().output();
         //println!("{:#?}", structs);
 
         let root = &structs[0];
@@ -785,7 +785,7 @@ type: object
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
         println!("got {schema:?}");
 
-        let structs = analyze(schema, "Spec", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "Spec", Cfg::default()).unwrap().output();
         println!("got: {structs:?}");
         let root = &structs[0];
         assert_eq!(root.name, "Spec");
@@ -829,7 +829,7 @@ type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
         // println!("schema: {}", serde_json::to_string_pretty(&schema).unwrap());
-        let structs = analyze(schema, "Variables", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "Variables", Cfg::default()).unwrap().output();
         // println!("{:#?}", structs);
 
         let root = &structs[0];
@@ -863,7 +863,7 @@ type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
 
-        let structs = analyze(schema, "Server", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "Server", Cfg::default()).unwrap().output();
         let root = &structs[0];
         assert_eq!(root.name, "Server");
         // should have an IntOrString member:
@@ -897,7 +897,7 @@ type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
 
-        let structs = analyze(schema, "Host", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "Host", Cfg::default()).unwrap().output();
 
         let root = &structs[0];
         assert_eq!(root.name, "Host");
@@ -926,7 +926,7 @@ type: object
             type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let structs = analyze(schema, "Options", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "Options", Cfg::default()).unwrap().output();
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "Options");
@@ -953,7 +953,9 @@ type: object
 "#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let structs = analyze(schema, "MatchExpressions", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "MatchExpressions", Cfg::default())
+            .unwrap()
+            .output();
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "MatchExpressions");
@@ -1006,7 +1008,7 @@ type: object
         "#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let structs = analyze(schema, "Endpoint", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "Endpoint", Cfg::default()).unwrap().output();
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "Endpoint");
@@ -1090,7 +1092,7 @@ type: object
     type: object"#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let structs = analyze(schema, "ServerSpec", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "ServerSpec", Cfg::default()).unwrap().output();
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "ServerSpec");
@@ -1161,7 +1163,9 @@ type: object
         type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let structs = analyze(schema, "ServiceMonitor", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "ServiceMonitor", Cfg::default())
+            .unwrap()
+            .output();
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "ServiceMonitor");
@@ -1226,7 +1230,9 @@ type: object
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
 
         //println!("schema: {}", serde_json::to_string_pretty(&schema).unwrap());
-        let structs = analyze(schema, "DestinationRule", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "DestinationRule", Cfg::default())
+            .unwrap()
+            .output();
         //println!("{:#?}", structs);
 
         // this should produce the root struct
@@ -1261,7 +1267,7 @@ type: object
         "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
         println!("got schema {}", serde_yaml::to_string(&schema).unwrap());
-        let structs = analyze(schema, "StatusCode", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "StatusCode", Cfg::default()).unwrap().output();
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "StatusCode");
@@ -1287,7 +1293,9 @@ type: object
         "#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let structs = analyze(schema, "KustomizationSpec", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "KustomizationSpec", Cfg::default())
+            .unwrap()
+            .output();
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "KustomizationSpec");
@@ -1311,7 +1319,7 @@ type: object
         "#;
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let structs = analyze(schema, "Schema", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "Schema", Cfg::default()).unwrap().output();
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "Schema");
@@ -1350,7 +1358,9 @@ type: object
             type: object
         type: object"#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
-        let structs = analyze(schema, "AppProjectStatus", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "AppProjectStatus", Cfg::default())
+            .unwrap()
+            .output();
         println!("got {:?}", structs);
         let root = &structs[0];
         assert_eq!(root.name, "AppProjectStatus");
@@ -1384,7 +1394,7 @@ type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
 
-        let structs = analyze(schema, "Agent", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "Agent", Cfg::default()).unwrap().output();
 
         let root = &structs[0];
         assert_eq!(root.name, "Agent");
@@ -1412,7 +1422,7 @@ type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
 
-        let structs = analyze(schema, "ArgoCDExport", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "ArgoCDExport", Cfg::default()).unwrap().output();
 
         let root = &structs[0];
         assert_eq!(root.name, "ArgoCdExport");
@@ -1442,7 +1452,7 @@ type: object
 "#;
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
 
-        let structs = analyze(schema, "Geoip", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "Geoip", Cfg::default()).unwrap().output();
 
         assert_eq!(structs.len(), 1);
         assert_eq!(structs[0].members.len(), 1);
@@ -1480,7 +1490,7 @@ type: object
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
 
-        let structs = analyze(schema, "Gateway", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "Gateway", Cfg::default()).unwrap().output();
         assert_eq!(structs.len(), 1);
         assert_eq!(structs[0].members.len(), 1);
         assert_eq!(structs[0].members[0].type_, "Option<Vec<Condition>>");
@@ -1513,7 +1523,7 @@ type: object
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
 
-        let structs = analyze(schema, "Reference", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "Reference", Cfg::default()).unwrap().output();
         assert_eq!(structs[0].members[0].type_, "Option<ObjectReference>");
     }
 
@@ -1547,7 +1557,7 @@ type: object
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
 
-        let structs = analyze(schema, "Reference", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "Reference", Cfg::default()).unwrap().output();
         assert_eq!(structs[0].members[0].type_, "Option<Vec<ObjectReference>>");
     }
 
@@ -1566,7 +1576,7 @@ type: object
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
 
-        let structs = analyze(schema, "postgresql", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "postgresql", Cfg::default()).unwrap().output();
         assert_eq!(structs[0].members[0].type_, "PostgresqlProp");
     }
 
@@ -1605,7 +1615,9 @@ type: object
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
 
-        let structs = analyze(schema, "CephClusterSpec", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "CephClusterSpec", Cfg::default())
+            .unwrap()
+            .output();
 
         // log::debug!("got: {:#?}", structs);
 
@@ -1635,7 +1647,7 @@ type: object
 
         let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
 
-        let structs = analyze(schema, "KubeadmConfig", Cfg::default()).unwrap().0;
+        let structs = analyze(schema, "KubeadmConfig", Cfg::default()).unwrap().output();
 
         let root = &structs[0];
         assert_eq!(root.name, "KubeadmConfig");

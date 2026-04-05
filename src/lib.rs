@@ -245,7 +245,7 @@ impl TypeGenerator {
         let structs = analyze(schema, kind, cfg)?
             .rename()
             .builder_fields(self.builders)
-            .0;
+            .output();
 
         if !self.hide_prelude {
             self.write_prelude(&structs, &mut generated)?;
