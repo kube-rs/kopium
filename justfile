@@ -14,6 +14,7 @@ examples:
 
 [group('test'), doc('run all tests, and fully generate tests folder for integration tests')]
 test: download-crds gen-tests test-runner test-trycmd-verify
+  cargo t
 
 [group('test'), doc('run integration tests with current tests/generated folder')]
 test-runner:
