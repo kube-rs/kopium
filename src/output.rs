@@ -591,7 +591,9 @@ mod test {
 
         let output = format_selectable(&selectable);
         assert_eq!(
-            "#[kube(selectable = some.path)]\n#[kube(selectable = some.other)]\n",
+            r#"#[kube(selectable = "some.path")]
+#[kube(selectable = "some.other")]
+"#,
             output
         );
     }

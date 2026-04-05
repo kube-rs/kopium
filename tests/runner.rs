@@ -94,7 +94,7 @@ mod tests {
         CR: ResourceExt<Scope = NamespaceResourceScope>,
         CR: Clone + Debug + Serialize + DeserializeOwned,
     {
-        let env = Environment::default().with_crds(crds)?.create()?;
+        let env = Environment::default().with_crds(crds)?.create().await?;
         let client = env.client()?;
 
         let api: Api<CustomResourceDefinition> = Api::all(client.clone());
