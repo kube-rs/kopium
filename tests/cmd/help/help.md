@@ -35,6 +35,9 @@ Options:
   -d, --docs
           Emit doc comments from CRD field descriptions
 
+  -m, --preserve-metadata
+          Preserve top-level annotations and labels from source CRD
+
   -b, --builders
           Emit builder derives via the `typed-builder` crate
 
