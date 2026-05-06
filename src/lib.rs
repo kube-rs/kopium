@@ -104,6 +104,10 @@ pub struct TypeGenerator {
     #[cfg_attr(feature = "cli", arg(short = 'd', long = "docs"))]
     pub emit_docs: bool,
 
+    /// Preserve top-level annotations and labels from source CRD
+    #[cfg_attr(feature = "cli", arg(short = 'm', long = "preserve-metadata"))]
+    pub preserve_metadata: bool,
+
     /// Emit builder derives via the [`typed-builder`](typed_builder) crate
     #[cfg_attr(
         feature = "cli",
@@ -289,6 +293,14 @@ impl TypeGenerator {
 
                     if scope == "Namespaced" {
                         writeln!(&mut generated, r#"#[kube(namespaced)]"#)?;
+                    }
+                    if self.preserve_metadata {
+                        for (k, v) in crd.annotations() {
+                            writeln!(&mut generated, r#"#[kube(annotation("{}", "{}"))]"#, k, v)?;
+                        }
+                        for (k, v) in crd.labels() {
+                            writeln!(&mut generated, r#"#[kube(label("{}", "{}"))]"#, k, v)?;
+                        }
                     }
 
                     // status should be listed as a subresource
