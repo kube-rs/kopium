@@ -42,11 +42,11 @@ heck = "0.5.0"
 k8s-openapi = { version = "0.27.1", features = ["latest"] }
 kube = { version = "3.1.0", features = ["derive"] }
 libc = "0.2.186"
-log = "0.4.29"
+log = "0.4.30"
 quote = "1.0.45"
 regex = "1.12.3"
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
+serde_json = "1.0.150"
 serde_yaml = "0.9.34"
 strum = { version = "0.28.0", features = ["derive"] }
 syn = "2.0.117"
