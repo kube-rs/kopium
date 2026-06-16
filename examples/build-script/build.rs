@@ -14,7 +14,8 @@ fn main() -> Result<()> {
 
     // crd source
     let crds_yaml = std::fs::read_to_string("./stripped-down-crds.yaml").context("could read crd yaml")?;
-    let crd_values = multidoc_deserialize(&crds_yaml).context("could deserialize crd yaml as yaml")?;
+    let crd_values: Vec<serde_json::Value> =
+        serde_saphyr::from_multiple(&crds_yaml).context("could deserialize crd yaml as yaml")?;
 
     // kopium configuration
     let generator = kopium::TypeGenerator::builder()
@@ -37,7 +38,7 @@ fn main() -> Result<()> {
     // generate each crd
     for crd_value in crd_values {
         let crd: CustomResourceDefinition =
-            serde_yaml::from_value(crd_value).context("could not read crd as CustomResourceDefinition")?;
+            serde_json::from_value(crd_value).context("could not read crd as CustomResourceDefinition")?;
         // prom operator has unique kind names
         let name = crd.spec.names.kind.to_lowercase();
         let path = crd_dir.join(&name).with_extension("rs");
@@ -68,15 +69,6 @@ fn main() -> Result<()> {
     fs::write(&import_rs, header)?;
     fs::write(&import_rs, imports)?;
     Ok(())
-}
-
-fn multidoc_deserialize(data: &str) -> Result<Vec<serde_yaml::Value>> {
-    use serde::Deserialize;
-    let mut docs = vec![];
-    for de in serde_yaml::Deserializer::from_str(data) {
-        docs.push(serde_yaml::Value::deserialize(de)?);
-    }
-    Ok(docs)
 }
 
 fn initialize_source_dir() -> Result<PathBuf> {
