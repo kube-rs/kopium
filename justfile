@@ -87,3 +87,4 @@ download-crd-certmanager:
 [group('maintainer')]
 release:
   cargo release minor --execute
+  just gen-tests
