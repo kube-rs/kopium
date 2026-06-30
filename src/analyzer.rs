@@ -72,13 +72,19 @@ fn analyze_(
                 )?;
                 results.insert(c); // deduplicated insert
             } else if dict_type == "object" {
-                // recurse to see if we eventually find properties
-                log::debug!(
-                    "Recursing into nested additional properties for {} (under {})",
-                    current,
-                    camel_cased_stack
-                );
-                analyze_(s, current, camel_cased_stack, level, results, cfg)?;
+                // An empty object value (no properties / no nested additionalProperties) is a
+                // free-form object per the OpenAPI v3 spec; it is emitted as serde_json::Value
+                // (see resolve_additional_properties) and has no struct to generate, so don't
+                // recurse into it - doing so would emit a phantom empty struct. See #348.
+                if s.properties.is_some() || s.additional_properties.is_some() {
+                    // recurse to see if we eventually find properties
+                    log::debug!(
+                        "Recursing into nested additional properties for {} (under {})",
+                        current,
+                        camel_cased_stack
+                    );
+                    analyze_(s, current, camel_cased_stack, level, results, cfg)?;
+                }
             } else if !dict_type.is_empty() {
                 log::warn!("not generating type {} - using {} map", current, dict_type);
                 return Ok(()); // no members here - it'll be inlined
@@ -396,7 +402,16 @@ fn resolve_additional_properties(
         // Authoritative, but more detailed sources than the CRD validation docs below are welcome.
         // https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation
         "array" => Some(array_recurse_for_type(s, stack, key, 1, cfg)?.0),
-        "object" => Some(extract_object_type(s, stack, key, cfg)?),
+        "object" => {
+            // An empty object value (no properties / no nested additionalProperties) is a
+            // free-form object per the OpenAPI v3 spec, so represent it as serde_json::Value
+            // rather than referencing a struct that is never generated. See #348.
+            if s.properties.is_none() && s.additional_properties.is_none() {
+                Some("serde_json::Value".into())
+            } else {
+                Some(extract_object_type(s, stack, key, cfg)?)
+            }
+        }
         "" => {
             if s.x_kubernetes_int_or_string.is_some() {
                 Some("IntOrString".into())
@@ -792,6 +807,62 @@ type: object
         let member = &root.members[0];
         assert_eq!(member.name, "plugin");
         assert_eq!(member.type_, "Option<BTreeMap<String, serde_json::Value>>");
+    }
+
+    #[test]
+    fn empty_additional_properties_object() {
+        init();
+        // regression test for https://github.com/kube-rs/kopium/issues/348
+        // a property of type object whose additionalProperties is an *empty* object
+        // (no properties / no nested additionalProperties / no preserve-unknown annotation)
+        // is a free-form object per the OpenAPI v3 spec, so the map value should be
+        // serde_json::Value rather than a reference to a struct that is never generated.
+        //
+        // schema shape mirrors tidbcluster's status.pd.failureMembers[].pvcUIDSet
+        // (a `map[UID]struct{}` set), see the linked issue.
+        let schema_str = r#"
+        properties:
+          failureMembers:
+            additionalProperties:
+              properties:
+                pvcUIDSet:
+                  additionalProperties:
+                    type: object
+                  type: object
+              type: object
+            type: object
+        type: object
+"#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+
+        let structs = analyze(schema, "ClusterStatus", Cfg::default()).unwrap().output();
+        println!("got {structs:?}");
+
+        let root = &structs[0];
+        assert_eq!(root.name, "ClusterStatus");
+        assert_eq!(root.members[0].name, "failureMembers");
+        assert_eq!(
+            root.members[0].type_,
+            "Option<BTreeMap<String, ClusterStatusFailureMembers>>"
+        );
+
+        // the map value object is a real struct
+        let failure_members = &structs[1];
+        assert_eq!(failure_members.name, "ClusterStatusFailureMembers");
+        // its pvcUIDSet member must be a free-form map, not a dangling struct reference
+        assert_eq!(failure_members.members[0].name, "pvcUIDSet");
+        assert_eq!(
+            failure_members.members[0].type_,
+            "Option<BTreeMap<String, serde_json::Value>>"
+        );
+
+        // and crucially: no phantom struct should be generated for the empty value object
+        assert!(
+            !structs
+                .iter()
+                .any(|c| c.name == "ClusterStatusFailureMembersPvcUidSet"),
+            "a non-existent type was generated for the empty additionalProperties object"
+        );
     }
 
     #[test]
