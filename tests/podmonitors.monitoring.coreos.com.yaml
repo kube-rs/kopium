@@ -78,7 +78,8 @@ spec:
                 anyOf:
                 - type: integer
                 - type: string
-                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                pattern: >-
+                  ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                 x-kubernetes-int-or-string: true
               podMetricsEndpoints:
                 items:
@@ -90,7 +91,7 @@ spec:
                             key:
                               type: string
                             name:
-                              default: ''
+                              default: ""
                               type: string
                             optional:
                               type: boolean
@@ -108,7 +109,7 @@ spec:
                             key:
                               type: string
                             name:
-                              default: ''
+                              default: ""
                               type: string
                             optional:
                               type: boolean
@@ -121,7 +122,7 @@ spec:
                             key:
                               type: string
                             name:
-                              default: ''
+                              default: ""
                               type: string
                             optional:
                               type: boolean
@@ -135,7 +136,7 @@ spec:
                         key:
                           type: string
                         name:
-                          default: ''
+                          default: ""
                           type: string
                         optional:
                           type: boolean
@@ -154,7 +155,8 @@ spec:
                     honorTimestamps:
                       type: boolean
                     interval:
-                      pattern: ^(0|(([0-9]+)y)?(([0-9]+)w)?(([0-9]+)d)?(([0-9]+)h)?(([0-9]+)m)?(([0-9]+)s)?(([0-9]+)ms)?)$
+                      pattern: >-
+                        ^(0|(([0-9]+)y)?(([0-9]+)w)?(([0-9]+)d)?(([0-9]+)h)?(([0-9]+)m)?(([0-9]+)s)?(([0-9]+)ms)?)$
                       type: string
                     metricRelabelings:
                       items:
@@ -213,7 +215,7 @@ spec:
                                 key:
                                   type: string
                                 name:
-                                  default: ''
+                                  default: ""
                                   type: string
                                 optional:
                                   type: boolean
@@ -226,7 +228,7 @@ spec:
                                 key:
                                   type: string
                                 name:
-                                  default: ''
+                                  default: ""
                                   type: string
                                 optional:
                                   type: boolean
@@ -240,7 +242,7 @@ spec:
                             key:
                               type: string
                             name:
-                              default: ''
+                              default: ""
                               type: string
                             optional:
                               type: boolean
@@ -261,7 +263,7 @@ spec:
                                 key:
                                   type: string
                                 name:
-                                  default: ''
+                                  default: ""
                                   type: string
                                 optional:
                                   type: boolean
@@ -290,7 +292,7 @@ spec:
                                     key:
                                       type: string
                                     name:
-                                      default: ''
+                                      default: ""
                                       type: string
                                     optional:
                                       type: boolean
@@ -303,7 +305,7 @@ spec:
                                     key:
                                       type: string
                                     name:
-                                      default: ''
+                                      default: ""
                                       type: string
                                     optional:
                                       type: boolean
@@ -319,7 +321,7 @@ spec:
                                     key:
                                       type: string
                                     name:
-                                      default: ''
+                                      default: ""
                                       type: string
                                     optional:
                                       type: boolean
@@ -332,7 +334,7 @@ spec:
                                     key:
                                       type: string
                                     name:
-                                      default: ''
+                                      default: ""
                                       type: string
                                     optional:
                                       type: boolean
@@ -348,7 +350,7 @@ spec:
                                 key:
                                   type: string
                                 name:
-                                  default: ''
+                                  default: ""
                                   type: string
                                 optional:
                                   type: boolean
@@ -403,7 +405,7 @@ spec:
                             key:
                               type: string
                             name:
-                              default: ''
+                              default: ""
                               type: string
                             optional:
                               type: boolean
@@ -473,7 +475,8 @@ spec:
                       - HTTPS
                       type: string
                     scrapeTimeout:
-                      pattern: ^(0|(([0-9]+)y)?(([0-9]+)w)?(([0-9]+)d)?(([0-9]+)h)?(([0-9]+)m)?(([0-9]+)s)?(([0-9]+)ms)?)$
+                      pattern: >-
+                        ^(0|(([0-9]+)y)?(([0-9]+)w)?(([0-9]+)d)?(([0-9]+)h)?(([0-9]+)m)?(([0-9]+)s)?(([0-9]+)ms)?)$
                       type: string
                     targetPort:
                       anyOf:
@@ -489,7 +492,7 @@ spec:
                                 key:
                                   type: string
                                 name:
-                                  default: ''
+                                  default: ""
                                   type: string
                                 optional:
                                   type: boolean
@@ -502,7 +505,7 @@ spec:
                                 key:
                                   type: string
                                 name:
-                                  default: ''
+                                  default: ""
                                   type: string
                                 optional:
                                   type: boolean
@@ -518,7 +521,7 @@ spec:
                                 key:
                                   type: string
                                 name:
-                                  default: ''
+                                  default: ""
                                   type: string
                                 optional:
                                   type: boolean
@@ -531,7 +534,7 @@ spec:
                                 key:
                                   type: string
                                 name:
-                                  default: ''
+                                  default: ""
                                   type: string
                                 optional:
                                   type: boolean
@@ -547,7 +550,7 @@ spec:
                             key:
                               type: string
                             name:
-                              default: ''
+                              default: ""
                               type: string
                             optional:
                               type: boolean
