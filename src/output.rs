@@ -71,6 +71,8 @@ pub struct Container {
     pub docs: Option<String>,
     /// Whether this container is an enum
     pub is_enum: bool,
+    /// Set when the container is emitted as `pub type Name = <alias>;` instead of a struct
+    pub type_alias: Option<String>,
     pub supports_derive_default: OnceCell<bool>,
 }
 
@@ -103,10 +105,12 @@ pub struct Member {
 impl Container {
     pub fn uses_btreemaps(&self) -> bool {
         self.members.iter().any(|m| m.type_.contains("BTreeMap"))
+            || self.type_alias.as_ref().is_some_and(|t| t.contains("BTreeMap"))
     }
 
     pub fn uses_hashmaps(&self) -> bool {
         self.members.iter().any(|m| m.type_.contains("HashMap"))
+            || self.type_alias.as_ref().is_some_and(|t| t.contains("HashMap"))
     }
 
     pub fn uses_datetime(&self) -> bool {
