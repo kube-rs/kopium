@@ -94,6 +94,18 @@ fn analyze_(
             log::debug!("Generating struct for {} (under {})", current, camel_cased_stack);
             // initial analysis of properties (we do not recurse here, we need to find members first)
             if props.is_empty() && schema.x_kubernetes_preserve_unknown_fields.unwrap_or(false) {
+                if level == 1 && camel_cased_stack.ends_with("Status") {
+                    // no parent struct to inline a map into, and #[kube(status)] needs a type
+                    log::debug!("generating type alias for {} - using map", camel_cased_stack);
+                    results.insert(Container {
+                        name: camel_cased_stack.to_string(),
+                        level,
+                        docs: schema.description.clone(),
+                        type_alias: Some(format!("{}<String, serde_json::Value>", cfg.map.name())),
+                        ..Container::default()
+                    });
+                    return Ok(());
+                }
                 log::warn!("not generating type {} - using map", current);
                 return Ok(());
             }
@@ -783,6 +795,32 @@ type: object
         let match_labels = &server_selector.members[0];
         assert_eq!(match_labels.name, "matchLabels");
         assert_eq!(match_labels.type_, "BTreeMap<String, serde_json::Value>");
+    }
+
+    #[test]
+    fn empty_preserve_unknown_fields_status() {
+        init();
+        let schema_str = r#"
+properties:
+  spec:
+    properties:
+      size:
+        type: integer
+    type: object
+  status:
+    type: object
+    x-kubernetes-preserve-unknown-fields: true
+type: object
+"#;
+        let schema: JSONSchemaProps = serde_yaml::from_str(schema_str).unwrap();
+        let structs = analyze(schema, "Widget", Cfg::default()).unwrap().output();
+        // there is no parent struct to inline a map into, so the status needs a type of its own
+        let status = structs
+            .iter()
+            .find(|c| c.name == "WidgetStatus")
+            .expect("WidgetStatus is generated");
+        assert_eq!(status.level, 1);
+        assert!(crate::has_status_resource(&structs));
     }
 
     #[test]

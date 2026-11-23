@@ -267,6 +267,11 @@ impl TypeGenerator {
 
             self.write_docstr(&container.docs, "", &mut generated)?;
 
+            if let Some(alias) = &container.type_alias {
+                writeln!(&mut generated, "pub type {} = {};\n", container.name, alias)?;
+                continue;
+            }
+
             if container.is_main_container() {
                 self.write_derives(container, &structs, &mut generated)?;
 
@@ -589,5 +594,7 @@ pub fn all_crd_versions(crd: &CustomResourceDefinition) -> String {
 pub fn has_status_resource(results: &[Container]) -> bool {
     results
         .iter()
-        .any(|container| container.is_status_container() && !container.members.is_empty())
+        .any(|container| {
+            container.is_status_container() && (!container.members.is_empty() || container.type_alias.is_some())
+        })
 }
